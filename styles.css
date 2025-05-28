@@ -1,0 +1,294 @@
+/* Reset cơ bản */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 10px;
+  background: #f0f2f5;
+  color: #333;
+}
+
+/* Giao diện auth */
+.auth-form {
+  max-width: 350px;
+  margin: 40px auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  display: none;
+  box-shadow: 0 0 5px #aaa;
+}
+
+.auth-form.active {
+  display: block;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 10px 12px;
+  margin: 8px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.auth-form button {
+  width: 100%;
+  padding: 10px;
+  background: #0066cc;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.auth-form button:hover {
+  background: #004a99;
+}
+
+.auth-form p {
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* Dashboard */
+#dashboard header {
+  background: #0066cc;
+  color: white;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.avatar-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-container img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+}
+
+.avatar-container span {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.avatar-container p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Grid chính */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  padding: 20px;
+}
+
+/* Ô vuông chức năng */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.3s ease;
+  user-select: none;
+}
+
+.card:hover {
+  background-color: #e0e8ff;
+}
+
+.icon {
+  font-size: 36px;
+  color: #0066cc;
+}
+
+/* Trang quản lý */
+.management-page {
+  max-width: 900px;
+  margin: 20px auto;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px #bbb;
+}
+
+.management-page h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* Bảng */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+table th,
+table td {
+  border: 1px solid #ccc;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+table th {
+  background-color: #f4f6fc;
+  font-weight: 600;
+}
+
+button {
+  background-color: #0066cc;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  padding: 8px 14px;
+  font-weight: 600;
+  margin: 4px 2px;
+}
+
+button:hover {
+  background-color: #004a99;
+}
+
+/* Form học viên */
+#student-form-container,
+#class-form-container {
+  background: #e9f0ff;
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 20px;
+  max-width: 600px;
+}
+
+#student-form-container h3,
+#class-form-container h3 {
+  margin-top: 0;
+}
+
+#student-form input[type="text"],
+#student-form input[type="date"],
+#student-form input[type="number"],
+#student-form select,
+#class-form input[type="text"],
+#class-form input[type="number"],
+#class-form select {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+/* Trạng thái active/deactive */
+.status-active {
+  color: green;
+  font-weight: 700;
+}
+
+.status-deactive {
+  color: red;
+  font-weight: 700;
+}
+
+/* Danh sách học viên trong lớp */
+#class-student-list {
+  list-style: none;
+  padding-left: 0;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+#class-student-list li {
+  padding: 5px 10px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#class-student-list li:last-child {
+  border-bottom: none;
+}
+
+.remove-btn {
+  background: #ff4c4c;
+  border-radius: 4px;
+  font-weight: 700;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+.remove-btn:hover {
+  background: #cc0000;
+}
+
+/* Trang cá nhân */
+#profile-page {
+  max-width: 600px;
+  margin: 20px auto;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px #bbb;
+  text-align: center;
+}
+
+#profile-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+/* Loading Indicator */
+#loading {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.8);
+  text-align: center;
+  padding-top: 20%;
+  z-index: 9999;
+}
+
+.spinner {
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #0066cc;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
