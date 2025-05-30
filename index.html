@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ứng dụng quản lý học viên</title>
   <link rel="stylesheet" href="styles.css" />
-  <!-- Thêm Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js"></script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 </head>
 <body>
+  <!-- AUTH CONTAINER -->
   <div id="auth-container">
     <div id="login-form" class="auth-form active">
       <h2>Đăng nhập</h2>
@@ -41,7 +44,7 @@
     </div>
   </div>
 
-  <!-- Dashboard chính -->
+  <!-- DASHBOARD -->
   <div id="dashboard" style="display:none;">
     <header>
       <div class="avatar-container" onclick="openProfile()">
@@ -75,7 +78,7 @@
     </main>
   </div>
 
-  <!-- Quản lý tài khoản -->
+  <!-- QUẢN LÝ TÀI KHOẢN -->
   <div id="account-management" class="management-page" style="display:none;">
     <h2>Quản lý tài khoản</h2>
     <table>
@@ -93,7 +96,7 @@
     <button onclick="backToDashboard()">Quay lại</button>
   </div>
 
-  <!-- Quản lý học viên -->
+  <!-- QUẢN LÝ HỌC VIÊN -->
   <div id="student-management" class="management-page" style="display:none;">
     <h2>Quản lý học viên</h2>
     <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
@@ -118,6 +121,7 @@
     <div id="student-form-container" style="display:none;">
       <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
       <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
+        <input type="hidden" id="student-index" />
         <label>Họ và Tên:<br />
           <input type="text" id="student-name" required />
         </label><br />
@@ -154,7 +158,7 @@
     </div>
   </div>
 
-  <!-- Quản lý lớp học -->
+  <!-- QUẢN LÝ LỚP HỌC -->
   <div id="class-management" class="management-page" style="display:none;">
     <h2>Quản lý lớp học</h2>
     <button onclick="showClassForm()">Tạo lớp học mới</button>
@@ -165,7 +169,6 @@
           <th>Tên lớp học</th>
           <th>Số lượng học viên</th>
           <th>Giáo viên đứng lớp</th>
-          <th>Học viên</th>
           <th>Hành động</th>
         </tr>
       </thead>
@@ -178,11 +181,9 @@
     <div id="class-form-container" style="display:none;">
       <h3 id="class-form-title">Tạo lớp học mới</h3>
       <form id="class-form" onsubmit="event.preventDefault(); saveClass()">
+        <input type="hidden" id="class-index" />
         <label>Tên lớp học:<br />
           <input type="text" id="class-name" required />
-        </label><br />
-        <label>Số lượng học viên:<br />
-          <input type="number" id="class-student-count" min="0" value="0" required />
         </label><br />
         <label>Giáo viên đứng lớp:<br />
           <input type="text" id="class-teacher" required />
@@ -201,7 +202,7 @@
     </div>
   </div>
 
-  <!-- Trang cá nhân -->
+  <!-- TRANG CÁ NHÂN -->
   <div id="profile-page" style="display:none;">
     <h2>Trang cá nhân</h2>
     <img id="profile-avatar" src="avatar.png" alt="Avatar" width="120" height="120" />
@@ -211,174 +212,14 @@
     <button onclick="backToDashboard()">Quay lại Dashboard</button>
     <button onclick="logout()">Đăng xuất</button>
   </div>
-<script>
-let students = JSON.parse(localStorage.getItem("students")) || [];
-let classes = JSON.parse(localStorage.getItem("classes")) || [];
 
-function saveStudent() {
-  const student = {
-    id: Date.now(),
-    name: document.getElementById("student-name").value,
-    dob: document.getElementById("student-dob").value,
-    parent: document.getElementById("student-parent").value,
-    parentJob: document.getElementById("student-parent-job").value === "Khác"
-      ? document.getElementById("student-parent-job-other").value
-      : document.getElementById("student-parent-job").value,
-    package: document.getElementById("student-package").value,
-    sessionsAttended: +document.getElementById("student-sessions-attended").value,
-    sessionsPaid: +document.getElementById("student-sessions-paid").value,
-  };
+  <!-- Loading -->
+  <div id="loading" style="display:none;">
+    <div class="spinner"></div>
+    <p>Đang tải dữ liệu...</p>
+  </div>
 
-  students.push(student);
-  localStorage.setItem("students", JSON.stringify(students));
-  renderStudentList();
-  hideStudentForm();
-  updateStudentOptions(); // Cập nhật dropdown trong form lớp học
-}
-
-function renderStudentList() {
-  const tbody = document.getElementById("student-list");
-  tbody.innerHTML = "";
-  students.forEach(student => {
-    const row = `<tr>
-      <td>${student.name}</td>
-      <td>${student.dob}</td>
-      <td>${student.parent}</td>
-      <td>${student.parentJob}</td>
-      <td>${student.package}</td>
-      <td>${student.sessionsAttended}</td>
-      <td>${student.sessionsPaid}</td>
-      <td><button onclick="deleteStudent(${student.id})">Xóa</button></td>
-    </tr>`;
-    tbody.innerHTML += row;
-  });
-}
-
-function deleteStudent(id) {
-  students = students.filter(s => s.id !== id);
-  localStorage.setItem("students", JSON.stringify(students));
-  renderStudentList();
-  updateStudentOptions();
-}
-
-function showStudentForm() {
-  document.getElementById("student-form-container").style.display = "block";
-}
-
-function hideStudentForm() {
-  document.getElementById("student-form-container").style.display = "none";
-}
-
-// ---------------------- LỚP HỌC ------------------------
-
-function saveClass() {
-  const className = document.getElementById("class-name").value;
-  const teacher = document.getElementById("class-teacher").value;
-  const studentList = Array.from(document.querySelectorAll("#class-student-list li")).map(li => li.textContent);
-
-  const newClass = {
-    id: Date.now(),
-    name: className,
-    teacher,
-    students: studentList
-  };
-
-  classes.push(newClass);
-  localStorage.setItem("classes", JSON.stringify(classes));
-  renderClassList();
-  hideClassForm();
-}
-
-function renderClassList() {
-  const tbody = document.getElementById("class-list");
-  tbody.innerHTML = "";
-  classes.forEach(cls => {
-    const row = `<tr>
-      <td>${cls.name}</td>
-      <td>${cls.students.length}</td>
-      <td>${cls.teacher}</td>
-      <td>${cls.students.join(", ")}</td>
-      <td><button onclick="deleteClass(${cls.id})">Xóa</button></td>
-    </tr>`;
-    tbody.innerHTML += row;
-  });
-}
-
-function deleteClass(id) {
-  classes = classes.filter(c => c.id !== id);
-  localStorage.setItem("classes", JSON.stringify(classes));
-  renderClassList();
-}
-
-function showClassForm() {
-  document.getElementById("class-form-container").style.display = "block";
-  updateStudentOptions();
-}
-
-function hideClassForm() {
-  document.getElementById("class-form-container").style.display = "none";
-}
-
-// ------------------ HỌC VIÊN CHO DROPDOWN ------------------
-
-function updateStudentOptions() {
-  const select = document.getElementById("class-add-student");
-  select.innerHTML = `<option value="">-- Chọn học viên --</option>`;
-  students.forEach(s => {
-    const option = document.createElement("option");
-    option.value = s.name;
-    option.textContent = s.name;
-    select.appendChild(option);
-  });
-}
-
-function addStudentToClass() {
-  const select = document.getElementById("class-add-student");
-  const ul = document.getElementById("class-student-list");
-  const name = select.value;
-  if (name && !Array.from(ul.children).some(li => li.textContent === name)) {
-    const li = document.createElement("li");
-    li.textContent = name;
-    ul.appendChild(li);
-  }
-}
-
-// --------------------- KHỞI TẠO ----------------------
-
-window.onload = () => {
-  renderStudentList();
-  renderClassList();
-  updateStudentOptions();
-};
-
-// -------------------- NGHỀ NGHIỆP KHÁC ------------------
-
-function parentJobChange(value) {
-  document.getElementById("student-parent-job-other").style.display =
-    value === "Khác" ? "inline-block" : "none";
-}
-
-</script>
+  <!-- Script -->
   <script src="script.js"></script>
-  <script>
-  // Khởi tạo Firebase (thay bằng config của bạn)
-  const firebaseConfig = {
-  apiKey: "AIzaSyA7MMnjIO6UQLYoJB9YJhSl9wUt1qx0EYE",
-  authDomain: "lab-edu-11f05.firebaseapp.com",
-  projectId: "lab-edu-11f05",
-  storageBucket: "lab-edu-11f05.firebasestorage.app",
-  messagingSenderId: "133738230418",
-  appId: "1:133738230418:web:de00824ab2dc08172dac4b",
-  measurementId: "G-JMVC7YZCJT"
-};
-  
-  const app = firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
-  const auth = firebase.auth();
-</script>
-<div id="loading" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); text-align:center; padding-top:20%;">
-  <div class="spinner"></div>
-  <p>Đang tải dữ liệu...</p>
-</div>
 </body>
 </html>
