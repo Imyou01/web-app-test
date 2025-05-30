@@ -22,6 +22,14 @@ const DB_PATHS = {
 
 let isAuthReady = false;
 
+const pages = [
+  "dashboard",
+  "account-management",
+  "student-management",
+  "class-management",
+  "profile-page"
+];
+
 // ==== AUTH ====
 
 auth.onAuthStateChanged(user => {
@@ -31,14 +39,9 @@ auth.onAuthStateChanged(user => {
     initStudentsListener();
     initClassesListener();
   } else {
-    // Khi logout hoặc chưa đăng nhập
     toggleUI(false);
     showForm("login");
-    // Ẩn tất cả các phần quản lý để không bị lỗi UI
-    document.getElementById("student-management").style.display = "none";
-    document.getElementById("class-management").style.display = "none";
-    document.getElementById("account-management").style.display = "none";
-    document.getElementById("profile-page").style.display = "none";
+    hideAllManagementPages();
   }
 });
 
@@ -67,24 +70,20 @@ function login() {
 
 function logout() {
   auth.signOut().then(() => {
-    // Sau khi logout, reset UI
     toggleUI(false);
     showForm("login");
-    // Ẩn các phần quản lý nếu có
-    document.getElementById("student-management").style.display = "none";
-    document.getElementById("class-management").style.display = "none";
-    document.getElementById("account-management").style.display = "none";
-    document.getElementById("profile-page").style.display = "none";
+    window.location.hash = "";
+    hideAllManagementPages();
   }).catch(error => {
     alert("Lỗi đăng xuất: " + error.message);
   });
 }
+
 // ==== UI ====
 
 function toggleUI(isLoggedIn) {
   document.getElementById("auth-container").style.display = isLoggedIn ? "none" : "block";
   document.getElementById("dashboard").style.display = isLoggedIn ? "block" : "none";
-  // Các phần quản lý không ẩn ở đây để giữ dashboard luôn hiện
 }
 
 function showForm(formName) {
@@ -99,65 +98,55 @@ function showForm(formName) {
   if(forgotForm) forgotForm.style.display = (formName === "forgot") ? "block" : "none";
 }
 
-function loadDashboard() {
-  toggleUI(true);
-  // Ẩn tất cả các phần quản lý khi load dashboard
-  document.getElementById("student-management").style.display = "none";
-  document.getElementById("class-management").style.display = "none";
-  document.getElementById("account-management").style.display = "none";
-  document.getElementById("profile-page").style.display = "none";
+// ==== SPA Routing ====
+
+function hideAllManagementPages() {
+  pages.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
 }
 
-// ==== Kiểm tra auth trước khi hiển thị phần quản lý ====
+function showPage(pageId) {
+  hideAllManagementPages();
+  const el = document.getElementById(pageId);
+  if (el) {
+    el.style.display = "block";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+}
 
-function checkAuthAndShow(elementId) {
-  if (!isAuthReady) {
-    alert("Đang kiểm tra đăng nhập, vui lòng thử lại sau.");
-    return false;
+function showPageFromHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash || !pages.includes(hash)) {
+    window.location.hash = "dashboard";
+    return;
   }
   const user = auth.currentUser;
   if (!user) {
-    alert("Vui lòng đăng nhập để sử dụng chức năng này!");
-    showForm("login");
     toggleUI(false);
-    return false;
+    showForm("login");
+    return;
   }
-  // Ẩn hết các phần quản lý
-  document.getElementById("student-management").style.display = "none";
-  document.getElementById("class-management").style.display = "none";
-  document.getElementById("account-management").style.display = "none";
-  document.getElementById("profile-page").style.display = "none";
-  // Hiện phần được chọn
-  document.getElementById(elementId).style.display = "block";
-  return true;
+  showPage(hash);
 }
 
-function showStudentManagement() {
-  if (checkAuthAndShow("student-management")) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-}
+window.addEventListener("hashchange", () => {
+  if (!isAuthReady) return;
+  showPageFromHash();
+});
 
-function showClassManagement() {
-  if (checkAuthAndShow("class-management")) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+// Khi đăng nhập thành công
+function loadDashboard() {
+  toggleUI(true);
+  if (!window.location.hash) {
+    window.location.hash = "dashboard";
+  } else {
+    showPageFromHash();
   }
 }
 
-function showAccountManagement() {
-  if (checkAuthAndShow("account-management")) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-}
-
-
-function openProfile() {
-  if (checkAuthAndShow("profile-page")) {
-     window.scrollTo({top: 0, behavior: 'smooth'});
-  }
-}
-
-// ==== QUẢN LÝ HỌC VIÊN ====
+// ==== Quản lý học viên ====
 
 function renderStudentList(students) {
   const tbody = document.getElementById("student-list");
@@ -168,7 +157,7 @@ function renderStudentList(students) {
         <td>${st.name || ""}</td>
         <td>${st.dob || ""}</td>
         <td>${st.parent || ""}</td>
-        <td>${st.parentPhone || ""}</td> <!-- Mới thêm -->
+        <td>${st.parentPhone || ""}</td>
         <td>${st.parentJob || ""}</td>
         <td>${st.package || ""}</td>
         <td>${st.sessionsAttended || 0}</td>
@@ -181,7 +170,6 @@ function renderStudentList(students) {
     tbody.innerHTML += row;
   });
 }
-
 
 function initStudentsListener() {
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
@@ -215,7 +203,7 @@ async function saveStudent() {
     name: document.getElementById("student-name").value.trim(),
     dob: document.getElementById("student-dob").value,
     parent: document.getElementById("student-parent").value.trim(),
-    parentPhone: document.getElementById("student-parent-phone").value.trim(), // mới thêm
+    parentPhone: document.getElementById("student-parent-phone").value.trim(),
     parentJob: document.getElementById("student-parent-job").value === "Khác"
       ? document.getElementById("student-parent-job-other").value.trim()
       : document.getElementById("student-parent-job").value,
@@ -239,7 +227,6 @@ async function saveStudent() {
   }
 }
 
-
 async function deleteStudent(id) {
   if (!confirm("Bạn chắc chắn muốn xóa học viên này?")) return;
   try {
@@ -259,7 +246,7 @@ function editStudent(id) {
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
     document.getElementById("student-parent").value = st.parent || "";
-    document.getElementById("student-parent-phone").value = st.parentPhone || ""; // Mới thêm
+    document.getElementById("student-parent-phone").value = st.parentPhone || "";
     if (["Công nhân", "Giáo viên", "Kinh doanh", "Bác sĩ", "Nông dân"].includes(st.parentJob)) {
       document.getElementById("student-parent-job").value = st.parentJob;
       document.getElementById("student-parent-job-other").style.display = "none";
@@ -277,12 +264,11 @@ function editStudent(id) {
   }).catch(err => alert("Lỗi tải học viên: " + err.message));
 }
 
-
 function parentJobChange(value) {
   document.getElementById("student-parent-job-other").style.display = (value === "Khác") ? "inline-block" : "none";
 }
 
-// ==== QUẢN LÝ LỚP HỌC ====
+// ==== Quản lý lớp học ====
 
 let currentClassStudents = [];
 
@@ -309,10 +295,6 @@ function renderClassList(classes) {
       </tr>`;
     tbody.innerHTML += row;
   });
-}
-
-function showClassManagement() {
-  checkAuthAndShow("class-management");
 }
 
 function showClassForm() {
@@ -427,11 +409,7 @@ async function deleteClass(id) {
   }
 }
 
-// ==== PROFILE ====
-
-function openProfile() {
-  checkAuthAndShow("profile-page");
-}
+// ==== Profile ====
 
 document.getElementById("avatar-file").addEventListener("change", async function() {
   const file = this.files[0];
@@ -461,7 +439,7 @@ document.getElementById("avatar-file").addEventListener("change", async function
   }
 });
 
-// ==== LOADING ====
+// ==== Loading ====
 
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
