@@ -22,12 +22,14 @@ const DB_PATHS = {
 
 let isAuthReady = false;
 
-// ===== AUTH =====
+// ==== AUTH ====
 
 auth.onAuthStateChanged(user => {
   isAuthReady = true;
   if (user) {
     loadDashboard();
+    initStudentsListener();
+    initClassesListener();
   } else {
     toggleUI(false);
     showForm("login");
@@ -45,7 +47,7 @@ function register() {
     .then(() => alert("Đăng ký thành công! Vui lòng đăng nhập."))
     .catch(error => alert("Lỗi đăng ký: " + error.message));
 }
-//s
+
 function login() {
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value.trim();
@@ -61,15 +63,12 @@ function logout() {
   auth.signOut();
 }
 
-// ===== UI =====
+// ==== UI ====
 
 function toggleUI(isLoggedIn) {
   document.getElementById("auth-container").style.display = isLoggedIn ? "none" : "block";
   document.getElementById("dashboard").style.display = isLoggedIn ? "block" : "none";
-  document.getElementById("student-management").style.display = "none";
-  document.getElementById("class-management").style.display = "none";
-  document.getElementById("account-management").style.display = "none";
-  document.getElementById("profile-page").style.display = "none";
+  // Các phần quản lý không ẩn ở đây để giữ dashboard luôn hiện
 }
 
 function showForm(formName) {
@@ -79,14 +78,16 @@ function showForm(formName) {
   document.getElementById("forgot-password-form").style.display = formName === "forgot" ? "block" : "none";
 }
 
-// ===== DASHBOARD =====
-
 function loadDashboard() {
   toggleUI(true);
-  document.getElementById("dashboard").style.display = "block";
+  // Ẩn tất cả các phần quản lý khi load dashboard
+  document.getElementById("student-management").style.display = "none";
+  document.getElementById("class-management").style.display = "none";
+  document.getElementById("account-management").style.display = "none";
+  document.getElementById("profile-page").style.display = "none";
 }
 
-// ===== KIỂM TRA AUTH VÀ HIỂN THỊ =====
+// ==== Kiểm tra auth trước khi hiển thị phần quản lý ====
 
 function checkAuthAndShow(elementId) {
   if (!isAuthReady) {
@@ -100,18 +101,15 @@ function checkAuthAndShow(elementId) {
     toggleUI(false);
     return false;
   }
-  toggleUI(true);
-  // Ẩn hết các trang quản lý khác
+  // Ẩn hết các phần quản lý
   document.getElementById("student-management").style.display = "none";
   document.getElementById("class-management").style.display = "none";
   document.getElementById("account-management").style.display = "none";
   document.getElementById("profile-page").style.display = "none";
-
+  // Hiện phần được chọn
   document.getElementById(elementId).style.display = "block";
   return true;
 }
-
-// ===== SHOW CÁC TRANG QUẢN LÝ =====
 
 function showStudentManagement() {
   checkAuthAndShow("student-management");
@@ -129,9 +127,8 @@ function openProfile() {
   checkAuthAndShow("profile-page");
 }
 
-// ===== QUẢN LÝ HỌC VIÊN =====
+// ==== QUẢN LÝ HỌC VIÊN ====
 
-// Render danh sách học viên
 function renderStudentList(students) {
   const tbody = document.getElementById("student-list");
   tbody.innerHTML = "";
@@ -154,7 +151,6 @@ function renderStudentList(students) {
   });
 }
 
-// Load danh sách học viên realtime
 function initStudentsListener() {
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
     const students = snapshot.val() || {};
@@ -162,7 +158,6 @@ function initStudentsListener() {
   });
 }
 
-// Show form tạo học viên mới
 function showStudentForm() {
   document.getElementById("student-form-title").textContent = "Tạo hồ sơ học viên mới";
   document.getElementById("student-form").reset();
@@ -171,12 +166,10 @@ function showStudentForm() {
   document.getElementById("student-form-container").style.display = "block";
 }
 
-// Hide form học viên
 function hideStudentForm() {
   document.getElementById("student-form-container").style.display = "none";
 }
 
-// Lưu học viên
 async function saveStudent() {
   const user = auth.currentUser;
   if (!user) {
@@ -253,7 +246,7 @@ function parentJobChange(value) {
   document.getElementById("student-parent-job-other").style.display = (value === "Khác") ? "inline-block" : "none";
 }
 
-// ===== QUẢN LÝ LỚP HỌC =====
+// ==== QUẢN LÝ LỚP HỌC ====
 
 let currentClassStudents = [];
 
@@ -404,7 +397,6 @@ function openProfile() {
   checkAuthAndShow("profile-page");
 }
 
-// Upload avatar lên Firebase Storage
 document.getElementById("avatar-file").addEventListener("change", async function() {
   const file = this.files[0];
   if (!file) return;
@@ -420,10 +412,8 @@ document.getElementById("avatar-file").addEventListener("change", async function
     await avatarRef.put(file);
     const url = await avatarRef.getDownloadURL();
 
-    // Cập nhật URL avatar trong DB user
     await database.ref(`${DB_PATHS.USERS}/${user.uid}`).update({ avatarUrl: url });
 
-    // Cập nhật avatar trong UI
     document.getElementById("avatar-img").src = url;
     document.getElementById("profile-avatar").src = url;
 
