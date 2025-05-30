@@ -133,19 +133,28 @@ function checkAuthAndShow(elementId) {
 }
 
 function showStudentManagement() {
-  checkAuthAndShow("student-management");
+  if (checkAuthAndShow("student-management")) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function showClassManagement() {
-  checkAuthAndShow("class-management");
+  if (checkAuthAndShow("class-management")) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function showAccountManagement() {
-  checkAuthAndShow("account-management");
+  if (checkAuthAndShow("account-management")) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
+
 function openProfile() {
-  checkAuthAndShow("profile-page");
+  if (checkAuthAndShow("profile-page")) {
+     window.scrollTo({top: 0, behavior: 'smooth'});
+  }
 }
 
 // ==== QUẢN LÝ HỌC VIÊN ====
@@ -159,6 +168,7 @@ function renderStudentList(students) {
         <td>${st.name || ""}</td>
         <td>${st.dob || ""}</td>
         <td>${st.parent || ""}</td>
+        <td>${st.parentPhone || ""}</td> <!-- Mới thêm -->
         <td>${st.parentJob || ""}</td>
         <td>${st.package || ""}</td>
         <td>${st.sessionsAttended || 0}</td>
@@ -171,6 +181,7 @@ function renderStudentList(students) {
     tbody.innerHTML += row;
   });
 }
+
 
 function initStudentsListener() {
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
@@ -204,6 +215,7 @@ async function saveStudent() {
     name: document.getElementById("student-name").value.trim(),
     dob: document.getElementById("student-dob").value,
     parent: document.getElementById("student-parent").value.trim(),
+    parentPhone: document.getElementById("student-parent-phone").value.trim(), // mới thêm
     parentJob: document.getElementById("student-parent-job").value === "Khác"
       ? document.getElementById("student-parent-job-other").value.trim()
       : document.getElementById("student-parent-job").value,
@@ -227,6 +239,7 @@ async function saveStudent() {
   }
 }
 
+
 async function deleteStudent(id) {
   if (!confirm("Bạn chắc chắn muốn xóa học viên này?")) return;
   try {
@@ -246,6 +259,7 @@ function editStudent(id) {
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
     document.getElementById("student-parent").value = st.parent || "";
+    document.getElementById("student-parent-phone").value = st.parentPhone || ""; // Mới thêm
     if (["Công nhân", "Giáo viên", "Kinh doanh", "Bác sĩ", "Nông dân"].includes(st.parentJob)) {
       document.getElementById("student-parent-job").value = st.parentJob;
       document.getElementById("student-parent-job-other").style.display = "none";
@@ -262,6 +276,7 @@ function editStudent(id) {
     document.getElementById("student-form-container").style.display = "block";
   }).catch(err => alert("Lỗi tải học viên: " + err.message));
 }
+
 
 function parentJobChange(value) {
   document.getElementById("student-parent-job-other").style.display = (value === "Khác") ? "inline-block" : "none";
