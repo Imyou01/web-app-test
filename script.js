@@ -79,7 +79,6 @@ function logout() {
     alert("Lỗi đăng xuất: " + error.message);
   });
 }
-
 // ==== UI ====
 
 function toggleUI(isLoggedIn) {
@@ -89,10 +88,15 @@ function toggleUI(isLoggedIn) {
 }
 
 function showForm(formName) {
-  document.getElementById("auth-container").style.display = "block";
-  document.getElementById("register-form").style.display = formName === "register" ? "block" : "none";
-  document.getElementById("login-form").style.display = formName === "login" ? "block" : "none";
-  document.getElementById("forgot-password-form").style.display = formName === "forgot" ? "block" : "none";
+  const authContainer = document.getElementById("auth-container");
+  const registerForm = document.getElementById("register-form");
+  const loginForm = document.getElementById("login-form");
+  const forgotForm = document.getElementById("forgot-password-form");
+
+  if(authContainer) authContainer.style.display = "block";
+  if(registerForm) registerForm.style.display = (formName === "register") ? "block" : "none";
+  if(loginForm) loginForm.style.display = (formName === "login") ? "block" : "none";
+  if(forgotForm) forgotForm.style.display = (formName === "forgot") ? "block" : "none";
 }
 
 function loadDashboard() {
