@@ -45,7 +45,7 @@ function register() {
     .then(() => alert("Đăng ký thành công! Vui lòng đăng nhập."))
     .catch(error => alert("Lỗi đăng ký: " + error.message));
 }
-
+//s
 function login() {
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value.trim();
