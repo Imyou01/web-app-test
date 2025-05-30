@@ -127,6 +127,12 @@
         </tr>
       </thead>
       <tbody id="student-list"></tbody>
+      <div id="student-pagination" style="text-align:center; margin-top: 10px;">
+  <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
+  <span id="page-info">Trang 1 / 1</span>
+  <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Trang sau</button>
+</div>
+
     </table>
     <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
 
@@ -177,7 +183,7 @@
   <!-- Trang quản lý Lớp học -->
   <div id="class-management-container" style="display:flex; gap:20px; align-items:flex-start;">
 
-  <div id="class-table-container" style="flex:3;">
+  <div id="class-table-container" style="width:100%;">
     <table>
       <thead>
         <tr>
@@ -202,10 +208,12 @@
     color: #004a99;
     background: #f4f7ff;
   ">
+    <div id="class-schedule-preview" style="margin-top: 20px; border: 1px solid #aac0db; border-radius: 12px; padding: 15px; min-height: 180px; font-weight: 600; color: #004a99; background: #f4f7ff;">
     <h4>Lịch học cố định</h4>
     <ul id="schedule-preview-list" style="list-style:none; padding-left:0;">
       <li>Di chuột vào lớp để xem lịch học cố định.</li>
     </ul>
+  </div>
   </div>
 
 </div>
