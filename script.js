@@ -145,6 +145,10 @@ function loadDashboard() {
     showPageFromHash();
   }
 }
+// Hàm quay lại dashboard cho nút "Quay lại"
+function backToDashboard() {
+  window.location.hash = "dashboard";
+}
 
 // ==== Quản lý học viên ====
 
