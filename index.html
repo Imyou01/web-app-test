@@ -46,14 +46,15 @@
   <!-- DASHBOARD -->
   <div id="dashboard" style="display:none;">
     <header>
-      <nav>
-  <a href="#dashboard">Dashboard</a> |
-  <a href="#account">Quản lý tài khoản</a> |
-  <a href="#students">Quản lý học viên</a> |
-  <a href="#classes">Quản lý lớp học</a> |
-  <a href="#profile">Trang cá nhân</a>
+   <!-- Thêm nav điều hướng cho SPA -->
+<nav id="main-nav" style="max-width:900px; margin:10px auto; padding:10px; background:#f4f6fc; border-radius:8px; text-align:center;">
+  <a href="#dashboard" style="margin:0 12px; font-weight:600;">Dashboard</a>
+  <a href="#account-management" style="margin:0 12px; font-weight:600;">Quản lý tài khoản</a>
+  <a href="#student-management" style="margin:0 12px; font-weight:600;">Quản lý học viên</a>
+  <a href="#class-management" style="margin:0 12px; font-weight:600;">Quản lý lớp học</a>
+  <a href="#profile-page" style="margin:0 12px; font-weight:600;">Trang cá nhân</a>
+  <a href="#" onclick="logout(); return false;" style="margin:0 12px; font-weight:600; color:#cc0000;">Đăng xuất</a>
 </nav>
-
       <div class="avatar-container" onclick="openProfile()">
 <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
         <span id="display-name"></span> - <span id="display-role"></span>
