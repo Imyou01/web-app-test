@@ -190,8 +190,23 @@ function initAccountsListener() {
     });
   });
 }
+let isAuthReady = false;
+
+auth.onAuthStateChanged(user => {
+  isAuthReady = true;
+  if (user) {
+    loadDashboard();
+  } else {
+    toggleUI(false);
+    showForm("login");
+  }
+});
 
 function checkAuthAndShow(elementId) {
+  if (!isAuthReady) {
+    alert("Đang kiểm tra đăng nhập, vui lòng thử lại sau.");
+    return false;
+  }
   const user = auth.currentUser;
   if (!user) {
     alert("Vui lòng đăng nhập để sử dụng chức năng này!");
