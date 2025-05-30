@@ -208,48 +208,76 @@
         <label>Giáo viên đứng lớp:<br />
           <input type="text" id="class-teacher" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
         </label><br />
-        <label>Lịch học cố định (tuần):</label>
+       <label>Lịch học cố định (tuần):</label>
 <div id="class-fixed-schedule" style="margin-bottom:20px;">
   <div>
     <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
     <label for="schedule-mon">Thứ 2</label>
-    <input type="time" id="time-mon" style="margin-left: 10px;" />
+    <input type="time" id="time-mon" class="required-time" style="margin-left: 10px;" />
   </div>
   <div>
     <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
     <label for="schedule-tue">Thứ 3</label>
-    <input type="time" id="time-tue" style="margin-left: 10px;" />
+    <input type="time" id="time-tue" class="required-time" style="margin-left: 10px;" />
   </div>
   <div>
     <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
     <label for="schedule-wed">Thứ 4</label>
-    <input type="time" id="time-wed" style="margin-left: 10px;" />
+    <input type="time" id="time-wed" class="required-time" style="margin-left: 10px;" />
   </div>
   <div>
     <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
     <label for="schedule-thu">Thứ 5</label>
-    <input type="time" id="time-thu" style="margin-left: 10px;" />
+    <input type="time" id="time-thu" class="required-time" style="margin-left: 10px;" />
   </div>
   <div>
     <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
     <label for="schedule-fri">Thứ 6</label>
-    <input type="time" id="time-fri" style="margin-left: 10px;" />
+    <input type="time" id="time-fri" class="required-time" style="margin-left: 10px;" />
   </div>
   <div>
     <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
     <label for="schedule-sat">Thứ 7</label>
-    <input type="time" id="time-sat" style="margin-left: 10px;" />
+    <input type="time" id="time-sat" class="required-time" style="margin-left: 10px;" />
   </div>
   <div>
     <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
     <label for="schedule-sun">Chủ nhật</label>
-    <input type="time" id="time-sun" style="margin-left: 10px;" />
+    <input type="time" id="time-sun" class="required-time" style="margin-left: 10px;" />
   </div>
 </div>
+
+<label>Lịch học dạng calendar (tuần):</label>
+<table id="calendar-schedule" style="width:100%; border-collapse: collapse; margin-top:10px;">
+  <thead>
+    <tr style="background:#004a99; color:#fff; text-align:center;">
+      <th style="padding:8px; border:1px solid #aac0db;">Thứ 2</th>
+      <th style="padding:8px; border:1px solid #aac0db;">Thứ 3</th>
+      <th style="padding:8px; border:1px solid #aac0db;">Thứ 4</th>
+      <th style="padding:8px; border:1px solid #aac0db;">Thứ 5</th>
+      <th style="padding:8px; border:1px solid #aac0db;">Thứ 6</th>
+      <th style="padding:8px; border:1px solid #aac0db;">Thứ 7</th>
+      <th style="padding:8px; border:1px solid #aac0db;">Chủ nhật</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td id="calendar-mon" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+      <td id="calendar-tue" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+      <td id="calendar-wed" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+      <td id="calendar-thu" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+      <td id="calendar-fri" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+      <td id="calendar-sat" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+      <td id="calendar-sun" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
+    </tr>
+  </tbody>
+</table>
+
         <label>Thêm học viên:<br />
           <select id="class-add-student" style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:10px; border-radius:8px; border:1px solid #aac0db; font-size:15px;">
-            <option value="">-- Chọn học viên --</option>
-          </select>
+  <option value="">-- Chọn học viên --</option>
+  <!-- Các option sẽ được JS load: value là id học viên, text là tên học viên -->
+</select>
           <button type="button" onclick="addStudentToClass()" style="margin-top:10px; padding:10px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Thêm</button>
         </label><br />
         <label>Danh sách học viên trong lớp:</label>
