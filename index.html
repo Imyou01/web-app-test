@@ -95,67 +95,72 @@
     <button onclick="backToDashboard()">Quay lại</button>
   </div>
 
-  <!-- QUẢN LÝ HỌC VIÊN -->
-  <div id="student-management" class="management-page" style="display:none;">
-    <h2>Quản lý học viên</h2>
-    <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
-    <table>
-      <thead>
-        <tr>
-          <th>Họ và tên</th>
-          <th>Ngày sinh</th>
-          <th>Bố/Mẹ</th>
-          <th>Nghề nghiệp bố mẹ</th>
-          <th>Gói đăng ký</th>
-          <th>Số buổi đã học</th>
-          <th>Số buổi đã đóng</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
-      <tbody id="student-list"></tbody>
-    </table>
-    <button onclick="backToDashboard()">Quay lại</button>
+<!-- QUẢN LÝ HỌC VIÊN -->
+<div id="student-management" class="management-page" style="display:none;">
+  <h2>Quản lý học viên</h2>
+  <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Họ và tên</th>
+        <th>Ngày sinh</th>
+        <th>Bố/Mẹ</th>
+        <th>Số điện thoại bố/mẹ</th>  <!-- Mới thêm -->
+        <th>Nghề nghiệp bố mẹ</th>
+        <th>Gói đăng ký</th>
+        <th>Số buổi đã học</th>
+        <th>Số buổi đã đóng</th>
+        <th>Hành động</th>
+      </tr>
+    </thead>
+    <tbody id="student-list"></tbody>
+  </table>
+  <button onclick="backToDashboard()">Quay lại</button>
 
-    <!-- Form tạo/sửa học viên -->
-    <div id="student-form-container" style="display:none;">
-      <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
-      <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
-        <input type="hidden" id="student-index" />
-        <label>Họ và Tên:<br />
-          <input type="text" id="student-name" required />
-        </label><br />
-        <label>Ngày tháng năm sinh:<br />
-          <input type="date" id="student-dob" required />
-        </label><br />
-        <label>Bố/Mẹ:<br />
-          <input type="text" id="student-parent" required />
-        </label><br />
-        <label>Nghề nghiệp bố mẹ:<br />
-          <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
-            <option value="">-- Chọn nghề nghiệp --</option>
-            <option value="Công nhân">Công nhân</option>
-            <option value="Giáo viên">Giáo viên</option>
-            <option value="Kinh doanh">Kinh doanh</option>
-            <option value="Bác sĩ">Bác sĩ</option>
-            <option value="Nông dân">Nông dân</option>
-            <option value="Khác">Khác</option>
-          </select>
-          <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px;" />
-        </label><br />
-        <label>Gói đăng ký:<br />
-          <input type="text" id="student-package" required />
-        </label><br />
-        <label>Số buổi đã học:<br />
-          <input type="number" id="student-sessions-attended" min="0" value="0" required />
-        </label><br />
-        <label>Số buổi đã đóng:<br />
-          <input type="number" id="student-sessions-paid" min="0" value="0" required />
-        </label><br />
-        <button type="submit">Lưu</button>
-        <button type="button" onclick="hideStudentForm()">Hủy</button>
-      </form>
-    </div>
+  <!-- Form tạo/sửa học viên -->
+  <div id="student-form-container" style="display:none;">
+    <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
+    <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
+      <input type="hidden" id="student-index" />
+      <label>Họ và Tên:<br />
+        <input type="text" id="student-name" required />
+      </label><br />
+      <label>Ngày tháng năm sinh:<br />
+        <input type="date" id="student-dob" required />
+      </label><br />
+      <label>Bố/Mẹ:<br />
+        <input type="text" id="student-parent" required />
+      </label><br />
+      <label>Số điện thoại bố/mẹ:<br />      <!-- Mới thêm -->
+        <input type="text" id="student-parent-phone" required />
+      </label><br />
+      <label>Nghề nghiệp bố mẹ:<br />
+        <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
+          <option value="">-- Chọn nghề nghiệp --</option>
+          <option value="Công nhân">Công nhân</option>
+          <option value="Giáo viên">Giáo viên</option>
+          <option value="Kinh doanh">Kinh doanh</option>
+          <option value="Bác sĩ">Bác sĩ</option>
+          <option value="Nông dân">Nông dân</option>
+          <option value="Khác">Khác</option>
+        </select>
+        <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px;" />
+      </label><br />
+      <label>Gói đăng ký:<br />
+        <input type="text" id="student-package" required />
+      </label><br />
+      <label>Số buổi đã học:<br />
+        <input type="number" id="student-sessions-attended" min="0" value="0" required />
+      </label><br />
+      <label>Số buổi đã đóng:<br />
+        <input type="number" id="student-sessions-paid" min="0" value="0" required />
+      </label><br />
+      <button type="submit">Lưu</button>
+      <button type="button" onclick="hideStudentForm()">Hủy</button>
+    </form>
   </div>
+</div>
+
 
   <!-- QUẢN LÝ LỚP HỌC -->
   <div id="class-management" class="management-page" style="display:none;">
