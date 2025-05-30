@@ -175,9 +175,9 @@
   </div>
 
   <!-- Trang quản lý Lớp học -->
-  <div id="class-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12);">
-    <h2>Quản lý lớp học</h2>
-    <button onclick="showClassForm()" style="margin-bottom:15px;">Tạo lớp học mới</button>
+  <div id="class-management-container" style="display:flex; gap:20px; align-items:flex-start;">
+
+  <div id="class-table-container" style="flex:3;">
     <table>
       <thead>
         <tr>
@@ -188,14 +188,46 @@
         </tr>
       </thead>
       <tbody id="class-list"></tbody>
-
     </table>
     <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
+  </div>
+
+  <div id="class-schedule-preview" style="
+    flex:1;
+    border: 1px solid #aac0db; 
+    border-radius: 12px; 
+    padding: 15px; 
+    min-height: 180px; 
+    font-weight: 600; 
+    color: #004a99;
+    background: #f4f7ff;
+  ">
+    <h4>Lịch học cố định</h4>
+    <ul id="schedule-preview-list" style="list-style:none; padding-left:0;">
+      <li>Di chuột vào lớp để xem lịch học cố định.</li>
+    </ul>
+  </div>
+
+</div>
 
     <!-- Form tạo/sửa lớp học -->
      <div id="class-schedule-display" style="background:#fff; padding:15px; border-radius:10px; border:1px solid #aac0db; margin-top:20px; max-height:250px; overflow-y:auto;">
   <h4>Lịch học cố định của lớp</h4>
   <ul id="schedule-list" style="list-style:none; padding-left:0; font-weight:600; color:#004a99;"></ul>
+</div>
+<div id="class-schedule-preview" style="
+  border: 1px solid #aac0db; 
+  border-radius: 12px; 
+  padding: 15px; 
+  min-height: 180px; 
+  max-width: 320px; 
+  font-weight: 600; 
+  color: #004a99;
+  background: #f4f7ff;
+  margin-left: 20px;
+">
+  <h4>Lịch học cố định</h4>
+  <ul id="schedule-preview-list" style="list-style:none; padding-left:0;"></ul>
 </div>
 
     <div id="class-form-container" style="display:none; max-width:600px; margin-top:30px; background:#e6f0ff; padding:25px 25px 30px; border-radius:12px;">
