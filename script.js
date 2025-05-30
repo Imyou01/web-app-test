@@ -1,196 +1,28 @@
-// Firebase config chuẩn, cập nhật version compat để dễ dùng
 const firebaseConfig = {
-  apiKey: "AIzaSyA7MMnjIO6UQLYoJB9YJhSl9wUt1qx0EYE",
+  apiKey: "AIzaSyD6NQZChjoZ_9Av-Myq8RxvCU0pVlfA_7s",
   authDomain: "lab-edu-11f05.firebaseapp.com",
   databaseURL: "https://lab-edu-11f05-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "lab-edu-11f05",
   storageBucket: "lab-edu-11f05.appspot.com",
-  messagingSenderId: "133738230418",
-  appId: "1:133738230418:web:de00824ab2dc08172dac4b",
-  measurementId: "G-JMVC7YZCJT"
+  messagingSenderId: "570981324293",
+  appId: "1:570981324293:web:56e08ca87ee69e6b0ea6b3",
+  measurementId: "G-XH5B3B6G2G"
 };
 
-// Khởi tạo Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const database = firebase.database();
 const storage = firebase.storage();
 
-// Path DB
 const DB_PATHS = {
   USERS: "users",
   STUDENTS: "students",
   CLASSES: "classes"
 };
 
-// ==== XỬ LÝ AUTH ====
-// Hiển thị form đăng nhập/đăng ký/quên mk
-function showForm(formName) {
-  document.querySelectorAll(".auth-form").forEach(el => el.classList.remove("active"));
-  if (formName === "login") {
-    document.getElementById("login-form").classList.add("active");
-  } else if (formName === "register") {
-    document.getElementById("register-form").classList.add("active");
-  } else if (formName === "forgot") {
-    document.getElementById("forgot-form").classList.add("active");
-  }
-}
-
-// Đăng ký tài khoản
-async function register() {
-  const email = document.getElementById("register-email").value.trim();
-  const password = document.getElementById("register-password").value;
-  const name = document.getElementById("register-name").value.trim();
-  const username = document.getElementById("register-username").value.trim();
-
-  if (!email || !password || !name || !username) {
-    alert("Vui lòng nhập đầy đủ thông tin đăng ký!");
-    return;
-  }
-
-  try {
-    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-    const uid = userCredential.user.uid;
-
-    // Lưu thông tin user lên Realtime Database
-    await database.ref(`${DB_PATHS.USERS}/${uid}`).set({
-      email,
-      name,
-      username,
-      role: "Người dùng",
-      active: true
-    });
-
-    alert("Đăng ký thành công! Vui lòng đăng nhập.");
-    showForm("login");
-  } catch (error) {
-    alert("Lỗi đăng ký: " + error.message);
-  }
-}
-
-// Đăng nhập
-async function login() {
-  const email = document.getElementById("login-username").value.trim();
-  const password = document.getElementById("login-password").value;
-
-  if (!email || !password) {
-    alert("Vui lòng nhập email và mật khẩu!");
-    return;
-  }
-
-  try {
-    await auth.signInWithEmailAndPassword(email, password);
-    // onAuthStateChanged sẽ tự động gọi loadDashboard
-  } catch (error) {
-    alert("Lỗi đăng nhập: " + error.message);
-  }
-}
-
-// Quên mật khẩu
-async function forgotPassword() {
-  const email = document.getElementById("forgot-username").value.trim();
-  if (!email) {
-    alert("Vui lòng nhập email để lấy lại mật khẩu!");
-    return;
-  }
-  try {
-    await auth.sendPasswordResetEmail(email);
-    alert("Email lấy lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.");
-    showForm("login");
-  } catch (error) {
-    alert("Lỗi gửi email: " + error.message);
-  }
-}
-
-// Đăng xuất
-function logout() {
-  auth.signOut();
-  showForm("login");
-  toggleUI(false);
-}
-
-// Theo dõi trạng thái đăng nhập
-auth.onAuthStateChanged(user => {
-  if (user) {
-    loadDashboard();
-  } else {
-    toggleUI(false);
-    showForm("login");
-  }
-});
-
-// ==== UI BỔ TRỢ ====
-
-function toggleUI(isLoggedIn) {
-  document.getElementById("auth-container").style.display = isLoggedIn ? "none" : "block";
-  document.getElementById("dashboard").style.display = isLoggedIn ? "block" : "none";
-  document.getElementById("account-management").style.display = "none";
-  document.getElementById("student-management").style.display = "none";
-  document.getElementById("class-management").style.display = "none";
-  document.getElementById("profile-page").style.display = "none";
-  hideStudentForm();
-  hideClassForm();
-}
-
-function backToDashboard() {
-  toggleUI(true);
-}
-
-// ==== DASHBOARD ====
-
-async function loadDashboard() {
-  toggleUI(true);
-  const user = auth.currentUser;
-  if (!user) return;
-
-  // Load thông tin user
-  try {
-    const snapshot = await database.ref(`${DB_PATHS.USERS}/${user.uid}`).once("value");
-    const userData = snapshot.val();
-    if (userData) {
-      document.getElementById("display-name").textContent = userData.name;
-      document.getElementById("display-role").textContent = userData.role;
-      document.getElementById("display-name-hello").textContent = userData.name;
-      if (userData.avatarUrl) {
-        document.getElementById("avatar-img").src = userData.avatarUrl;
-        document.getElementById("profile-avatar").src = userData.avatarUrl;
-      } else {
-        document.getElementById("avatar-img").src = "avatar.png";
-        document.getElementById("profile-avatar").src = "avatar.png";
-      }
-    }
-  } catch (error) {
-    alert("Lỗi tải thông tin người dùng: " + error.message);
-  }
-
-  // Khởi tạo listeners realtime
-  initStudentsListener();
-  initClassesListener();
-  initAccountsListener();
-}
-
-// ==== QUẢN LÝ TÀI KHOẢN ====
-
-function initAccountsListener() {
-  database.ref(DB_PATHS.USERS).on("value", snapshot => {
-    const users = snapshot.val() || {};
-    const tbody = document.getElementById("account-list");
-    tbody.innerHTML = "";
-    Object.entries(users).forEach(([uid, user]) => {
-      const statusClass = user.active ? "status-active" : "status-deactive";
-      const row = `
-        <tr>
-          <td>${user.email || ""}</td>
-          <td>${user.name || ""}</td>
-          <td>${user.username || ""}</td>
-          <td>${user.role || ""}</td>
-          <td class="${statusClass}">${user.active ? "Active" : "Inactive"}</td>
-        </tr>`;
-      tbody.innerHTML += row;
-    });
-  });
-}
 let isAuthReady = false;
+
+// ===== AUTH =====
 
 auth.onAuthStateChanged(user => {
   isAuthReady = true;
@@ -201,6 +33,60 @@ auth.onAuthStateChanged(user => {
     showForm("login");
   }
 });
+
+function register() {
+  const email = document.getElementById("register-email").value.trim();
+  const password = document.getElementById("register-password").value.trim();
+  if (!email || !password) {
+    alert("Vui lòng nhập email và mật khẩu");
+    return;
+  }
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(() => alert("Đăng ký thành công! Vui lòng đăng nhập."))
+    .catch(error => alert("Lỗi đăng ký: " + error.message));
+}
+
+function login() {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value.trim();
+  if (!email || !password) {
+    alert("Vui lòng nhập email và mật khẩu");
+    return;
+  }
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(error => alert("Lỗi đăng nhập: " + error.message));
+}
+
+function logout() {
+  auth.signOut();
+}
+
+// ===== UI =====
+
+function toggleUI(isLoggedIn) {
+  document.getElementById("auth-container").style.display = isLoggedIn ? "none" : "block";
+  document.getElementById("dashboard").style.display = isLoggedIn ? "block" : "none";
+  document.getElementById("student-management").style.display = "none";
+  document.getElementById("class-management").style.display = "none";
+  document.getElementById("account-management").style.display = "none";
+  document.getElementById("profile-page").style.display = "none";
+}
+
+function showForm(formName) {
+  document.getElementById("auth-container").style.display = "block";
+  document.getElementById("register-form").style.display = formName === "register" ? "block" : "none";
+  document.getElementById("login-form").style.display = formName === "login" ? "block" : "none";
+  document.getElementById("forgot-password-form").style.display = formName === "forgot" ? "block" : "none";
+}
+
+// ===== DASHBOARD =====
+
+function loadDashboard() {
+  toggleUI(true);
+  document.getElementById("dashboard").style.display = "block";
+}
+
+// ===== KIỂM TRA AUTH VÀ HIỂN THỊ =====
 
 function checkAuthAndShow(elementId) {
   if (!isAuthReady) {
@@ -214,25 +100,38 @@ function checkAuthAndShow(elementId) {
     toggleUI(false);
     return false;
   }
-  toggleUI(false);
+  toggleUI(true);
+  // Ẩn hết các trang quản lý khác
+  document.getElementById("student-management").style.display = "none";
+  document.getElementById("class-management").style.display = "none";
+  document.getElementById("account-management").style.display = "none";
+  document.getElementById("profile-page").style.display = "none";
+
   document.getElementById(elementId).style.display = "block";
   return true;
+}
+
+// ===== SHOW CÁC TRANG QUẢN LÝ =====
+
+function showStudentManagement() {
+  checkAuthAndShow("student-management");
+}
+
+function showClassManagement() {
+  checkAuthAndShow("class-management");
 }
 
 function showAccountManagement() {
   checkAuthAndShow("account-management");
 }
-// ==== QUẢN LÝ HỌC VIÊN ====
 
-function initStudentsListener() {
-  database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
-    const students = snapshot.val() || {};
-    renderStudentList(students);
-    updateStudentOptions(students);
-  });
+function openProfile() {
+  checkAuthAndShow("profile-page");
 }
 
-// renderStudentList sửa lại nút Xóa:
+// ===== QUẢN LÝ HỌC VIÊN =====
+
+// Render danh sách học viên
 function renderStudentList(students) {
   const tbody = document.getElementById("student-list");
   tbody.innerHTML = "";
@@ -255,11 +154,15 @@ function renderStudentList(students) {
   });
 }
 
-function showStudentManagement() {
-  checkAuthAndShow("student-management");
+// Load danh sách học viên realtime
+function initStudentsListener() {
+  database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
+    const students = snapshot.val() || {};
+    renderStudentList(students);
+  });
 }
 
-
+// Show form tạo học viên mới
 function showStudentForm() {
   document.getElementById("student-form-title").textContent = "Tạo hồ sơ học viên mới";
   document.getElementById("student-form").reset();
@@ -268,18 +171,27 @@ function showStudentForm() {
   document.getElementById("student-form-container").style.display = "block";
 }
 
+// Hide form học viên
 function hideStudentForm() {
   document.getElementById("student-form-container").style.display = "none";
 }
 
+// Lưu học viên
 async function saveStudent() {
+  const user = auth.currentUser;
+  if (!user) {
+    alert("Vui lòng đăng nhập để thêm hoặc sửa học viên!");
+    showForm("login");
+    toggleUI(false);
+    return;
+  }
   const id = document.getElementById("student-index").value;
   const studentData = {
     name: document.getElementById("student-name").value.trim(),
     dob: document.getElementById("student-dob").value,
     parent: document.getElementById("student-parent").value.trim(),
-    parentJob: document.getElementById("student-parent-job").value === "Khác" 
-      ? document.getElementById("student-parent-job-other").value.trim() 
+    parentJob: document.getElementById("student-parent-job").value === "Khác"
+      ? document.getElementById("student-parent-job-other").value.trim()
       : document.getElementById("student-parent-job").value,
     package: document.getElementById("student-package").value.trim(),
     sessionsAttended: parseInt(document.getElementById("student-sessions-attended").value) || 0,
@@ -320,7 +232,7 @@ function editStudent(id) {
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
     document.getElementById("student-parent").value = st.parent || "";
-    if (["Công nhân","Giáo viên","Kinh doanh","Bác sĩ","Nông dân"].includes(st.parentJob)) {
+    if (["Công nhân", "Giáo viên", "Kinh doanh", "Bác sĩ", "Nông dân"].includes(st.parentJob)) {
       document.getElementById("student-parent-job").value = st.parentJob;
       document.getElementById("student-parent-job-other").style.display = "none";
     } else {
@@ -341,7 +253,7 @@ function parentJobChange(value) {
   document.getElementById("student-parent-job-other").style.display = (value === "Khác") ? "inline-block" : "none";
 }
 
-// ==== QUẢN LÝ LỚP HỌC ====
+// ===== QUẢN LÝ LỚP HỌC =====
 
 let currentClassStudents = [];
 
@@ -352,7 +264,6 @@ function initClassesListener() {
   });
 }
 
-// renderClassList sửa lại nút Xóa:
 function renderClassList(classes) {
   const tbody = document.getElementById("class-list");
   tbody.innerHTML = "";
@@ -439,6 +350,13 @@ function renderClassStudentList(students) {
 }
 
 async function saveClass() {
+  const user = auth.currentUser;
+  if (!user) {
+    alert("Vui lòng đăng nhập để thêm hoặc sửa lớp học!");
+    showForm("login");
+    toggleUI(false);
+    return;
+  }
   const id = document.getElementById("class-index").value;
   const classData = {
     name: document.getElementById("class-name").value.trim(),
@@ -480,29 +398,10 @@ async function deleteClass(id) {
   }
 }
 
-function editClass(id) {
-  database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value").then(snapshot => {
-    const cls = snapshot.val();
-    if (!cls) return alert("Lớp học không tồn tại!");
-
-    document.getElementById("class-index").value = id;
-    document.getElementById("class-name").value = cls.name || "";
-    document.getElementById("class-teacher").value = cls.teacher || "";
-
-    const studentNames = cls.students ? Object.keys(cls.students) : [];
-    renderClassStudentList(studentNames);
-
-    updateStudentOptionsForClass();
-    document.getElementById("class-form-title").textContent = "Chỉnh sửa lớp học";
-    document.getElementById("class-form-container").style.display = "block";
-  }).catch(err => alert("Lỗi tải lớp học: " + err.message));
-}
-
 // ==== PROFILE ====
 
 function openProfile() {
-  toggleUI(false);
-  document.getElementById("profile-page").style.display = "block";
+  checkAuthAndShow("profile-page");
 }
 
 // Upload avatar lên Firebase Storage
