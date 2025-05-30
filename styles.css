@@ -92,13 +92,15 @@ body {
 /* Grid chính */
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   padding: 20px;
 }
 
-/* Ô vuông chức năng */
 .card {
+  aspect-ratio: 1 / 1;
+  max-width: 280px;
+  margin: 0 auto;
   background: white;
   border-radius: 12px;
   padding: 20px;
@@ -119,10 +121,17 @@ body {
   background-color: #e0e8ff;
 }
 
+.card.full-width {
+  aspect-ratio: auto;
+  grid-column: span 2;
+  max-width: none;
+}
+
 .icon {
   font-size: 36px;
   color: #0066cc;
 }
+
 
 /* Trang quản lý */
 .management-page {
