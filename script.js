@@ -156,7 +156,7 @@ function backToDashboard() {
 
 // ==== Quản lý học viên ====
 
-ffunction renderStudentList(students) {
+function renderStudentList(students) {
   allStudentsData = students; // cập nhật toàn bộ dữ liệu học viên
 
   // Đổi object students thành array để phân trang
