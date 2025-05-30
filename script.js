@@ -1,12 +1,12 @@
 const firebaseConfig = {
-  apiKey: "AIzaSyD6NQZChjoZ_9Av-Myq8RxvCU0pVlfA_7s",
+  apiKey: "AIzaSyA7MMnjIO6UQLYoJB9YJhSl9wUt1qx0EYE",
   authDomain: "lab-edu-11f05.firebaseapp.com",
   databaseURL: "https://lab-edu-11f05-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "lab-edu-11f05",
-  storageBucket: "lab-edu-11f05.appspot.com",
-  messagingSenderId: "570981324293",
-  appId: "1:570981324293:web:56e08ca87ee69e6b0ea6b3",
-  measurementId: "G-XH5B3B6G2G"
+  storageBucket: "lab-edu-11f05.firebasestorage.app",
+  messagingSenderId: "133738230418",
+  appId: "1:133738230418:web:de00824ab2dc08172dac4b",
+  measurementId: "G-JMVC7YZCJT"
 };
 
 firebase.initializeApp(firebaseConfig);
