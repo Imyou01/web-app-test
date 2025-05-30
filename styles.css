@@ -355,40 +355,9 @@ button[type="button"]:hover {
   background-color: #b72828;
 }
 
-/* Trang cá nhân */
-#profile-page {
-  max-width: 600px;
-  margin: 40px auto 60px;
-  background: white;
-  padding: 30px 25px 40px;
-  border-radius: 14px;
-  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
-  text-align: center;
-}
-
-#profile-page h2 {
-  margin-bottom: 30px;
-  font-weight: 700;
-  color: #004a99;
-}
-
-#profile-avatar,
-#avatar-img {
-  border-radius: 50%;
-  object-fit: cover;
-  width: 120px;
-  height: 120px;
-  border: 3px solid #0066cc;
-  margin-bottom: 25px;
-}
-
-#avatar-file {
-  margin-top: 20px;
-  cursor: pointer;
-}
-
-#profile-page button {
-  margin: 12px 8px 0 8px;
+/* Popup chi tiết lớp */
+#class-detail-popup {
+  /* Đã set inline style trong HTML */
 }
 
 /* Loading */
