@@ -191,11 +191,22 @@ function initAccountsListener() {
   });
 }
 
-function showAccountManagement() {
+function checkAuthAndShow(elementId) {
+  const user = auth.currentUser;
+  if (!user) {
+    alert("Vui lòng đăng nhập để sử dụng chức năng này!");
+    showForm("login");
+    toggleUI(false);
+    return false;
+  }
   toggleUI(false);
-  document.getElementById("account-management").style.display = "block";
+  document.getElementById(elementId).style.display = "block";
+  return true;
 }
 
+function showAccountManagement() {
+  checkAuthAndShow("account-management");
+}
 // ==== QUẢN LÝ HỌC VIÊN ====
 
 function initStudentsListener() {
@@ -230,9 +241,9 @@ function renderStudentList(students) {
 }
 
 function showStudentManagement() {
-  toggleUI(false);
-  document.getElementById("student-management").style.display = "block";
+  checkAuthAndShow("student-management");
 }
+
 
 function showStudentForm() {
   document.getElementById("student-form-title").textContent = "Tạo hồ sơ học viên mới";
@@ -346,8 +357,7 @@ function renderClassList(classes) {
 }
 
 function showClassManagement() {
-  toggleUI(false);
-  document.getElementById("class-management").style.display = "block";
+  checkAuthAndShow("class-management");
 }
 
 function showClassForm() {
