@@ -216,6 +216,20 @@ function changeStudentPage(newPage) {
 
 
 let allStudentsData = {};
+function updateStudentOptionsForClassForm() {
+  database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
+    allStudentsData = snapshot.val() || {};
+    const select = document.getElementById("class-add-student");
+    select.innerHTML = `<option value="">-- Chọn học viên --</option>`;
+    Object.entries(allStudentsData).forEach(([id, st]) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = st.name || "(Không rõ tên)";
+      select.appendChild(option);
+    });
+  });
+}
+
 
 function initStudentsListener() {
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
@@ -387,14 +401,13 @@ function editClass(id) {
   }).catch(err => alert("Lỗi tải lớp học: " + err.message));
 }
 
-function showClassForm() {
+async function showClassForm() {
   currentClassStudents = [];
   document.getElementById("class-form-title").textContent = "Tạo lớp học mới";
   document.getElementById("class-form").reset();
   document.getElementById("class-index").value = "";
   renderClassStudentList([]);
-  updateStudentOptionsForClass();
-
+updateStudentOptionsForClassForm();
   // Reset lịch học cố định form
   fillFixedScheduleForm(null);
 
