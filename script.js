@@ -206,6 +206,7 @@ function initStudentsListener() {
   });
 }
 
+// renderStudentList sửa lại nút Xóa:
 function renderStudentList(students) {
   const tbody = document.getElementById("student-list");
   tbody.innerHTML = "";
@@ -221,7 +222,7 @@ function renderStudentList(students) {
         <td>${st.sessionsPaid || 0}</td>
         <td>
           <button onclick="editStudent('${id}')">Sửa</button>
-          <button onclick="deleteStudent('${id}')">Xóa</button>
+          <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
         </td>
       </tr>`;
     tbody.innerHTML += row;
@@ -325,6 +326,7 @@ function initClassesListener() {
   });
 }
 
+// renderClassList sửa lại nút Xóa:
 function renderClassList(classes) {
   const tbody = document.getElementById("class-list");
   tbody.innerHTML = "";
@@ -336,7 +338,7 @@ function renderClassList(classes) {
         <td>${cls.teacher || ""}</td>
         <td>
           <button onclick="editClass('${id}')">Sửa</button>
-          <button onclick="deleteClass('${id}')">Xóa</button>
+          <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
         </td>
       </tr>`;
     tbody.innerHTML += row;
