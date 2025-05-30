@@ -283,27 +283,41 @@ function initClassesListener() {
   database.ref(DB_PATHS.CLASSES).on("value", snapshot => {
     const classes = snapshot.val() || {};
     renderClassList(classes);
+    clearSchedulePreview();  // Hiển thị nội dung mặc định lúc load xong bảng lớp
   });
 }
+
 
 function renderClassList(classes) {
   const tbody = document.getElementById("class-list");
   tbody.innerHTML = "";
+
   Object.entries(classes).forEach(([id, cls]) => {
-    const row = `
-      <tr>
-        <td>${cls.name || ""}</td>
-        <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
-        <td>${cls.teacher || ""}</td>
-        <td>
-          <button onclick="viewClassInfo('${id}')">Xem info</button>
-          <button onclick="editClass('${id}')">Sửa</button>
-          <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
-        </td>
-      </tr>`;
-    tbody.innerHTML += row;
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${cls.name || ""}</td>
+      <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
+      <td>${cls.teacher || ""}</td>
+      <td>
+        <button onclick="viewClassInfo('${id}')">Xem info</button>
+        <button onclick="editClass('${id}')">Sửa</button>
+        <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
+      </td>
+    `;
+
+    // Thêm sự kiện hover
+    tr.addEventListener("mouseenter", () => {
+      showSchedulePreview(cls.fixedSchedule);
+    });
+    tr.addEventListener("mouseleave", () => {
+      clearSchedulePreview();
+    });
+
+    tbody.appendChild(tr);
   });
 }
+
 
 function editClass(id) {
   database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value").then(snapshot => {
@@ -567,6 +581,26 @@ function validateFixedSchedule() {
     }
   }
   return true;
+}
+function showSchedulePreview(fixedSchedule) {
+  const ul = document.getElementById("schedule-preview-list");
+  ul.innerHTML = "";
+
+  if (!fixedSchedule || Object.keys(fixedSchedule).length === 0) {
+    ul.innerHTML = "<li>Chưa có lịch học cố định.</li>";
+    return;
+  }
+
+  Object.entries(fixedSchedule).forEach(([day, time]) => {
+    const li = document.createElement("li");
+    li.textContent = `${day}: ${time}`;
+    ul.appendChild(li);
+  });
+}
+
+function clearSchedulePreview() {
+  const ul = document.getElementById("schedule-preview-list");
+  ul.innerHTML = "<li>Di chuột vào lớp để xem lịch học cố định.</li>";
 }
 
 function setupScheduleInputsListener() {
