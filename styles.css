@@ -419,3 +419,136 @@ button[type="button"]:hover {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+/* Lịch học cố định (checkbox + input time) */
+#class-fixed-schedule > div {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#class-fixed-schedule input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+#class-fixed-schedule input[type="time"] {
+  margin-left: auto;
+  width: 110px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #aac0db;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+#class-fixed-schedule input[type="time"]:focus {
+  border-color: #004a99;
+  outline: none;
+}
+
+/* Lịch học dạng calendar */
+#calendar-schedule {
+  margin-top: 15px;
+  border: 1px solid #aac0db;
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 14px;
+  user-select: none;
+}
+
+#calendar-schedule thead tr th {
+  padding: 10px 0;
+  background-color: #004a99;
+  color: white;
+  font-weight: 700;
+  text-align: center;
+  border-right: 1px solid #aac0db;
+}
+
+#calendar-schedule thead tr th:last-child {
+  border-right: none;
+}
+
+#calendar-schedule tbody tr td {
+  border-right: 1px solid #aac0db;
+  border-bottom: 1px solid #aac0db;
+  min-height: 60px;
+  vertical-align: top;
+  padding: 6px 8px;
+  position: relative;
+}
+
+#calendar-schedule tbody tr td:last-child {
+  border-right: none;
+}
+
+/* Ô có giờ học (do JS thêm div style inline) */
+#calendar-schedule tbody tr td div {
+  background-color: #0066cc !important;
+  color: white !important;
+  padding: 6px 8px !important;
+  margin: 4px 0 !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  cursor: default;
+}
+
+/* Danh sách học viên trong lớp */
+#class-student-list {
+  max-height: 160px;
+  overflow-y: auto;
+  padding-left: 0;
+  margin-top: 10px;
+  border: 1px solid #aac0db;
+  border-radius: 8px;
+}
+
+#class-student-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  color: #004a99;
+  padding: 8px 14px;
+  border-bottom: 1px solid #cdd9f1;
+  cursor: default;
+}
+
+#class-student-list li:last-child {
+  border-bottom: none;
+}
+
+.remove-btn {
+  background: #e83a3a;
+  border-radius: 6px;
+  font-weight: 700;
+  padding: 0 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 16px;
+  user-select: none;
+}
+
+.remove-btn:hover {
+  background-color: #b72828;
+}
+
+/* Các nút form thêm học viên, thêm lớp */
+button#add-student-btn {
+  margin-top: 10px;
+  background-color: #0066cc;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+button#add-student-btn:hover {
+  background-color: #004a99;
+}
