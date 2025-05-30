@@ -47,7 +47,7 @@
   <div id="dashboard" style="display:none;">
     <header>
       <div class="avatar-container" onclick="openProfile()">
-        <img id="avatar-img" src="avatar.png" alt="Avatar" />
+<img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
         <span id="display-name"></span> - <span id="display-role"></span>
         <p>Xin chào, <span id="display-name-hello"></span>!</p>
       </div>
@@ -204,7 +204,7 @@
   <!-- TRANG CÁ NHÂN -->
   <div id="profile-page" style="display:none;">
     <h2>Trang cá nhân</h2>
-    <img id="profile-avatar" src="avatar.png" alt="Avatar" width="120" height="120" />
+  <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
     <br />
     <input type="file" id="avatar-file" accept="image/*" />
     <br /><br />
@@ -219,6 +219,11 @@
   </div>
 
   <!-- Script -->
-  <script src="script.js"></script>
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // load script.js code hoặc gọi hàm init trong script.js ở đây
+  });
+</script>
+<script src="script.js"></script>
 </body>
 </html>
