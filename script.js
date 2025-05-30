@@ -37,6 +37,7 @@ const pages = [
 // ==== AUTH ====
 
 auth.onAuthStateChanged(user => {
+  console.log("Auth state changed, user:", user);
   isAuthReady = true;
   if (user) {
     loadDashboard();
@@ -116,12 +117,14 @@ function showPage(pageId) {
   const el = document.getElementById(pageId);
   if (el) {
     el.style.display = "block";
-    window.scrollTo({top:0, behavior:"smooth"});
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 }
 
+
 function showPageFromHash() {
   const hash = window.location.hash.slice(1);
+  console.log("showPageFromHash called with hash:", hash);
   if (!hash || !pages.includes(hash)) {
     window.location.hash = "dashboard";
     return;
