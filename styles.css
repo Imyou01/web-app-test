@@ -6,20 +6,21 @@
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
-  padding: 10px;
-  background: #f0f2f5;
-  color: #333;
+  padding: 0;
+  background: #f9fafc;
+  color: #222;
+  line-height: 1.5;
 }
 
-/* Giao diện auth */
+/* AUTH */
 .auth-form {
-  max-width: 350px;
-  margin: 40px auto;
+  max-width: 360px;
+  margin: 60px auto;
   background: white;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 30px 25px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
   display: none;
-  box-shadow: 0 0 5px #aaa;
 }
 
 .auth-form.active {
@@ -28,22 +29,31 @@ body {
 
 .auth-form input {
   width: 100%;
-  padding: 10px 12px;
-  margin: 8px 0;
+  padding: 12px 15px;
+  margin: 14px 0;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: border-color 0.3s;
+}
+
+.auth-form input:focus {
+  border-color: #0066cc;
+  outline: none;
 }
 
 .auth-form button {
   width: 100%;
-  padding: 10px;
+  padding: 14px;
   background: #0066cc;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   color: white;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 16px;
   cursor: pointer;
-  margin-top: 10px;
+  margin-top: 20px;
+  transition: background-color 0.3s;
 }
 
 .auth-form button:hover {
@@ -52,73 +62,117 @@ body {
 
 .auth-form p {
   text-align: center;
-  margin-top: 12px;
+  margin-top: 20px;
+  font-size: 14px;
 }
 
-/* Dashboard */
-#dashboard header {
-  background: #0066cc;
+.auth-form p a {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-form p a:hover {
+  text-decoration: underline;
+}
+
+/* HEADER DASHBOARD */
+#dashboard nav#main-nav {
+  max-width: 900px;
+  margin: 15px auto;
+  padding: 12px 20px;
+  background: #f4f7ff;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 0 8px rgb(0 102 204 / 0.2);
+}
+
+#dashboard nav#main-nav a {
+  margin: 0 14px;
+  font-weight: 600;
+  color: #004a99;
+  font-size: 16px;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+#dashboard nav#main-nav a:hover,
+#dashboard nav#main-nav a.active {
+  background-color: #0066cc;
   color: white;
-  padding: 15px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
 }
 
-.avatar-container {
+/* Header avatar container */
+#dashboard header {
+  max-width: 900px;
+  margin: 10px auto 30px;
+  padding: 18px 24px;
+  background-color: #0066cc;
+  border-radius: 12px;
+  color: white;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
 }
 
 .avatar-container img {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
+  border: 2.5px solid white;
   object-fit: cover;
-  border: 2px solid white;
 }
 
 .avatar-container span {
-  font-weight: 600;
-  font-size: 18px;
+  font-weight: 700;
+  font-size: 20px;
 }
 
 .avatar-container p {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
+  opacity: 0.9;
 }
 
-/* Grid chính */
+/* DASHBOARD grid cards */
 .grid-container {
+  max-width: 900px;
+  margin: 0 auto 50px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-  padding: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+  padding: 0 10px;
 }
 
 .card {
   aspect-ratio: 1 / 1;
-  max-width: 280px;
-  margin: 0 auto;
   background: white;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 16px;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+  border-radius: 18px;
+  box-shadow: 0 6px 12px rgb(0 0 0 / 0.1);
+  padding: 25px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  transition: background-color 0.3s ease;
+  justify-content: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 17px;
+  color: #004a99;
   user-select: none;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  text-align: center;
+  text-decoration: none;
 }
 
 .card:hover {
-  background-color: #e0e8ff;
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgb(0 0 0 / 0.15);
+  background-color: #d5e2ff;
 }
 
 .card.full-width {
@@ -128,73 +182,94 @@ body {
 }
 
 .icon {
-  font-size: 36px;
+  font-size: 42px;
   color: #0066cc;
 }
 
-
-/* Trang quản lý */
+/* Management pages */
 .management-page {
   max-width: 900px;
-  margin: 20px auto;
+  margin: 40px auto 60px;
   background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px #bbb;
+  padding: 30px 30px 40px;
+  border-radius: 14px;
+  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
+  font-size: 16px;
+  color: #222;
+  line-height: 1.4;
 }
 
 .management-page h2 {
   margin-top: 0;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
+  font-weight: 700;
+  font-size: 24px;
+  color: #004a99;
 }
 
-/* Bảng */
+/* Table */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 10px;
+  margin-bottom: 24px;
 }
 
 table th,
 table td {
   border: 1px solid #ccc;
-  padding: 8px 10px;
+  padding: 12px 15px;
   text-align: center;
 }
 
 table th {
-  background-color: #f4f6fc;
-  font-weight: 600;
+  background-color: #e7efff;
+  font-weight: 700;
+  color: #004a99;
 }
 
+/* Buttons */
 button {
   background-color: #0066cc;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   color: white;
   cursor: pointer;
-  padding: 8px 14px;
-  font-weight: 600;
-  margin: 4px 2px;
+  padding: 10px 18px;
+  font-weight: 700;
+  font-size: 16px;
+  margin: 8px 5px 0 0;
+  transition: background-color 0.3s ease;
 }
 
 button:hover {
   background-color: #004a99;
 }
 
-/* Form học viên */
+.delete-btn {
+  background-color: #e83a3a;
+  margin-left: 8px;
+}
+
+.delete-btn:hover {
+  background-color: #b72828;
+}
+
+/* Forms */
 #student-form-container,
 #class-form-container {
-  background: #e9f0ff;
-  padding: 15px;
-  border-radius: 10px;
-  margin-top: 20px;
+  background: #e6f0ff;
+  padding: 25px 25px 30px;
+  border-radius: 12px;
+  margin-top: 30px;
   max-width: 600px;
 }
 
 #student-form-container h3,
 #class-form-container h3 {
   margin-top: 0;
+  font-weight: 700;
+  font-size: 22px;
+  color: #004a99;
 }
 
 #student-form input[type="text"],
@@ -205,41 +280,56 @@ button:hover {
 #class-form input[type="number"],
 #class-form select {
   width: 100%;
-  padding: 8px;
-  margin-top: 5px;
-  margin-bottom: 15px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
+  padding: 12px 14px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid #aac0db;
   box-sizing: border-box;
+  font-size: 15px;
 }
 
-/* Trạng thái active/deactive */
-.status-active {
-  color: green;
-  font-weight: 700;
+#student-form input[type="text"]:focus,
+#student-form input[type="date"]:focus,
+#student-form input[type="number"]:focus,
+#student-form select:focus,
+#class-form input[type="text"]:focus,
+#class-form input[type="number"]:focus,
+#class-form select:focus {
+  border-color: #004a99;
+  outline: none;
 }
 
-.status-deactive {
-  color: red;
-  font-weight: 700;
+/* Remove button in forms */
+button[type="button"] {
+  background-color: #d9534f;
+  margin-left: 10px;
+  transition: background-color 0.3s ease;
 }
 
-/* Danh sách học viên trong lớp */
+button[type="button"]:hover {
+  background-color: #b02828;
+}
+
+/* List học viên lớp */
 #class-student-list {
   list-style: none;
   padding-left: 0;
-  max-height: 150px;
+  max-height: 160px;
   overflow-y: auto;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 1px solid #aac0db;
+  border-radius: 8px;
 }
 
 #class-student-list li {
-  padding: 5px 10px;
-  border-bottom: 1px solid #ddd;
+  padding: 8px 14px;
+  border-bottom: 1px solid #cdd9f1;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  color: #004a99;
 }
 
 #class-student-list li:last-child {
@@ -247,33 +337,57 @@ button:hover {
 }
 
 .remove-btn {
-  background: #ff4c4c;
-  border-radius: 4px;
+  background: #e83a3a;
+  border-radius: 6px;
   font-weight: 700;
-  padding: 0 6px;
+  padding: 0 8px;
   cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 16px;
+  user-select: none;
 }
 
 .remove-btn:hover {
-  background: #cc0000;
+  background-color: #b72828;
 }
 
 /* Trang cá nhân */
 #profile-page {
   max-width: 600px;
-  margin: 20px auto;
+  margin: 40px auto 60px;
   background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 0 10px #bbb;
+  padding: 30px 25px 40px;
+  border-radius: 14px;
+  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
   text-align: center;
 }
 
-#profile-avatar {
+#profile-page h2 {
+  margin-bottom: 30px;
+  font-weight: 700;
+  color: #004a99;
+}
+
+#profile-avatar,
+#avatar-img {
   border-radius: 50%;
   object-fit: cover;
+  width: 120px;
+  height: 120px;
+  border: 3px solid #0066cc;
+  margin-bottom: 25px;
 }
-/* Loading Indicator */
+
+#avatar-file {
+  margin-top: 20px;
+  cursor: pointer;
+}
+
+#profile-page button {
+  margin: 12px 8px 0 8px;
+}
+
+/* Loading */
 #loading {
   display: none;
   position: fixed;
@@ -281,7 +395,7 @@ button:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.85);
   text-align: center;
   padding-top: 20%;
   z-index: 9999;
@@ -300,19 +414,4 @@ button:hover {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-/* Nút Xóa nổi bật */
-.delete-btn {
-  background-color: #ff4c4c;
-  color: white;
-  border-radius: 5px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-weight: 600;
-  border: none;
-  transition: background-color 0.3s ease;
-}
-
-.delete-btn:hover {
-  background-color: #cc0000;
 }
