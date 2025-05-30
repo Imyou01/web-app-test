@@ -188,10 +188,21 @@
         </tr>
       </thead>
       <tbody id="class-list"></tbody>
+      <td>
+  <button onclick="viewClassInfo('${id}')">Xem info</button>
+  <button onclick="editClass('${id}')">Sửa</button>
+  <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
+</td>
+
     </table>
     <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
 
     <!-- Form tạo/sửa lớp học -->
+    <div id="class-schedule-display" style="background:#fff; padding:15px; border-radius:10px; border:1px solid #aac0db; margin-top:20px; max-height:250px; overflow-y:auto;">
+  <h4>Lịch học cố định của lớp</h4>
+  <ul id="schedule-list" style="list-style:none; padding-left:0; font-weight:600; color:#004a99;"></ul>
+</div>
+
     <div id="class-form-container" style="display:none; max-width:600px; margin-top:30px; background:#e6f0ff; padding:25px 25px 30px; border-radius:12px;">
       <h3 id="class-form-title" style="margin-top:0; font-weight:700; font-size:22px; color:#004a99;">Tạo lớp học mới</h3>
       <form id="class-form" onsubmit="event.preventDefault(); saveClass()">
@@ -215,6 +226,44 @@
       </form>
     </div>
   </div>
+<label>Lịch học cố định (tuần):</label>
+<div id="class-fixed-schedule" style="margin-bottom:20px;">
+  <div>
+    <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
+    <label for="schedule-mon">Thứ 2</label>
+    <input type="time" id="time-mon" style="margin-left: 10px;" />
+  </div>
+  <div>
+    <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
+    <label for="schedule-tue">Thứ 3</label>
+    <input type="time" id="time-tue" style="margin-left: 10px;" />
+  </div>
+  <div>
+    <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
+    <label for="schedule-wed">Thứ 4</label>
+    <input type="time" id="time-wed" style="margin-left: 10px;" />
+  </div>
+  <div>
+    <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
+    <label for="schedule-thu">Thứ 5</label>
+    <input type="time" id="time-thu" style="margin-left: 10px;" />
+  </div>
+  <div>
+    <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
+    <label for="schedule-fri">Thứ 6</label>
+    <input type="time" id="time-fri" style="margin-left: 10px;" />
+  </div>
+  <div>
+    <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
+    <label for="schedule-sat">Thứ 7</label>
+    <input type="time" id="time-sat" style="margin-left: 10px;" />
+  </div>
+  <div>
+    <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
+    <label for="schedule-sun">Chủ nhật</label>
+    <input type="time" id="time-sun" style="margin-left: 10px;" />
+  </div>
+</div>
 
   <!-- Trang cá nhân -->
   <div id="profile-page" style="display:none; max-width:600px; margin:40px auto 60px; background:#fff; padding:30px 25px 40px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12); text-align:center;">
