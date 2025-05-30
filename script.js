@@ -8,6 +8,10 @@ const firebaseConfig = {
   appId: "1:133738230418:web:de00824ab2dc08172dac4b",
   measurementId: "G-JMVC7YZCJT"
 };
+let currentStudentPage = 1;
+const studentsPerPage = 20;
+let pagedStudentsData = {}; // dữ liệu học viên phân trang dạng object
+let totalStudentPages = 1;
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -152,10 +156,26 @@ function backToDashboard() {
 
 // ==== Quản lý học viên ====
 
-function renderStudentList(students) {
+ffunction renderStudentList(students) {
+  allStudentsData = students; // cập nhật toàn bộ dữ liệu học viên
+
+  // Đổi object students thành array để phân trang
+  const studentEntries = Object.entries(students);
+  totalStudentPages = Math.ceil(studentEntries.length / studentsPerPage);
+
+  // Giới hạn page trong khoảng hợp lệ
+  if (currentStudentPage > totalStudentPages) currentStudentPage = totalStudentPages;
+  if (currentStudentPage < 1) currentStudentPage = 1;
+
+  // Lấy phần tử của trang hiện tại
+  const startIndex = (currentStudentPage - 1) * studentsPerPage;
+  const endIndex = startIndex + studentsPerPage;
+  const currentPageStudents = studentEntries.slice(startIndex, endIndex);
+
   const tbody = document.getElementById("student-list");
   tbody.innerHTML = "";
-  Object.entries(students).forEach(([id, st]) => {
+
+  currentPageStudents.forEach(([id, st]) => {
     const row = `
       <tr>
         <td>${st.name || ""}</td>
@@ -173,7 +193,24 @@ function renderStudentList(students) {
       </tr>`;
     tbody.innerHTML += row;
   });
+
+  updateStudentPaginationControls();
 }
+function updateStudentPaginationControls() {
+  document.getElementById("page-info").textContent = `Trang ${currentStudentPage} / ${totalStudentPages}`;
+
+  const prevBtn = document.getElementById("prev-page");
+  const nextBtn = document.getElementById("next-page");
+
+  prevBtn.disabled = currentStudentPage <= 1;
+  nextBtn.disabled = currentStudentPage >= totalStudentPages;
+}
+function changeStudentPage(newPage) {
+  if (newPage < 1 || newPage > totalStudentPages) return;
+  currentStudentPage = newPage;
+  renderStudentList(allStudentsData);
+}
+
 
 let allStudentsData = {};
 
