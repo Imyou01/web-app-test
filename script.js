@@ -300,6 +300,33 @@ function renderClassList(classes) {
     tbody.innerHTML += row;
   });
 }
+function editClass(id) {
+  database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value").then(snapshot => {
+    const cls = snapshot.val();
+    if (!cls) return alert("Lớp học không tồn tại!");
+
+    // Điền các trường lớp
+    document.getElementById("class-index").value = id;
+    document.getElementById("class-name").value = cls.name || "";
+    document.getElementById("class-teacher").value = cls.teacher || "";
+
+    // Danh sách học viên hiện có
+    currentClassStudents = cls.students ? Object.keys(cls.students) : [];
+    renderClassStudentList(currentClassStudents);
+
+    // Điền lịch học cố định (nếu có)
+    fillFixedScheduleForm(cls.fixedSchedule);
+
+    // Hiển thị lịch học cố định bên dưới form
+    renderFixedScheduleDisplay();
+
+    document.getElementById("class-form-title").textContent = "Chỉnh sửa lớp học";
+    document.getElementById("class-form-container").style.display = "block";
+
+    // Đảm bảo lắng nghe thay đổi lịch học (nếu chưa setup)
+    setupScheduleInputsListener();
+  }).catch(err => alert("Lỗi tải lớp học: " + err.message));
+}
 
 function showClassForm() {
   currentClassStudents = [];
@@ -308,8 +335,19 @@ function showClassForm() {
   document.getElementById("class-index").value = "";
   renderClassStudentList([]);
   updateStudentOptionsForClass();
+
+  // Reset lịch học cố định form
+  fillFixedScheduleForm(null);
+
+  // Hiển thị phần lịch học cố định (rỗng ban đầu)
+  renderFixedScheduleDisplay();
+
+  // Thiết lập sự kiện khi checkbox hoặc input time thay đổi
+  setupScheduleInputsListener();
+
   document.getElementById("class-form-container").style.display = "block";
 }
+
 
 function hideClassForm() {
   document.getElementById("class-form-container").style.display = "none";
@@ -379,6 +417,8 @@ async function saveClass() {
     students: {},
     updatedAt: firebase.database.ServerValue.TIMESTAMP
   };
+const fixedSchedule = getFixedScheduleFromForm();
+classData.fixedSchedule = fixedSchedule;
 
   currentClassStudents.forEach(name => {
     classData.students[name] = true;
@@ -410,6 +450,75 @@ async function deleteClass(id) {
     alert("Xóa lớp học thành công!");
   } catch (error) {
     alert("Lỗi xóa lớp học: " + error.message);
+  }
+}
+function getFixedScheduleFromForm() {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const schedule = {};
+  days.forEach(day => {
+    const checkbox = document.getElementById(`schedule-${day}`);
+    const timeInput = document.getElementById(`time-${day}`);
+    if (checkbox.checked && timeInput.value) {
+      schedule[checkbox.value] = timeInput.value;
+    }
+  });
+  return schedule;
+}
+function renderFixedScheduleDisplay() {
+  const scheduleList = document.getElementById("schedule-list");
+  scheduleList.innerHTML = "";
+
+  const fixedSchedule = getFixedScheduleFromForm();
+
+  if (Object.keys(fixedSchedule).length === 0) {
+    scheduleList.innerHTML = "<li>Chưa có lịch học cố định.</li>";
+    return;
+  }
+
+  Object.entries(fixedSchedule).forEach(([day, time]) => {
+    const li = document.createElement("li");
+    li.textContent = `${day}: ${time}`;
+    scheduleList.appendChild(li);
+  });
+}
+function setupScheduleInputsListener() {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  days.forEach(day => {
+    const checkbox = document.getElementById(`schedule-${day}`);
+    const timeInput = document.getElementById(`time-${day}`);
+
+    checkbox.addEventListener("change", renderFixedScheduleDisplay);
+    timeInput.addEventListener("input", renderFixedScheduleDisplay);
+  });
+}
+async function viewClassInfo(id) {
+  try {
+    const snapshot = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
+    const cls = snapshot.val();
+    if (!cls) return alert("Lớp học không tồn tại!");
+
+    const studentCount = cls.students ? Object.keys(cls.students).length : 0;
+    const fixedSchedule = cls.fixedSchedule || {};
+    const sessionsPerWeek = Object.keys(fixedSchedule).length;
+
+    let scheduleText = "";
+    for (const [day, time] of Object.entries(fixedSchedule)) {
+      scheduleText += `- ${day}: ${time}\n`;
+    }
+    if (!scheduleText) scheduleText = "Chưa có lịch học cố định.";
+
+    const info = `
+Tên lớp: ${cls.name}
+Giáo viên: ${cls.teacher}
+Số học viên: ${studentCount}
+Số buổi học cố định mỗi tuần: ${sessionsPerWeek}
+Lịch học cố định:
+${scheduleText}
+    `;
+
+    alert(info);
+  } catch (error) {
+    alert("Lỗi lấy thông tin lớp học: " + error.message);
   }
 }
 
