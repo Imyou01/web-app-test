@@ -31,8 +31,14 @@ auth.onAuthStateChanged(user => {
     initStudentsListener();
     initClassesListener();
   } else {
+    // Khi logout hoặc chưa đăng nhập
     toggleUI(false);
     showForm("login");
+    // Ẩn tất cả các phần quản lý để không bị lỗi UI
+    document.getElementById("student-management").style.display = "none";
+    document.getElementById("class-management").style.display = "none";
+    document.getElementById("account-management").style.display = "none";
+    document.getElementById("profile-page").style.display = "none";
   }
 });
 
@@ -60,7 +66,18 @@ function login() {
 }
 
 function logout() {
-  auth.signOut();
+  auth.signOut().then(() => {
+    // Sau khi logout, reset UI
+    toggleUI(false);
+    showForm("login");
+    // Ẩn các phần quản lý nếu có
+    document.getElementById("student-management").style.display = "none";
+    document.getElementById("class-management").style.display = "none";
+    document.getElementById("account-management").style.display = "none";
+    document.getElementById("profile-page").style.display = "none";
+  }).catch(error => {
+    alert("Lỗi đăng xuất: " + error.message);
+  });
 }
 
 // ==== UI ====
