@@ -293,6 +293,7 @@ function renderClassList(classes) {
         <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
         <td>${cls.teacher || ""}</td>
         <td>
+          <button onclick="viewClassInfo('${id}')">Xem info</button>
           <button onclick="editClass('${id}')">Sửa</button>
           <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
         </td>
@@ -300,6 +301,7 @@ function renderClassList(classes) {
     tbody.innerHTML += row;
   });
 }
+
 function editClass(id) {
   database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value").then(snapshot => {
     const cls = snapshot.val();
