@@ -175,12 +175,15 @@ function renderStudentList(students) {
   });
 }
 
+let allStudentsData = {};
+
 function initStudentsListener() {
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
-    const students = snapshot.val() || {};
-    renderStudentList(students);
+    allStudentsData = snapshot.val() || {};
+    renderStudentList(allStudentsData);
   });
 }
+
 
 function showStudentForm() {
   document.getElementById("student-form-title").textContent = "Tạo hồ sơ học viên mới";
@@ -362,8 +365,8 @@ function updateStudentOptionsForClass() {
     select.innerHTML = `<option value="">-- Chọn học viên --</option>`;
     Object.entries(students).forEach(([id, st]) => {
       const option = document.createElement("option");
-      option.value = st.name || "";
-      option.textContent = st.name || "";
+     option.value = id; // key Firebase của học viên
+option.textContent = st.name || "";
       select.appendChild(option);
     });
   });
@@ -371,23 +374,26 @@ function updateStudentOptionsForClass() {
 
 function addStudentToClass() {
   const select = document.getElementById("class-add-student");
-  const name = select.value.trim();
-  if (!name) return alert("Vui lòng chọn học viên để thêm!");
+  const studentId = select.value;
+  if (!studentId) return alert("Vui lòng chọn học viên để thêm!");
 
-  if (currentClassStudents.includes(name)) {
+  if (currentClassStudents.includes(studentId)) {
     alert("Học viên đã có trong lớp!");
     return;
   }
 
-  currentClassStudents.push(name);
+  currentClassStudents.push(studentId);
   renderClassStudentList(currentClassStudents);
-}
+} // <-- Đóng hàm ở đây
 
-function renderClassStudentList(students) {
-  currentClassStudents = students;
+
+function renderClassStudentList(studentIds) {
+  currentClassStudents = studentIds;
   const ul = document.getElementById("class-student-list");
   ul.innerHTML = "";
-  students.forEach(name => {
+  studentIds.forEach(id => {
+    const st = allStudentsData[id];
+    const name = st ? st.name : "(Không rõ tên)";
     const li = document.createElement("li");
     li.textContent = name;
 
@@ -395,7 +401,7 @@ function renderClassStudentList(students) {
     btnRemove.textContent = "x";
     btnRemove.className = "remove-btn";
     btnRemove.onclick = () => {
-      currentClassStudents = currentClassStudents.filter(n => n !== name);
+      currentClassStudents = currentClassStudents.filter(sid => sid !== id);
       renderClassStudentList(currentClassStudents);
     };
 
@@ -403,6 +409,7 @@ function renderClassStudentList(students) {
     ul.appendChild(li);
   });
 }
+
 
 async function saveClass() {
   const user = auth.currentUser;
@@ -422,9 +429,10 @@ async function saveClass() {
 const fixedSchedule = getFixedScheduleFromForm();
 classData.fixedSchedule = fixedSchedule;
 
-  currentClassStudents.forEach(name => {
-    classData.students[name] = true;
-  });
+  currentClassStudents.forEach(studentId => {
+  classData.students[studentId] = true;
+});
+ if (!validateFixedSchedule()) return;
 
   if (!classData.name || !classData.teacher) {
     alert("Vui lòng nhập tên lớp và giáo viên đứng lớp!");
@@ -466,6 +474,23 @@ function getFixedScheduleFromForm() {
   });
   return schedule;
 }
+function fillFixedScheduleForm(fixedSchedule) {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  days.forEach(day => {
+    const checkbox = document.getElementById(`schedule-${day}`);
+    const timeInput = document.getElementById(`time-${day}`);
+    if (fixedSchedule && fixedSchedule[checkbox.value]) {
+      checkbox.checked = true;
+      timeInput.value = fixedSchedule[checkbox.value];
+    } else {
+      checkbox.checked = false;
+      timeInput.value = "";
+    }
+  });
+
+  renderCalendarSchedule(fixedSchedule);
+}
+
 function renderFixedScheduleDisplay() {
   const scheduleList = document.getElementById("schedule-list");
   scheduleList.innerHTML = "";
@@ -474,15 +499,76 @@ function renderFixedScheduleDisplay() {
 
   if (Object.keys(fixedSchedule).length === 0) {
     scheduleList.innerHTML = "<li>Chưa có lịch học cố định.</li>";
-    return;
+  } else {
+    Object.entries(fixedSchedule).forEach(([day, time]) => {
+      const li = document.createElement("li");
+      li.textContent = `${day}: ${time}`;
+      scheduleList.appendChild(li);
+    });
   }
 
+  renderCalendarSchedule(fixedSchedule);
+}
+
+function renderCalendarSchedule(fixedSchedule) {
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const idMap = {
+    Monday: "calendar-mon",
+    Tuesday: "calendar-tue",
+    Wednesday: "calendar-wed",
+    Thursday: "calendar-thu",
+    Friday: "calendar-fri",
+    Saturday: "calendar-sat",
+    Sunday: "calendar-sun"
+  };
+
+  // Xóa hết nội dung cũ
+  days.forEach(day => {
+    const cell = document.getElementById(idMap[day]);
+    if (cell) cell.innerHTML = "";
+  });
+
+  // Nếu fixedSchedule rỗng thì thôi
+  if (!fixedSchedule || Object.keys(fixedSchedule).length === 0) return;
+
   Object.entries(fixedSchedule).forEach(([day, time]) => {
-    const li = document.createElement("li");
-    li.textContent = `${day}: ${time}`;
-    scheduleList.appendChild(li);
+    const cell = document.getElementById(idMap[day]);
+    if (cell) {
+      // Tạo div nhỏ hiển thị giờ học
+      const div = document.createElement("div");
+      div.textContent = time;
+      div.style.backgroundColor = "#0066cc";
+      div.style.color = "white";
+      div.style.padding = "6px 8px";
+      div.style.margin = "4px 0";
+      div.style.borderRadius = "6px";
+      div.style.fontWeight = "600";
+      div.style.textAlign = "center";
+      cell.appendChild(div);
+    }
   });
 }
+function validateFixedSchedule() {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  for (const day of days) {
+    const checkbox = document.getElementById(`schedule-${day}`);
+    const timeInput = document.getElementById(`time-${day}`);
+
+    if (checkbox.checked && !timeInput.value) {
+      alert(`Vui lòng chọn giờ học cho ${checkbox.value}!`);
+      timeInput.focus();
+      return false;
+    }
+
+    if (!checkbox.checked && timeInput.value) {
+      alert(`Vui lòng tick lịch học cho ngày ${checkbox.value} hoặc xóa giờ!`);
+      timeInput.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
 function setupScheduleInputsListener() {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   days.forEach(day => {
