@@ -85,17 +85,21 @@ body {
   border-radius: 12px;
   text-align: center;
   box-shadow: 0 0 8px rgb(0 102 204 / 0.2);
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
 #dashboard nav#main-nav a {
-  margin: 0 14px;
   font-weight: 600;
   color: #004a99;
   font-size: 16px;
   text-decoration: none;
-  padding: 6px 10px;
+  padding: 8px 14px;
   border-radius: 6px;
   transition: background-color 0.3s;
+  white-space: nowrap;
 }
 
 #dashboard nav#main-nav a:hover,
