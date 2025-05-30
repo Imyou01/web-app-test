@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ứng dụng quản lý học viên</title>
+  <link rel="stylesheet" href="styles.css" />
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <!-- AUTH CONTAINER -->
+  <div id="auth-container">
+    <div id="login-form" class="auth-form active">
+      <h2>Đăng nhập</h2>
+      <input type="text" id="login-username" placeholder="Email hoặc tên đăng nhập" />
+      <input type="password" id="login-password" placeholder="Mật khẩu" />
+      <button onclick="login()">Đăng nhập</button>
+      <p>
+        <a href="#" onclick="showForm('register')">Đăng ký</a> | 
+        <a href="#" onclick="showForm('forgot')">Quên mật khẩu?</a>
+      </p>
+    </div>
+
+    <div id="register-form" class="auth-form">
+      <h2>Đăng ký</h2>
+      <input type="email" id="register-email" placeholder="Email" />
+      <input type="text" id="register-name" placeholder="Họ và tên" />
+      <input type="text" id="register-username" placeholder="Tên đăng nhập" />
+      <input type="password" id="register-password" placeholder="Mật khẩu" />
+      <button onclick="register()">Đăng ký</button>
+      <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
+    </div>
+
+    <div id="forgot-form" class="auth-form">
+      <h2>Quên mật khẩu</h2>
+      <input type="text" id="forgot-username" placeholder="Email hoặc tên đăng nhập" />
+      <button onclick="forgotPassword()">Gửi yêu cầu</button>
+      <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" style="display:none;">
+    <header>
+      <div class="avatar-container" onclick="openProfile()">
+        <img id="avatar-img" src="avatar.png" alt="Avatar" />
+        <span id="display-name"></span> - <span id="display-role"></span>
+        <p>Xin chào, <span id="display-name-hello"></span>!</p>
+      </div>
+    </header>
+
+    <main class="grid-container">
+      <div class="card" onclick="showAccountManagement()">
+        <div class="icon">&#9819;</div>
+        <div>Quản lý tài khoản</div>
+      </div>
+      <div class="card" onclick="showStudentManagement()">
+        <div class="icon">&#128214;</div>
+        <div>Quản lý học viên</div>
+      </div>
+      <div class="card" onclick="showClassManagement()">
+        <div class="icon">&#127979;</div>
+        <div>Quản lý lớp học</div>
+      </div>
+      <div class="card" onclick="alert('Chức năng quản lý ngân sách đang phát triển')">
+        <div class="icon">&#128176;</div>
+        <div>Quản lý ngân sách</div>
+      </div>
+      <div class="card" onclick="alert('Chức năng quản lý bài tập về nhà đang phát triển')">
+        <div class="icon">&#128221;</div>
+        <div>Quản lý bài tập về nhà</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- QUẢN LÝ TÀI KHOẢN -->
+  <div id="account-management" class="management-page" style="display:none;">
+    <h2>Quản lý tài khoản</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Họ và tên</th>
+          <th>Tên đăng nhập</th>
+          <th>Chức vụ</th>
+          <th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody id="account-list"></tbody>
+    </table>
+    <button onclick="backToDashboard()">Quay lại</button>
+  </div>
+
+  <!-- QUẢN LÝ HỌC VIÊN -->
+  <div id="student-management" class="management-page" style="display:none;">
+    <h2>Quản lý học viên</h2>
+    <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Họ và tên</th>
+          <th>Ngày sinh</th>
+          <th>Bố/Mẹ</th>
+          <th>Nghề nghiệp bố mẹ</th>
+          <th>Gói đăng ký</th>
+          <th>Số buổi đã học</th>
+          <th>Số buổi đã đóng</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="student-list"></tbody>
+    </table>
+    <button onclick="backToDashboard()">Quay lại</button>
+
+    <!-- Form tạo/sửa học viên -->
+    <div id="student-form-container" style="display:none;">
+      <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
+      <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
+        <input type="hidden" id="student-index" />
+        <label>Họ và Tên:<br />
+          <input type="text" id="student-name" required />
+        </label><br />
+        <label>Ngày tháng năm sinh:<br />
+          <input type="date" id="student-dob" required />
+        </label><br />
+        <label>Bố/Mẹ:<br />
+          <input type="text" id="student-parent" required />
+        </label><br />
+        <label>Nghề nghiệp bố mẹ:<br />
+          <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
+            <option value="">-- Chọn nghề nghiệp --</option>
+            <option value="Công nhân">Công nhân</option>
+            <option value="Giáo viên">Giáo viên</option>
+            <option value="Kinh doanh">Kinh doanh</option>
+            <option value="Bác sĩ">Bác sĩ</option>
+            <option value="Nông dân">Nông dân</option>
+            <option value="Khác">Khác</option>
+          </select>
+          <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px;" />
+        </label><br />
+        <label>Gói đăng ký:<br />
+          <input type="text" id="student-package" required />
+        </label><br />
+        <label>Số buổi đã học:<br />
+          <input type="number" id="student-sessions-attended" min="0" value="0" required />
+        </label><br />
+        <label>Số buổi đã đóng:<br />
+          <input type="number" id="student-sessions-paid" min="0" value="0" required />
+        </label><br />
+        <button type="submit">Lưu</button>
+        <button type="button" onclick="hideStudentForm()">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- QUẢN LÝ LỚP HỌC -->
+  <div id="class-management" class="management-page" style="display:none;">
+    <h2>Quản lý lớp học</h2>
+    <button onclick="showClassForm()">Tạo lớp học mới</button>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tên lớp học</th>
+          <th>Số lượng học viên</th>
+          <th>Giáo viên đứng lớp</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="class-list"></tbody>
+    </table>
+
+    <button onclick="backToDashboard()">Quay lại</button>
+
+    <!-- Form tạo/sửa lớp học -->
+    <div id="class-form-container" style="display:none;">
+      <h3 id="class-form-title">Tạo lớp học mới</h3>
+      <form id="class-form" onsubmit="event.preventDefault(); saveClass()">
+        <input type="hidden" id="class-index" />
+        <label>Tên lớp học:<br />
+          <input type="text" id="class-name" required />
+        </label><br />
+        <label>Giáo viên đứng lớp:<br />
+          <input type="text" id="class-teacher" required />
+        </label><br />
+        <label>Thêm học viên:<br />
+          <select id="class-add-student">
+            <option value="">-- Chọn học viên --</option>
+          </select>
+          <button type="button" onclick="addStudentToClass()">Thêm</button>
+        </label><br />
+        <label>Danh sách học viên trong lớp:</label>
+        <ul id="class-student-list"></ul><br />
+        <button type="submit">Lưu</button>
+        <button type="button" onclick="hideClassForm()">Hủy</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- TRANG CÁ NHÂN -->
+  <div id="profile-page" style="display:none;">
+    <h2>Trang cá nhân</h2>
+    <img id="profile-avatar" src="avatar.png" alt="Avatar" width="120" height="120" />
+    <br />
+    <input type="file" id="avatar-file" accept="image/*" />
+    <br /><br />
+    <button onclick="backToDashboard()">Quay lại Dashboard</button>
+    <button onclick="logout()">Đăng xuất</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" style="display:none;">
+    <div class="spinner"></div>
+    <p>Đang tải dữ liệu...</p>
+  </div>
+
+  <!-- Script -->
+  <script src="script.js"></script>
+</body>
+</html>
