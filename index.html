@@ -35,6 +35,7 @@
       <button onclick="register()">Đăng ký</button>
       <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
     </div>
+
     <div id="forgot-password-form" class="auth-form">
       <h2>Quên mật khẩu</h2>
       <input type="text" id="forgot-username" placeholder="Email hoặc tên đăng nhập" />
@@ -43,50 +44,52 @@
     </div>
   </div>
 
-  <!-- DASHBOARD -->
+  <!-- DASHBOARD: chứa Nav + Header + Grid card -->
   <div id="dashboard" style="display:none;">
-    <header>
-   <!-- Thêm nav điều hướng cho SPA -->
-<nav id="main-nav" style="max-width:900px; margin:10px auto; padding:10px; background:#f4f6fc; border-radius:8px; text-align:center;">
-  <a href="#dashboard" style="margin:0 12px; font-weight:600;">Dashboard</a>
-  <a href="#account-management" style="margin:0 12px; font-weight:600;">Quản lý tài khoản</a>
-  <a href="#student-management" style="margin:0 12px; font-weight:600;">Quản lý học viên</a>
-  <a href="#class-management" style="margin:0 12px; font-weight:600;">Quản lý lớp học</a>
-  <a href="#profile-page" style="margin:0 12px; font-weight:600;">Trang cá nhân</a>
-  <a href="#" onclick="logout(); return false;" style="margin:0 12px; font-weight:600; color:#cc0000;">Đăng xuất</a>
-</nav>
-      <div class="avatar-container" onclick="openProfile()">
-<img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
-        <span id="display-name"></span> - <span id="display-role"></span>
-        <p>Xin chào, <span id="display-name-hello"></span>!</p>
-      </div>
-    </header>
+   <nav id="main-nav" style="max-width:900px; margin:10px auto; padding:10px; background:#f4f6fc; border-radius:8px; text-align:center;">
+     <a href="#dashboard" style="margin:0 12px; font-weight:600;">Dashboard</a>
+     <a href="#account-management" style="margin:0 12px; font-weight:600;">Quản lý tài khoản</a>
+     <a href="#student-management" style="margin:0 12px; font-weight:600;">Quản lý học viên</a>
+     <a href="#class-management" style="margin:0 12px; font-weight:600;">Quản lý lớp học</a>
+     <a href="#profile-page" style="margin:0 12px; font-weight:600;">Trang cá nhân</a>
+     <a href="#" onclick="logout(); return false;" style="margin:0 12px; font-weight:600; color:#cc0000;">Đăng xuất</a>
+   </nav>
+
+   <header>
+     <div class="avatar-container" onclick="openProfile()">
+       <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
+       <span id="display-name"></span> - <span id="display-role"></span>
+       <p>Xin chào, <span id="display-name-hello"></span>!</p>
+     </div>
+   </header>
 
    <main class="grid-container">
-  <a class="card" href="#account-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;">
-    <div class="icon">&#9819;</div>
-    <div>Quản lý tài khoản</div>
-  </a>
-  <a class="card" href="#student-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;">
-    <div class="icon">&#128214;</div>
-    <div>Quản lý học viên</div>
-  </a>
-  <a class="card" href="#class-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;">
-    <div class="icon">&#127979;</div>
-    <div>Quản lý lớp học</div>
-  </a>
-  <div class="card full-width" onclick="alert('Chức năng quản lý ngân sách đang phát triển')">
-    <div class="icon">&#128176;</div>
-    <div>Quản lý ngân sách</div>
+     <a class="card" href="#account-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;">
+       <div class="icon">&#9819;</div>
+       <div>Quản lý tài khoản</div>
+     </a>
+     <a class="card" href="#student-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;">
+       <div class="icon">&#128214;</div>
+       <div>Quản lý học viên</div>
+     </a>
+     <a class="card" href="#class-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center;">
+       <div class="icon">&#127979;</div>
+       <div>Quản lý lớp học</div>
+     </a>
+     <div class="card full-width" onclick="alert('Chức năng quản lý ngân sách đang phát triển')">
+       <div class="icon">&#128176;</div>
+       <div>Quản lý ngân sách</div>
+     </div>
+     <div class="card full-width" onclick="alert('Chức năng quản lý bài tập về nhà đang phát triển')">
+       <div class="icon">&#128221;</div>
+       <div>Quản lý bài tập về nhà</div>
+     </div>
+   </main>
   </div>
-  <div class="card full-width" onclick="alert('Chức năng quản lý bài tập về nhà đang phát triển')">
-    <div class="icon">&#128221;</div>
-    <div>Quản lý bài tập về nhà</div>
-  </div>
-</main>
- </div>
 
-  <!-- QUẢN LÝ TÀI KHOẢN -->
+  <!-- TRANG QUẢN LÝ - RIÊNG BIỆT, không chứa nav hay header -->
+
+  <!-- Quản lý tài khoản -->
   <div id="account-management" class="management-page" style="display:none;">
     <h2>Quản lý tài khoản</h2>
     <table>
@@ -101,81 +104,79 @@
       </thead>
       <tbody id="account-list"></tbody>
     </table>
-    <button onclick="backToDashboard()">Quay lại</button>
+    <button onclick="backToDashboard()">Quay lại Dashboard</button>
   </div>
 
-<!-- QUẢN LÝ HỌC VIÊN -->
-<div id="student-management" class="management-page" style="display:none;">
-  <h2>Quản lý học viên</h2>
-  <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
-  <table>
-    <thead>
-      <tr>
-        <th>Họ và tên</th>
-        <th>Ngày sinh</th>
-        <th>Bố/Mẹ</th>
-        <th>Số điện thoại bố/mẹ</th>  <!-- Mới thêm -->
-        <th>Nghề nghiệp bố mẹ</th>
-        <th>Gói đăng ký</th>
-        <th>Số buổi đã học</th>
-        <th>Số buổi đã đóng</th>
-        <th>Hành động</th>
-      </tr>
-    </thead>
-    <tbody id="student-list"></tbody>
-  </table>
-  <button onclick="backToDashboard()">Quay lại</button>
+  <!-- Quản lý học viên -->
+  <div id="student-management" class="management-page" style="display:none;">
+    <h2>Quản lý học viên</h2>
+    <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Họ và tên</th>
+          <th>Ngày sinh</th>
+          <th>Bố/Mẹ</th>
+          <th>Số điện thoại bố/mẹ</th>
+          <th>Nghề nghiệp bố mẹ</th>
+          <th>Gói đăng ký</th>
+          <th>Số buổi đã học</th>
+          <th>Số buổi đã đóng</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="student-list"></tbody>
+    </table>
+    <button onclick="backToDashboard()">Quay lại Dashboard</button>
 
-  <!-- Form tạo/sửa học viên -->
-  <div id="student-form-container" style="display:none;">
-    <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
-    <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
-      <input type="hidden" id="student-index" />
-      <label>Họ và Tên:<br />
-        <input type="text" id="student-name" required />
-      </label><br />
-      <label>Ngày tháng năm sinh:<br />
-        <input type="date" id="student-dob" required />
-      </label><br />
-      <label>Bố/Mẹ:<br />
-        <input type="text" id="student-parent" required />
-      </label><br />
-      <label>Số điện thoại bố/mẹ:<br />      <!-- Mới thêm -->
-        <input type="text" id="student-parent-phone" required />
-      </label><br />
-      <label>Nghề nghiệp bố mẹ:<br />
-        <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
-          <option value="">-- Chọn nghề nghiệp --</option>
-          <option value="Công nhân">Công nhân</option>
-          <option value="Giáo viên">Giáo viên</option>
-          <option value="Kinh doanh">Kinh doanh</option>
-          <option value="Bác sĩ">Bác sĩ</option>
-          <option value="Nông dân">Nông dân</option>
-          <option value="Khác">Khác</option>
-        </select>
-        <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px;" />
-      </label><br />
-      <label>Gói đăng ký:<br />
-        <input type="text" id="student-package" required />
-      </label><br />
-      <label>Số buổi đã học:<br />
-        <input type="number" id="student-sessions-attended" min="0" value="0" required />
-      </label><br />
-      <label>Số buổi đã đóng:<br />
-        <input type="number" id="student-sessions-paid" min="0" value="0" required />
-      </label><br />
-      <button type="submit">Lưu</button>
-      <button type="button" onclick="hideStudentForm()">Hủy</button>
-    </form>
+    <!-- Form tạo/sửa học viên -->
+    <div id="student-form-container" style="display:none;">
+      <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
+      <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
+        <input type="hidden" id="student-index" />
+        <label>Họ và Tên:<br />
+          <input type="text" id="student-name" required />
+        </label><br />
+        <label>Ngày tháng năm sinh:<br />
+          <input type="date" id="student-dob" required />
+        </label><br />
+        <label>Bố/Mẹ:<br />
+          <input type="text" id="student-parent" required />
+        </label><br />
+        <label>Số điện thoại bố/mẹ:<br />
+          <input type="text" id="student-parent-phone" required />
+        </label><br />
+        <label>Nghề nghiệp bố mẹ:<br />
+          <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
+            <option value="">-- Chọn nghề nghiệp --</option>
+            <option value="Công nhân">Công nhân</option>
+            <option value="Giáo viên">Giáo viên</option>
+            <option value="Kinh doanh">Kinh doanh</option>
+            <option value="Bác sĩ">Bác sĩ</option>
+            <option value="Nông dân">Nông dân</option>
+            <option value="Khác">Khác</option>
+          </select>
+          <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px;" />
+        </label><br />
+        <label>Gói đăng ký:<br />
+          <input type="text" id="student-package" required />
+        </label><br />
+        <label>Số buổi đã học:<br />
+          <input type="number" id="student-sessions-attended" min="0" value="0" required />
+        </label><br />
+        <label>Số buổi đã đóng:<br />
+          <input type="number" id="student-sessions-paid" min="0" value="0" required />
+        </label><br />
+        <button type="submit">Lưu</button>
+        <button type="button" onclick="hideStudentForm()">Hủy</button>
+      </form>
+    </div>
   </div>
-</div>
 
-
-  <!-- QUẢN LÝ LỚP HỌC -->
+  <!-- Quản lý lớp học -->
   <div id="class-management" class="management-page" style="display:none;">
     <h2>Quản lý lớp học</h2>
     <button onclick="showClassForm()">Tạo lớp học mới</button>
-
     <table>
       <thead>
         <tr>
@@ -187,8 +188,7 @@
       </thead>
       <tbody id="class-list"></tbody>
     </table>
-
-    <button onclick="backToDashboard()">Quay lại</button>
+    <button onclick="backToDashboard()">Quay lại Dashboard</button>
 
     <!-- Form tạo/sửa lớp học -->
     <div id="class-form-container" style="display:none;">
@@ -215,10 +215,10 @@
     </div>
   </div>
 
-  <!-- TRANG CÁ NHÂN -->
+  <!-- Trang cá nhân -->
   <div id="profile-page" style="display:none;">
     <h2>Trang cá nhân</h2>
-  <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
+    <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" />
     <br />
     <input type="file" id="avatar-file" accept="image/*" />
     <br /><br />
@@ -232,12 +232,6 @@
     <p>Đang tải dữ liệu...</p>
   </div>
 
-  <!-- Script -->
-  <script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // load script.js code hoặc gọi hàm init trong script.js ở đây
-  });
-</script>
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
