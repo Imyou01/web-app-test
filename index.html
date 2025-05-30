@@ -188,12 +188,12 @@
         </tr>
       </thead>
       <tbody id="class-list"></tbody>
-    
+
     </table>
     <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
 
     <!-- Form tạo/sửa lớp học -->
-    <div id="class-schedule-display" style="background:#fff; padding:15px; border-radius:10px; border:1px solid #aac0db; margin-top:20px; max-height:250px; overflow-y:auto;">
+     <div id="class-schedule-display" style="background:#fff; padding:15px; border-radius:10px; border:1px solid #aac0db; margin-top:20px; max-height:250px; overflow-y:auto;">
   <h4>Lịch học cố định của lớp</h4>
   <ul id="schedule-list" style="list-style:none; padding-left:0; font-weight:600; color:#004a99;"></ul>
 </div>
@@ -208,20 +208,7 @@
         <label>Giáo viên đứng lớp:<br />
           <input type="text" id="class-teacher" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
         </label><br />
-        <label>Thêm học viên:<br />
-          <select id="class-add-student" style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:10px; border-radius:8px; border:1px solid #aac0db; font-size:15px;">
-            <option value="">-- Chọn học viên --</option>
-          </select>
-          <button type="button" onclick="addStudentToClass()" style="margin-top:10px; padding:10px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Thêm</button>
-        </label><br />
-        <label>Danh sách học viên trong lớp:</label>
-        <ul id="class-student-list" style="list-style:none; padding-left:0; max-height:160px; overflow-y:auto; border:1px solid #aac0db; border-radius:8px; margin-top:10px; margin-bottom:20px;"></ul>
-        <button type="submit" style="padding:12px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Lưu</button>
-        <button type="button" onclick="hideClassForm()" style="padding:12px 20px; font-weight:700; background:#d9534f; color:#fff; border:none; border-radius:8px; cursor:pointer; margin-left:10px; transition:background-color 0.3s;">Hủy</button>
-      </form>
-    </div>
-  </div>
-<label>Lịch học cố định (tuần):</label>
+        <label>Lịch học cố định (tuần):</label>
 <div id="class-fixed-schedule" style="margin-bottom:20px;">
   <div>
     <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
@@ -259,6 +246,19 @@
     <input type="time" id="time-sun" style="margin-left: 10px;" />
   </div>
 </div>
+        <label>Thêm học viên:<br />
+          <select id="class-add-student" style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:10px; border-radius:8px; border:1px solid #aac0db; font-size:15px;">
+            <option value="">-- Chọn học viên --</option>
+          </select>
+          <button type="button" onclick="addStudentToClass()" style="margin-top:10px; padding:10px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Thêm</button>
+        </label><br />
+        <label>Danh sách học viên trong lớp:</label>
+        <ul id="class-student-list" style="list-style:none; padding-left:0; max-height:160px; overflow-y:auto; border:1px solid #aac0db; border-radius:8px; margin-top:10px; margin-bottom:20px;"></ul>
+        <button type="submit" style="padding:12px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Lưu</button>
+        <button type="button" onclick="hideClassForm()" style="padding:12px 20px; font-weight:700; background:#d9534f; color:#fff; border:none; border-radius:8px; cursor:pointer; margin-left:10px; transition:background-color 0.3s;">Hủy</button>
+      </form>
+    </div>
+  </div>
 
   <!-- Trang cá nhân -->
   <div id="profile-page" style="display:none; max-width:600px; margin:40px auto 60px; background:#fff; padding:30px 25px 40px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12); text-align:center;">
