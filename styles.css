@@ -553,10 +553,9 @@ button#add-student-btn:hover {
   background-color: #004a99;
 }
 #class-management-container {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
+  display: block; /* hoặc bỏ style flex */
 }
+
 
 #class-table-container {
   flex: 3; /* Chiếm 75% chiều ngang */
