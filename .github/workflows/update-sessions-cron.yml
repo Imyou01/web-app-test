@@ -1,0 +1,36 @@
+# .github/workflows/update-sessions-cron.yml
+
+name: "Cập nhật Sessions (cron)"
+
+on:
+  schedule:
+    # Chạy mỗi 5 phút một lần. Nếu muốn mỗi phút, dùng "*/1 * * * *"
+    - cron: "*/5 * * * *"
+
+jobs:
+  update-sessions:
+    name: "Chạy updateSessions.js"
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # 2. Thiết lập Node.js (phiên bản 16)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+
+      # 3. Di chuyển vào thư mục cron/ và cài dependencies
+      - name: Install dependencies (cron)
+        working-directory: ./cron
+        run: npm install
+
+      # 4. Chạy script updateSessions với biến môi trường từ Secret
+      - name: Run updateSessions script
+        working-directory: ./cron
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: npm run start
