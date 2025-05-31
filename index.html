@@ -140,7 +140,7 @@
       <thead>
         <tr>
           <th>Họ và tên</th>
-          <th>Ngày sinh</th>
+          <th>Năm sinh</th>
           <th>Bố/Mẹ</th>
           <th>Số điện thoại bố/mẹ</th>
           <th>Nghề nghiệp bố mẹ</th>
@@ -168,8 +168,8 @@
         <label>Họ và Tên:<br />
           <input type="text" id="student-name" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
         </label><br />
-        <label>Ngày tháng năm sinh:<br />
-          <input type="date" id="student-dob" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
+        <label>năm sinh:<br />
+          <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh" required />
         </label><br />
         <label>Bố/Mẹ:<br />
           <input type="text" id="student-parent" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
@@ -190,7 +190,7 @@
           <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px; padding:12px 14px; border-radius:8px; border:1px solid #aac0db; font-size:15px; width:100%;" />
         </label><br />
         <label>Gói đăng ký:<br />
-          <input type="text" id="student-package" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
+          <input type="text" id="student-package" placeholder="(Không bắt buộc)" style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
         </label><br />
         <label>Số buổi đã học:<br />
           <input type="number" id="student-sessions-attended" min="0" value="0" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
