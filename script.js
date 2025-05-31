@@ -43,8 +43,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ===== Thêm hàm tiện ích để ẩn/hiện các phần UI =====
 function showElement(id) {
-  document.getElementById(id).style.display = "block";
+  document.querySelectorAll(".management-page, #dashboard, #profile-page").forEach(el => {
+    el.style.display = "none";
+  });
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "block";
+  } else {
+    console.warn("Không tìm thấy ID:", id);
+  }
 }
+
 function hideElement(id) {
   document.getElementById(id).style.display = "none";
 }
@@ -105,13 +114,13 @@ auth.onAuthStateChanged(async (user) => {
       setupDashboardUI(userData);
       showElement("dashboard");
       loadDashboard();
+      showPageFromHash();
       initStudentsListener();
       database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
   allStudentsData = snapshot.val() || {};
   updateStudentOptionsForClassForm();
 });
       initClassesListener();
-      showPageFromHash();
       database.ref(DB_PATHS.CLASSES).once("value").then(() => {
         initFullCalendar();
       });
@@ -296,21 +305,26 @@ function showPage(pageId) {
 
 
 function showPageFromHash() {
-  const hash = window.location.hash.slice(1);
-  console.log("showPageFromHash called with hash:", hash);
-  if (!hash || !pages.includes(hash)) {
-    window.location.hash = "dashboard";
-    return;
-  }
-  const user = auth.currentUser;
-  if (!user) {
-    toggleUI(false);
-    showForm("login");
-    return;
-  }
-  showPage(hash);
-}
+  const hash = window.location.hash;
 
+  // Mapping giữa hash và id thực tế của các phần tử
+  const pageMap = {
+    "#dashboard": "dashboard",
+    "#profile": "profile-page",
+    "#class-management": "class-management-page",
+    "#homework-management": "homework-management-page",
+    "#schedule-management": "schedule-management-page"
+  };
+
+  if (pageMap[hash]) {
+    showElement(pageMap[hash]);
+
+    // Nếu cần gọi lại các hàm load dữ liệu thì thêm tại đây:
+    if (hash === "#class-management") initClassListener();
+    if (hash === "#homework-management") initHomeworkListener();
+    if (hash === "#schedule-management") initScheduleListener?.(); // Nếu có
+  }
+}
 window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
@@ -1471,10 +1485,15 @@ window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
 });
-
+if (window.location.hash && isAuthReady && auth.currentUser) {
+  showPageFromHash();
+}
 // loading 
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
 }
 document.addEventListener("DOMContentLoaded", () => {
+  if (isAuthReady && auth.currentUser) {
+    showPageFromHash();
+  }
 });
