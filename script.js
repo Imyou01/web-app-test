@@ -115,7 +115,7 @@ auth.onAuthStateChanged(user => {
 function register() {
   const email = document.getElementById("register-email").value.trim();
   const password = document.getElementById("register-password").value.trim();
-  const fullName = document.getElementById("register-name").value.trim(); // Lấy tên người dùng
+  const fullName = document.getElementById("register-name").value.trim();
   if (!email || !password || !fullName) {
     alert("Vui lòng nhập đầy đủ email, mật khẩu và họ tên");
     return;
@@ -123,19 +123,34 @@ function register() {
 
   auth.createUserWithEmailAndPassword(email, password)
     .then(async (credential) => {
-      // Sau khi tạo user thành công, lưu thêm thông tin name vào DB
+      // 1) Lưu thêm thông tin name và role vào Realtime Database
       const user = credential.user;
       await database.ref(`users/${user.uid}`).set({
         name: fullName,
-        role: null            // Chưa có role, sẽ chọn ở bước tiếp theo
+        role: null
       });
-      await user.sendEmailVerification();
-      // 3) Báo cho người dùng biết đã gửi email xác thực
-      alert("Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và nhấn vào link xác thực trước khi đăng nhập.");
-      // Ở giai đoạn này, bạn có thể signOut ngay để yêu cầu user xác thực rồi đăng nhập lại nếu muốn:
-      await auth.signOut();
+
+      // 2) Gửi email xác thực: chỉ hiện alert + signOut sau khi Firebase đã nhận lệnh gửi email
+      user.sendEmailVerification()
+        .then(() => {
+          // Khi vào đây tức là Firebase đã chấp nhận lệnh gửi email
+          alert(
+            "Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và bấm vào link xác thực trước khi đăng nhập."
+          );
+          // Đợi thêm 1.5s cho chắc chắn request đã lên server, rồi mới signOut
+          setTimeout(() => {
+            auth.signOut();
+          }, 1500);
+        })
+        .catch(error => {
+          // Nếu có lỗi khi gửi email xác thực, báo cho user và KHÔNG signOut
+          alert("Lỗi khi gửi email xác thực: " + error.message);
+        });
     })
-    .catch(error => alert("Lỗi đăng ký: " + error.message));
+    .catch(error => {
+      // Nếu lỗi ngay từ bước createUserWithEmailAndPassword
+      alert("Lỗi đăng ký: " + error.message);
+    });
 }
 
 function login() {
