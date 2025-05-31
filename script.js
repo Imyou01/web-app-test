@@ -414,7 +414,7 @@ async function saveStudent() {
   const id = document.getElementById("student-index").value;
   const studentData = {
     name: document.getElementById("student-name").value.trim(),
-    dob: document.getElementById("student-dob").value,
+    dob: document.getElementById("student-dob").value.trim(),
     parent: document.getElementById("student-parent").value.trim(),
     parentPhone: document.getElementById("student-parent-phone").value.trim(),
     parentJob: document.getElementById("student-parent-job").value === "Khác"
