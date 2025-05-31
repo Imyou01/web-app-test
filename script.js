@@ -49,7 +49,12 @@ let calendarMini   = null;
 // ===== Quan sát trạng thái đăng nhập của Firebase =====
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // Khi đã đăng nhập
+    if (!user.emailVerified) {
+      // Nếu user đang đăng nhập (ví dụ token vẫn còn), nhưng chưa verify:
+      alert("Vui lòng xác thực email trước khi truy cập Dashboard.");
+      await auth.signOut();
+      return;
+    }
     const uid = user.uid;
 
     // Lấy thông tin user từ DB (bao gồm name và role)
@@ -124,8 +129,11 @@ function register() {
         name: fullName,
         role: null            // Chưa có role, sẽ chọn ở bước tiếp theo
       });
-      // Đăng ký xong, Firebase tự động chuyển trạng thái auth.onAuthStateChanged -> gọi phần trên
-      // Ở đây, ta không cần show alert nữa, mà sẽ để onAuthStateChanged xử lý chuyển giao diện
+      await user.sendEmailVerification();
+      // 3) Báo cho người dùng biết đã gửi email xác thực
+      alert("Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và nhấn vào link xác thực trước khi đăng nhập.");
+      // Ở giai đoạn này, bạn có thể signOut ngay để yêu cầu user xác thực rồi đăng nhập lại nếu muốn:
+      await auth.signOut();
     })
     .catch(error => alert("Lỗi đăng ký: " + error.message));
 }
@@ -138,6 +146,15 @@ function login() {
     return;
   }
   auth.signInWithEmailAndPassword(email, password)
+    .then(({ user }) => {
+      if (!user.emailVerified) {
+        // Nếu email chưa được xác thực
+        alert("Email của bạn chưa được xác thực. Vui lòng kiểm tra hộp thư và nhấn vào link xác thực.");
+        auth.signOut(); // Đăng xuất ngay
+        return;
+      }
+      // Nếu đã xác thực, auth.onAuthStateChanged sẽ xử lý tiếp (hiển thị Dashboard, v.v.)
+    })
     .catch(error => alert("Lỗi đăng nhập: " + error.message));
 }
 function forgotPassword() {
