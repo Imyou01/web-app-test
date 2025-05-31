@@ -2,21 +2,20 @@
  * updateSessions.js
  *
  * Mỗi lần chạy, script này sẽ:
- * 1. Kết nối vào Realtime Database bằng service account (được load từ biến môi trường).
- * 2. Đọc /classes, lấy fixedSchedule và danh sách students.
+ * 1. Kết nối Realtime Database bằng service account (từ biến môi trường).
+ * 2. Đọc /classes, lấy fixedSchedule, danh sách students.
  * 3. So sánh ngày/giờ hiện tại (Asia/Bangkok) với fixedSchedule.
- * 4. Nếu khớp, tăng sessionsAttended và giảm sessionsPaid cho mỗi học viên.
+ * 4. Nếu trùng, tăng sessionsAttended và giảm sessionsPaid cho từng học viên.
  * 5. Đánh dấu đã xử lý trong /processedSessions để tránh trùng lặp.
  */
 
 const admin = require("firebase-admin");
 
-// Lấy service account JSON từ biến môi trường mà ta sẽ đặt trong GitHub Secret
+// Lấy service account JSON từ biến môi trường (được cấp qua GitHub Secret)
 const serviceAccount = JSON.parse(
   process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}"
 );
 
-// Khởi tạo Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
  databaseURL: "https://lab-edu-11f05-default-rtdb.asia-southeast1.firebasedatabase.app/"
@@ -27,7 +26,7 @@ const db = admin.database();
 
 /**
  * Lấy ngày và giờ hiện tại ở timezone Asia/Bangkok
- * Trả về { dayName: "Monday|Tuesday|...", timeString: "HH:mm" }
+ * Trả về: { dayName: "Monday|Tuesday|...", timeString: "HH:mm" }
  */
 function getCurrentDayAndTime(timeZone = "Asia/Bangkok") {
   const now = new Date();
@@ -53,18 +52,25 @@ function getCurrentDayAndTime(timeZone = "Asia/Bangkok") {
   });
   return { dayName, timeString: `${hour}:${minute}` };
 }
-
+function isTimeLessOrEqual(timeA, timeB) {
+  const [hA, mA] = timeA.split(":").map(Number);
+  const [hB, mB] = timeB.split(":").map(Number);
+  if (hA < hB) return true;
+  if (hA > hB) return false;
+  // hA === hB
+  return mA <= mB;
+}
 async function runUpdateSessions() {
   const { dayName, timeString } = getCurrentDayAndTime("Asia/Bangkok");
   console.log(`>> Bắt đầu chạy: ${dayName} ${timeString} (Asia/Bangkok)`);
 
   try {
-    // 1. Lấy toàn bộ /classes
+    // 1. Lấy toàn bộ classes
     const classesSnap = await db.ref("classes").once("value");
     const classes = classesSnap.val() || {};
     const processedRef = db.ref("processedSessions");
 
-    // 2. Duyệt từng lớp học
+    // 2. Duyệt qua từng class
     for (const [classId, cls] of Object.entries(classes)) {
       const fixedSchedule = cls.fixedSchedule || {};
       // Nếu lớp không có lịch cố định hôm nay, bỏ qua
@@ -72,31 +78,30 @@ async function runUpdateSessions() {
 
       const scheduledTime = fixedSchedule[dayName];
       // Nếu giờ không trùng với giờ hiện tại, bỏ qua
-      if (scheduledTime !== timeString) continue;
-
-      // Tạo key đánh dấu theo format "classId/YYYY-MM-DD_HH:mm"
+     if (!isTimeLessOrEqual(scheduledTime, timeString)) continue;
+      // Tạo key đánh dấu: "classId/YYYY-MM-DD_HH:mm"
       const nowDate = new Date().toLocaleDateString("en-CA", {
         timeZone: "Asia/Bangkok",
       }); // "2025-06-05"
-      const sessionKey = `${classId}/${nowDate}_${timeString}`;
+    const sessionKey = `${classId}/${nowDate}_${scheduledTime}`;
 
-      // Kiểm tra xem đã xử lý buổi học này chưa
-      const alreadySnap = await processedRef.child(sessionKey).once("value");
-      if (alreadySnap.exists()) {
-        console.log(`— Đã xử lý trước: ${sessionKey}`);
+      // 3. Kiểm tra xem buổi học này đã xử lý chưa
+      const doneSnap = await processedRef.child(sessionKey).once("value");
+      if (doneSnap.exists()) {
+        console.log(`— Bỏ qua (đã xử lý): ${sessionKey}`);
         continue;
       }
 
-      // 3. Lấy danh sách học viên (student IDs) của lớp
+      // 4. Lấy danh sách student IDs của lớp
       const studentIdsObj = cls.students || {};
       const studentIds = Object.keys(studentIdsObj);
       if (studentIds.length === 0) {
-        // Nếu lớp chưa có học viên, vẫn đánh dấu đã xử lý để tránh loop
+        // Nếu lớp chưa có học viên, vẫn đánh dấu đã xử lý để tránh lặp
         await processedRef.child(sessionKey).set(true);
         continue;
       }
 
-      // 4. Tạo object multi-path update cho Realtime DB
+      // 5. Chuẩn bị object multi-path updates
       const updates = {};
       for (const studentId of studentIds) {
         const stSnap = await db.ref(`students/${studentId}`).once("value");
@@ -112,22 +117,21 @@ async function runUpdateSessions() {
         updates[`students/${studentId}/sessionsPaid`] = newPaid;
       }
 
-      // 5. Đánh dấu buổi học đã được xử lý (sessionKey)
+      // 6. Đánh dấu đã xử lý
       updates[`processedSessions/${sessionKey}`] = true;
 
-      // 6. Thực hiện một lệnh update multi-path
-      await db.ref().update(updates);
-      console.log(
-        `✓ Đã cập nhật buổi học cho lớp ${classId} (${nowDate} ${timeString})`
-      );
+      // 7. Thực hiện cập nhật multi-path một lần
+       await processedRef.child(sessionKey).set(true);
+      console.log(`✔ Đã xử lý buổi học: ${sessionKey}`);
     }
 
-    console.log(">> Kết thúc chạy updateSessions");
+    console.log(">> Kết thúc runUpdateSessions");
     process.exit(0);
-  } catch (err) {
-    console.error("‼ Lỗi khi chạy updateSessions:", err);
+  } catch (error) {
+    console.error("Lỗi khi chạy updateSessions:", error);
     process.exit(1);
   }
 }
 
+// Gọi hàm khi file này được chạy
 runUpdateSessions();
