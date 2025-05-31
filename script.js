@@ -17,6 +17,30 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const database = firebase.database();
 const storage = firebase.storage();
+document.addEventListener("DOMContentLoaded", () => {
+  const studentSearch = document.getElementById("student-search");
+  if (studentSearch) {
+    studentSearch.addEventListener("input", () => {
+      filterStudentsBySearch();
+    });
+  }
+
+  const hamburgerBtn = document.getElementById("hamburger-btn");
+  if (hamburgerBtn) {
+    hamburgerBtn.addEventListener("click", () => {
+      document.getElementById("nav-links").classList.toggle("show");
+    });
+  }
+
+  document.querySelectorAll("[data-show-form]").forEach(link => {
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      const form = link.getAttribute("data-show-form");
+      showForm(form);
+    });
+  });
+});
+
 // ===== Thêm hàm tiện ích để ẩn/hiện các phần UI =====
 function showElement(id) {
   document.getElementById(id).style.display = "block";
@@ -82,7 +106,12 @@ auth.onAuthStateChanged(async (user) => {
       showElement("dashboard");
       loadDashboard();
       initStudentsListener();
+      database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
+  allStudentsData = snapshot.val() || {};
+  updateStudentOptionsForClassForm();
+});
       initClassesListener();
+      showPageFromHash();
       database.ref(DB_PATHS.CLASSES).once("value").then(() => {
         initFullCalendar();
       });
@@ -323,26 +352,63 @@ function renderStudentList(students) {
   tbody.innerHTML = "";
 
   currentPageStudents.forEach(([id, st]) => {
-    const row = `
-      <tr>
-        <td>${st.name || ""}</td>
-        <td>${st.dob || ""}</td>
-        <td>${st.parent || ""}</td>
-        <td>${st.parentPhone || ""}</td>
-        <td>${st.parentJob || ""}</td>
-        <td>${st.package || ""}</td>
-        <td>${st.sessionsAttended || 0}</td>
-        <td>${st.sessionsPaid || 0}</td>
-        <td>
-          <button onclick="editStudent('${id}')">Sửa</button>
-          <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
-        </td>
-      </tr>`;
+    const query = document.getElementById("student-search")?.value.toLowerCase() || "";
+
+function highlight(text) {
+  if (!query) return text;
+  const regex = new RegExp(`(${query})`, "gi");
+  return text.replace(regex, '<mark>$1</mark>');
+}
+
+const row = `
+  <tr class="${query && (
+    st.name?.toLowerCase().includes(query) ||
+    st.parent?.toLowerCase().includes(query) ||
+    st.parentPhone?.toLowerCase().includes(query) ||
+    st.parentJob?.toLowerCase().includes(query)
+  ) ? 'highlight-row' : ''}">
+    <td>${highlight(st.name || "")}</td>
+    <td>${st.dob || ""}</td>
+    <td>${highlight(st.parent || "")}</td>
+    <td>${highlight(st.parentPhone || "")}</td>
+    <td>${highlight(st.parentJob || "")}</td>
+    <td>${st.package || ""}</td>
+    <td>${st.sessionsAttended || 0}</td>
+    <td>${st.sessionsPaid || 0}</td>
+    <td>
+      <button onclick="editStudent('${id}')">Sửa</button>
+      <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
+    </td>
+  </tr>`;
+
     tbody.innerHTML += row;
   });
 
   updateStudentPaginationControls();
 }
+function filterStudentsBySearch() {
+  const query = document.getElementById("student-search").value.toLowerCase().trim();
+
+  if (!query) {
+    renderStudentList(allStudentsData); // nếu ô tìm kiếm rỗng, hiện toàn bộ
+    return;
+  }
+
+  const filtered = {};
+  Object.entries(allStudentsData).forEach(([id, st]) => {
+    const name = st.name?.toLowerCase() || "";
+    const parent = st.parent?.toLowerCase() || "";
+    const phone = st.parentPhone?.toLowerCase() || "";
+    const job = st.parentJob?.toLowerCase() || "";
+
+    if (name.includes(query) || parent.includes(query) || phone.includes(query) || job.includes(query)) {
+      filtered[id] = st;
+    }
+  });
+
+  renderStudentList(filtered);
+}
+
 function updateStudentPaginationControls() {
   document.getElementById("page-info").textContent = `Trang ${currentStudentPage} / ${totalStudentPages}`;
 
@@ -379,21 +445,35 @@ function initStudentsListener() {
   showLoading();
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
     allStudentsData = snapshot.val() || {};
-    renderStudentList(allStudentsData);
+
+    const query = document.getElementById("student-search")?.value.trim().toLowerCase();
+    if (query) {
+      filterStudentsBySearch(); // nếu đang tìm kiếm thì lọc lại
+    } else {
+      renderStudentList(allStudentsData); // nếu không thì render toàn bộ
+    }
+
     hideLoading();
   });
 }
-
 function showStudentForm() {
-  const container = document.getElementById("student-form-container");
   document.getElementById("student-form").reset();
   document.getElementById("student-index").value = "";
   document.getElementById("student-parent-job-other").style.display = "none";
 
-  container.style.display = "block";
-  container.classList.remove("scale-up");
-  container.offsetHeight;
-  container.classList.add("scale-up");
+  document.getElementById("student-form-modal").style.display = "flex";
+  document.getElementById("student-form-container").style.display = "block";
+
+  const modalContent = document.querySelector("#student-form-modal .modal-content");
+  modalContent.classList.remove("scale-up");
+  modalContent.offsetHeight;
+  modalContent.classList.add("scale-up");
+}
+
+
+function hideStudentForm() {
+  document.getElementById("student-form-modal").style.display = "none";
+  document.getElementById("student-form-container").style.display = "none";
 }
 
 const fields = ["student-name", "student-dob", "student-parent", "student-parent-phone", "student-package"];
@@ -408,9 +488,6 @@ fields.forEach(id => {
   if (draft) input.value = draft;
 });
 
-function hideStudentForm() {
-  document.getElementById("student-form-container").style.display = "none";
-}
 
 async function saveStudent() {
   const user = auth.currentUser;
@@ -530,8 +607,11 @@ function initClassesListener() {
 
 function renderClassList(classes) {
   const tbody = document.getElementById("class-list");
+   if (!tbody) {
+    console.warn("class-list element not found");
+    return;
+  }
   tbody.innerHTML = "";
-
   Object.entries(classes).forEach(([id, cls]) => {
     const tr = document.createElement("tr");
 
@@ -589,31 +669,31 @@ function editClass(id) {
 
 async function showClassForm() {
   currentClassStudents = [];
+
+  // Cập nhật tiêu đề và reset form
   document.getElementById("class-form-title").textContent = "Tạo lớp học mới";
   document.getElementById("class-form").reset();
   document.getElementById("class-index").value = "";
-   const container = document.getElementById("class-form-container");
-  container.style.display = "block";
-  container.classList.remove("scale-up");
-  container.offsetHeight;
-  container.classList.add("scale-up");
+
   renderClassStudentList([]);
-updateStudentOptionsForClassForm();
-  // Reset lịch học cố định form
+  await updateStudentOptionsForClassForm();
+
+  // Reset và hiển thị lịch học cố định (nếu có)
   fillFixedScheduleForm(null);
-
-  // Hiển thị phần lịch học cố định (rỗng ban đầu)
   renderFixedScheduleDisplay();
-
-  // Thiết lập sự kiện khi checkbox hoặc input time thay đổi
   setupScheduleInputsListener();
 
-  document.getElementById("class-form-container").style.display = "block";
+  // Mở popup modal thay vì hiển thị trực tiếp form
+  document.getElementById("class-form-modal").style.display = "flex";
+  const modalContent = document.querySelector("#class-form-modal .modal-content");
+modalContent.classList.remove("scale-up");
+modalContent.offsetHeight; // trigger reflow
+modalContent.classList.add("scale-up");
+
 }
 
-
 function hideClassForm() {
-  document.getElementById("class-form-container").style.display = "none";
+  document.getElementById("class-form-modal").style.display = "none";
 }
 
 function updateStudentOptionsForClass() {
@@ -757,12 +837,13 @@ function getFixedScheduleFromForm() {
   days.forEach(day => {
     const checkbox = document.getElementById(`schedule-${day}`);
     const timeInput = document.getElementById(`time-${day}`);
-    if (checkbox.checked && timeInput.value) {
+    if (checkbox && checkbox.checked && checkbox.value && timeInput && timeInput.value) {
       schedule[checkbox.value] = timeInput.value;
     }
   });
   return schedule;
 }
+
 function fillFixedScheduleForm(fixedSchedule) {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   days.forEach(day => {
@@ -1357,10 +1438,6 @@ window.addEventListener("hashchange", () => {
   }
 });
 // Toggle hamburger menu (mobile)
-document.getElementById("hamburger-btn").addEventListener("click", () => {
-  const nav = document.getElementById("nav-links");
-  nav.classList.toggle("show");
-});
 // Khi load trang lần đầu, nếu URL có #schedule-management, render ngay
 document.addEventListener("DOMContentLoaded", () => {
   // (nếu bạn vẫn bind [data-show-form] ở đây)
@@ -1375,17 +1452,29 @@ document.addEventListener("DOMContentLoaded", () => {
     calendarMini?.refetchEvents?.();
   }
 });
+function showPageFromHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash || !pages.includes(hash)) {
+    window.location.hash = "dashboard";
+    return;
+  }
+  const user = auth.currentUser;
+  if (!user) {
+    toggleUI(false);
+    showForm("login");
+    return;
+  }
+  showPage(hash);
+}
+
+window.addEventListener("hashchange", () => {
+  if (!isAuthReady) return;
+  showPageFromHash();
+});
 
 // loading 
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
 }
 document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll("[data-show-form]").forEach(link => {
-    link.addEventListener("click", e => {
-      e.preventDefault();
-      const form = link.getAttribute("data-show-form");
-      showForm(form);
-    });
-  });
 });
