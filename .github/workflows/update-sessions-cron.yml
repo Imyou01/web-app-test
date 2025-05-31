@@ -4,8 +4,8 @@ name: "Cập nhật Sessions (cron)"
 
 on:
   schedule:
-    # Chạy mỗi 5 phút một lần. Nếu muốn mỗi phút, dùng "*/1 * * * *"
-    - cron: "*/5 * * * *"
+    # Chạy mỗi 15 phút một lần. Nếu muốn mỗi phút, dùng "*/1 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 jobs:
   update-sessions:
