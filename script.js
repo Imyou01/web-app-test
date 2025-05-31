@@ -24,6 +24,12 @@ function showElement(id) {
 function hideElement(id) {
   document.getElementById(id).style.display = "none";
 }
+function showLoading() {
+  document.getElementById("loading").style.display = "block";
+}
+function hideLoading() {
+  document.getElementById("loading").style.display = "none";
+}
 const DB_PATHS = {
   USERS: "users",
   STUDENTS: "students",
@@ -47,70 +53,46 @@ let calendarWeekly = null;
 let calendarMini   = null;
 // ==== AUTH ====
 // ===== Quan sát trạng thái đăng nhập của Firebase =====
+
 auth.onAuthStateChanged(async (user) => {
+  console.log("Auth state changed, user:", user);
+  isAuthReady = true;
+
   if (user) {
     if (!user.emailVerified) {
-      // Nếu user đang đăng nhập (ví dụ token vẫn còn), nhưng chưa verify:
       alert("Vui lòng xác thực email trước khi truy cập Dashboard.");
       await auth.signOut();
       return;
     }
-    const uid = user.uid;
 
-    // Lấy thông tin user từ DB (bao gồm name và role)
+    const uid = user.uid;
     const userSnapshot = await database.ref(`users/${uid}`).once("value");
     const userData = userSnapshot.val() || {};
 
-    // Nếu chưa có role (lần đầu sau khi đăng ký), hiển thị form chọn role
     if (!userData.role) {
-      // Ẩn Dashboard và form auth, hiển thị role-selection
-      hideElement("dashboard");                // Ẩn giao diện chính
-      hideElement("auth-container");           // Ẩn form login/register
-      showElement("role-selection");            // Hiển thị form chọn chức vụ
-
-      // Nếu đã lưu sẵn tên người dùng (userData.name), ta có thể hiển thị chào mừng: 
-      // Ví dụ: “Chào mừng lần đầu, <tên>! Vui lòng chọn chức vụ.” 
-      // (Tuỳ ý, nhưng bắt buộc phải chọn role trước khi vào Dashboard.)
+      hideAllManagementPages(); // <-- đảm bảo ẩn sạch
+       hideStudentForm();
+      hideElement("dashboard");
+      hideElement("auth-container");
+      showElement("role-selection");
     } else {
-      // Đã có role (những lần sau): hiển thị Dashboard và lời chào theo role
-      // Ẩn phần login/register/role-selection
       hideElement("auth-container");
       hideElement("role-selection");
-
-      // Truyền dữ liệu userData vào phần hiển thị Dashboard
       setupDashboardUI(userData);
-      showElement("dashboard"); 
+      showElement("dashboard");
+      loadDashboard();
+      initStudentsListener();
+      initClassesListener();
+      database.ref(DB_PATHS.CLASSES).once("value").then(() => {
+        initFullCalendar();
+      });
     }
   } else {
-    // Chưa đăng nhập: hiển thị form login (ẩn Dashboard, role-selection)
-    hideElement("dashboard");
-    hideElement("role-selection");
-    showElement("auth-container");
-    showForm("login");
-  }
-});
-
-auth.onAuthStateChanged(user => {
-  console.log("Auth state changed, user:", user);
-  isAuthReady = true;
-  if (user) {
-    loadDashboard();
-    initStudentsListener();
-    initClassesListener();
-    // Mời gọi initFullCalendar khi đã load xong classes
-    // Tuy nhiên, initClassesListener() là on("value") – async callback.
-    // Để chắc chắn allClassesData có dữ liệu, ta gắn listener riêng:
-    database.ref(DB_PATHS.CLASSES).once("value").then(snapshot => {
-      // Khi lần đầu tiên fetch xong, allClassesData đã được gán trong initClassesListener()
-      initFullCalendar();
-    });
-  } else {
+    hideAllManagementPages(); // <-- thêm dòng này
     toggleUI(false);
     showForm("login");
-    hideAllManagementPages();
   }
 });
-
 
 function register() {
   const email = document.getElementById("register-email").value.trim();
@@ -204,12 +186,18 @@ function toggleUI(isLoggedIn) {
 // ===== Hàm hiển thị form theo tên (login/register/forgot) =====
 function showForm(formName) {
   const forms = document.querySelectorAll(".auth-form");
-  forms.forEach(f => f.classList.remove("active"));
+  forms.forEach(f => {
+    f.classList.remove("active", "fade-in");
+  });
+
   const target = document.getElementById(`${formName}-form`);
-  if (target) target.classList.add("active");
-  // Luôn hiển thị “auth-container” khi gọi showForm
+  if (target) {
+    target.classList.add("active", "fade-in"); // thêm class fade-in
+  }
+
   showElement("auth-container");
 }
+
 // ===== Hàm lưu “role” khi người dùng chọn xong =====
 async function saveUserRole() {
   const user = auth.currentUser;
@@ -268,10 +256,14 @@ function showPage(pageId) {
   hideAllManagementPages();
   const el = document.getElementById(pageId);
   if (el) {
+    el.classList.remove("fade-in");
+    el.offsetHeight; // force reflow để reset animation
+    el.classList.add("fade-in");
     el.style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 }
+
 
 
 function showPageFromHash() {
@@ -384,20 +376,37 @@ function updateStudentOptionsForClassForm() {
 
 
 function initStudentsListener() {
+  showLoading();
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
     allStudentsData = snapshot.val() || {};
     renderStudentList(allStudentsData);
+    hideLoading();
   });
 }
 
-
 function showStudentForm() {
-  document.getElementById("student-form-title").textContent = "Tạo hồ sơ học viên mới";
+  const container = document.getElementById("student-form-container");
   document.getElementById("student-form").reset();
   document.getElementById("student-index").value = "";
   document.getElementById("student-parent-job-other").style.display = "none";
-  document.getElementById("student-form-container").style.display = "block";
+
+  container.style.display = "block";
+  container.classList.remove("scale-up");
+  container.offsetHeight;
+  container.classList.add("scale-up");
 }
+
+const fields = ["student-name", "student-dob", "student-parent", "student-parent-phone", "student-package"];
+
+fields.forEach(id => {
+  const input = document.getElementById(id);
+  input.addEventListener("input", () => {
+    localStorage.setItem(id, input.value);
+  });
+  // Nếu có nháp, điền lại
+  const draft = localStorage.getItem(id);
+  if (draft) input.value = draft;
+});
 
 function hideStudentForm() {
   document.getElementById("student-form-container").style.display = "none";
@@ -429,10 +438,25 @@ async function saveStudent() {
   try {
     if (id) {
       await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
-      alert("Cập nhật học viên thành công!");
+      Swal.fire({
+  icon: 'success',
+  title: 'Thành công',
+  text: 'Cập nhật học viên thành công!',
+  timer: 2000,
+  showConfirmButton: false
+});
+fields.forEach(id => localStorage.removeItem(id));
     } else {
       await database.ref(DB_PATHS.STUDENTS).push(studentData);
-      alert("Thêm học viên mới thành công!");
+      // alert("Thêm học viên mới thành công!");
+Swal.fire({
+  icon: 'success',
+  title: 'Thành công',
+  text: 'Đã thêm học viên!',
+  timer: 2000,
+  showConfirmButton: false
+});
+fields.forEach(id => localStorage.removeItem(id));
     }
     hideStudentForm();
   } catch (error) {
@@ -444,7 +468,14 @@ async function deleteStudent(id) {
   if (!confirm("Bạn chắc chắn muốn xóa học viên này?")) return;
   try {
     await database.ref(`${DB_PATHS.STUDENTS}/${id}`).remove();
-    alert("Xóa học viên thành công!");
+    Swal.fire({
+  icon: 'success',
+  title: 'Thành công',
+  text: 'Đã xoá học viên!',
+  timer: 2000,
+  showConfirmButton: false
+});
+fields.forEach(id => localStorage.removeItem(id));
   } catch (error) {
     alert("Lỗi xóa học viên: " + error.message);
   }
@@ -561,6 +592,11 @@ async function showClassForm() {
   document.getElementById("class-form-title").textContent = "Tạo lớp học mới";
   document.getElementById("class-form").reset();
   document.getElementById("class-index").value = "";
+   const container = document.getElementById("class-form-container");
+  container.style.display = "block";
+  container.classList.remove("scale-up");
+  container.offsetHeight;
+  container.classList.add("scale-up");
   renderClassStudentList([]);
 updateStudentOptionsForClassForm();
   // Reset lịch học cố định form
@@ -661,7 +697,13 @@ async function saveClass() {
 
     try {
       await database.ref(DB_PATHS.CLASSES).push(newClassData);
-      alert("Thêm lớp học mới thành công!");
+      Swal.fire({
+    icon: 'success',
+    title: 'Thành công',
+    text: 'Thêm lớp học thành công!',
+    timer: 2000,
+    showConfirmButton: false
+  });
       hideClassForm();
     } catch (error) {
       alert("Lỗi lưu lớp học: " + error.message);
@@ -681,19 +723,30 @@ async function saveClass() {
 
     try {
       await database.ref(`${DB_PATHS.CLASSES}/${id}`).update(updatedClassData);
-      alert("Cập nhật lớp học thành công!");
+      Swal.fire({
+    icon: 'success',
+    title: 'Thành công',
+    text: 'Cập nhật lớp học thành gay!',
+    timer: 2000,
+    showConfirmButton: false
+  });
       hideClassForm();
     } catch (error) {
       alert("Lỗi lưu lớp học: " + error.message);
     }
   }
 }
-
 async function deleteClass(id) {
   if (!confirm("Bạn chắc chắn muốn xóa lớp học này?")) return;
   try {
     await database.ref(`${DB_PATHS.CLASSES}/${id}`).remove();
-    alert("Xóa lớp học thành công!");
+    Swal.fire({
+    icon: 'success',
+    title: 'Thành công',
+    text: 'Xoá lớp học thành công!',
+    timer: 2000,
+    showConfirmButton: false
+  });
   } catch (error) {
     alert("Lỗi xóa lớp học: " + error.message);
   }
@@ -1303,7 +1356,11 @@ window.addEventListener("hashchange", () => {
     calendarMini?.refetchEvents?.();
   }
 });
-
+// Toggle hamburger menu (mobile)
+document.getElementById("hamburger-btn").addEventListener("click", () => {
+  const nav = document.getElementById("nav-links");
+  nav.classList.toggle("show");
+});
 // Khi load trang lần đầu, nếu URL có #schedule-management, render ngay
 document.addEventListener("DOMContentLoaded", () => {
   // (nếu bạn vẫn bind [data-show-form] ở đây)
