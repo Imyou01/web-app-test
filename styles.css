@@ -179,11 +179,6 @@ body {
   background-color: #d5e2ff;
 }
 
-.card.full-width {
-  aspect-ratio: auto;
-  grid-column: span 2;
-  max-width: none;
-}
 
 .icon {
   font-size: 42px;
@@ -577,4 +572,109 @@ button#add-student-btn:hover {
 
 .auth-form.active {
   display: block;
+}
+/* Lịch học tháng */
+#schedule-container table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#schedule-container th,
+#schedule-container td {
+  border: 1px solid #aac0db;
+  padding: 6px;
+  text-align: center;
+  font-size: 13px;
+}
+
+#schedule-container th {
+  background-color: #004a99;
+  color: white;
+  font-weight: 600;
+}
+
+#schedule-container td {
+  min-width: 80px;
+  max-width: 120px;
+  height: 40px;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ô thời gian (cột đầu) */
+#schedule-container td:first-child {
+  background-color: #f4f7ff;
+  font-weight: 600;
+}
+
+/* Ô có lớp học */
+#schedule-container td > div {
+  /* Nếu bạn muốn style thêm cho phần chứa tên giáo viên */
+}
+
+/* (Tùy chọn) Highlight dòng giờ hiện tại */
+.current-time-row {
+  background-color: #fff2cc !important;
+}
+/* ---------- FullCalendar custom styles ---------- */
+
+/* Đảm bảo container cho lịch tuần có chiều cao đủ lớn */
+#fc-weekly-container {
+  height: 600px;  /* bạn có thể điều chỉnh tùy mong muốn */
+  background: white;
+}
+
+/* FullCalendar sẽ render trực tiếp vào div#fullcalendar-weekly */
+/* Nếu muốn custom màu nền, font-size, có thể thêm vào đây */
+
+/* Mini‐calendar (month view) */
+#fc-mini-calendar-container {
+  background: white;
+}
+
+/* Chỉ định chiều cao để fullCalendar mini hiển thị trọn vẹn */
+#fc-mini-calendar-container .fc-view-harness {
+  height: 500px; /* độ cao gợi ý, bạn điều chỉnh sao cho vừa */
+}
+
+/* Khi mini‐calendar bật chế độ ngày hiện tại, define màu highlight: */
+.fc .fc-day-today {
+  background-color: #e6f7ff !important;
+}
+
+/* Chỉnh lại một chút padding để phù hợp với giao diện: */
+.fc .fc-scroller {
+  /* nếu bạn muốn remove scroll bar, hoặc set auto, tùy bạn */
+}
+
+/* (Tùy chọn) Để block event (lớp học) hiển thị màu khác, bạn có thể override như sau: */
+.fc-event {
+  border: none !important;
+  font-size: 13px;
+  padding: 4px;
+  border-radius: 4px !important;
+}
+/* Homework Management */
+#homework-student-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #cdd9f1;
+  font-weight: 600;
+  color: #004a99;
+}
+#homework-student-list li:last-child {
+  border-bottom: none;
+}
+#homework-session-list tr td {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+}
+#homework-session-list input[type="checkbox"] {
+  transform: scale(1.2);
+  cursor: pointer;
 }
