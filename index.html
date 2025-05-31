@@ -5,19 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ứng dụng quản lý học viên</title>
   <link rel="stylesheet" href="styles.css" />
-  
+   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
 </head>
 <body>
   <!-- AUTH Container -->
   <div id="auth-container">
     <div id="login-form" class="auth-form active">
       <h2>Đăng nhập</h2>
-      <input type="text" id="login-email" placeholder="Email hoặc tên đăng nhập" />
+      <input type="email" id="login-email" placeholder="Email" />
       <input type="password" id="login-password" placeholder="Mật khẩu" />
       <button onclick="login()">Đăng nhập</button>
       <p>
@@ -30,7 +31,6 @@
       <h2>Đăng ký</h2>
       <input type="email" id="register-email" placeholder="Email" />
       <input type="text" id="register-name" placeholder="Họ và tên" />
-      <input type="text" id="register-username" placeholder="Tên đăng nhập" />
       <input type="password" id="register-password" placeholder="Mật khẩu" />
       <button onclick="register()">Đăng ký</button>
       <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
@@ -38,12 +38,27 @@
 
     <div id="forgot-form" class="auth-form">
       <h2>Quên mật khẩu</h2>
-      <input type="text" id="forgot-username" placeholder="Email hoặc tên đăng nhập" />
+      <input type="email" id="forgot-email" placeholder="Email" />
       <button onclick="forgotPassword()">Gửi yêu cầu</button>
       <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
     </div>
   </div>
-
+<!-- Giao diện Chọn Chức Vụ (mặc định ẩn) -->
+<div id="role-selection" class="auth-form" style="display:none;">
+  <h2>Chọn chức vụ</h2>
+  <p>Vui lòng chọn chức vụ của bạn:</p>
+  <form id="role-form" onsubmit="event.preventDefault(); saveUserRole();">
+    <select id="select-role" required style="width:100%; padding:12px 15px; margin:14px 0; border:1px solid #ccc; border-radius:6px; font-size:15px;">
+      <option value="">-- Chọn chức vụ --</option>
+      <option value="Admin">Admin</option>
+      <option value="Hội Đồng">Hội Đồng</option>
+      <option value="Giáo Viên">Giáo Viên</option>
+      <option value="Gia Sư">Gia Sư</option>
+      <option value="Trợ Giảng">Trợ Giảng</option>
+    </select>
+    <button type="submit" style="width:100%; padding:14px; background:#0066cc; border:none; border-radius:6px; color:white; font-weight:700; font-size:16px; cursor:pointer; margin-top:20px;">Xác nhận</button>
+  </form>
+</div>
   <!-- DASHBOARD -->
   <div id="dashboard" style="display:none;">
     <!-- Nav -->
@@ -52,42 +67,51 @@
       <a href="#account-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Quản lý tài khoản</a>
       <a href="#student-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Quản lý học viên</a>
       <a href="#class-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Quản lý lớp học</a>
+      <a href="#schedule-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Lịch học</a>
       <a href="#profile-page" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Trang cá nhân</a>
       <a href="#" onclick="logout(); return false;" style="margin:0 14px; font-weight:600; color:#cc0000;">Đăng xuất</a>
     </nav>
 
     <!-- Header -->
-    <header style="max-width:900px; margin:10px auto 30px; padding:18px 24px; background:#0066cc; border-radius:12px; color:white; display:flex; align-items:center; gap:16px; cursor:pointer; box-shadow:0 2px 8px rgb(0 0 0 / 0.15);">
-      <div class="avatar-container" onclick="openProfile()">
-        <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" style="width:56px; height:56px; border-radius:50%; border:2.5px solid white; object-fit:cover;" />
-        <span id="display-name" style="font-weight:700; font-size:20px;"></span>
-        <p style="margin:0; font-size:15px; opacity:0.9;">Xin chào, <span id="display-name-hello"></span>!</p>
-      </div>
-    </header>
+   <header style="max-width:900px; margin:10px auto 30px; padding:18px 24px; background:#0066cc; border-radius:12px; color:white; display:flex; align-items:center; gap:16px; cursor:pointer; box-shadow:0 2px 8px rgb(0 0 0 / 0.15);">
+    <div class="avatar-container" onclick="openProfile()">
+      <img id="avatar-img" 
+      src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" 
+      alt="Avatar" style="width:56px; height:56px; border-radius:50%; border:2.5px solid white; object-fit:cover;" />
+      <span id="display-name" style="font-weight:700; font-size:20px;"></span>
+      <p style="margin:0; font-size:15px; opacity:0.9;">Chào mừng ngài trở lại, thưa <span id="display-name-hello"></span>!</p>
+    </div>
+  </header>
 
     <!-- Main grid cards -->
     <main class="grid-container" style="max-width:900px; margin:0 auto 50px; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:24px; padding:0 10px;">
-      <a class="card" href="#account-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
-        <div class="icon" style="font-size:42px; color:#0066cc;">&#9819;</div>
-        <div>Quản lý tài khoản</div>
-      </a>
-      <a class="card" href="#student-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
-        <div class="icon" style="font-size:42px; color:#0066cc;">&#128214;</div>
-        <div>Quản lý học viên</div>
-      </a>
-      <a class="card" href="#class-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
-        <div class="icon" style="font-size:42px; color:#0066cc;">&#127979;</div>
-        <div>Quản lý lớp học</div>
-      </a>
-      <div class="card full-width" onclick="alert('Chức năng quản lý ngân sách đang phát triển')" style="aspect-ratio:auto; grid-column: span 2; max-width:none; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; cursor:pointer; user-select:none;">
-        <div class="icon" style="font-size:42px; color:#0066cc;">&#128176;</div>
-        <div>Quản lý ngân sách</div>
-      </div>
-      <div class="card full-width" onclick="alert('Chức năng quản lý bài tập về nhà đang phát triển')" style="aspect-ratio:auto; grid-column: span 2; max-width:none; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; cursor:pointer; user-select:none;">
-        <div class="icon" style="font-size:42px; color:#0066cc;">&#128221;</div>
-        <div>Quản lý bài tập về nhà</div>
-      </div>
-    </main>
+
+    <!-- Hàng 1: Giữ nguyên 3 ô card như trước -->
+    <a class="card" href="#account-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
+      <div class="icon" style="font-size:42px; color:#0066cc;">&#9819;</div>
+      <div>Quản lý tài khoản</div>
+    </a>
+    <a class="card" href="#student-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
+      <div class="icon" style="font-size:42px; color:#0066cc;">&#128214;</div>
+      <div>Quản lý học viên</div>
+    </a>
+    <a class="card" href="#class-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
+      <div class="icon" style="font-size:42px; color:#0066cc;">&#127979;</div>
+      <div>Quản lý lớp học</div>
+    </a>
+ <a class="card" onclick="alert('Chức năng quản lý ngân sách đang phát triển')" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; user-select:none;">
+    <div class="icon" style="font-size:42px; color:#0066cc;">&#128176;</div>
+    <div>Quản lý ngân sách</div>
+  </a>
+  <a class="card" href="#homework-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgba(0,0,0,0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; text-decoration:none;">
+  <div class="icon" style="font-size:42px; color:#0066cc;">&#128221;</div>
+  <div>Quản lý bài tập về nhà</div>
+</a>
+  <a class="card" href="#schedule-management" style="all:unset; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; background:white; border-radius:18px; box-shadow:0 6px 12px rgb(0 0 0 / 0.1); padding:25px 20px; font-weight:700; font-size:17px; color:#004a99; text-align:center; user-select:none;">
+    <div class="icon" style="font-size:42px; color:#0066cc;">&#128197;</div>
+    <div>Lịch học</div>
+  </a>
+  </main>
   </div>
 
   <!-- Trang quản lý Tài khoản -->
@@ -309,12 +333,74 @@
       </form>
     </div>
   </div>
+<!-- Trang Quản lý Bài tập về nhà -->
+<div id="homework-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgba(0,0,0,0.12);">
+  <h2>Quản lý bài tập về nhà</h2>
+
+  <!-- Bước 1: Danh sách Lớp -->
+  <div id="homework-class-container">
+    <h3>Chọn lớp</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Tên lớp</th>
+          <th>Số học viên</th>
+          <th>Giáo viên</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody id="homework-class-list"></tbody>
+    </table>
+  </div>
+
+  <!-- Bước 2: Danh sách Học viên (ẩn khi chưa chọn lớp) -->
+  <div id="homework-student-container" style="display:none; margin-top:30px;">
+    <button onclick="backToHomeworkClasses()" style="margin-bottom:10px;">← Quay lại danh sách lớp</button>
+    <h3>Học viên trong lớp: <span id="homework-selected-class-name"></span></h3>
+    <ul id="homework-student-list" style="list-style:none; padding-left:0;"></ul>
+  </div>
+
+  <!-- Bước 3: Danh sách Ngày buổi học (ẩn khi chưa chọn học viên) -->
+  <div id="homework-session-container" style="display:none; margin-top:30px;">
+    <button onclick="backToHomeworkStudents()" style="margin-bottom:10px;">← Quay lại danh sách học viên</button>
+    <h3>Ngày học của <span id="homework-selected-student-name"></span> trong lớp <span id="homework-selected-class-name-2"></span></h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Ngày</th>
+          <th>Đi học</th>
+          <th>Hoàn thành bài tập</th>
+        </tr>
+      </thead>
+      <tbody id="homework-session-list"></tbody>
+    </table>
+  </div>
+
+  <button onclick="backToDashboard()" style="margin-top:20px;">Quay lại Dashboard</button>
 </div>
+<!-- Trang Lịch học -->
+<div id="schedule-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12);">
+    <div style="display:flex; gap:20px;">
+      <!-- Lịch tuần -->
+      <div id="fc-weekly-container" style="flex: 3; border:1px solid #aac0db; border-radius:8px; overflow:hidden;">
+        <div id="fullcalendar-weekly"></div>
+      </div>
+
+      <!-- Mini‐calendar -->
+      <div id="fc-mini-calendar-container" style="flex: 1; border:1px solid #aac0db; border-radius:8px; padding:10px; max-width: 200px;">
+        <div id="fullcalendar-mini"></div>
+      </div>
+    </div>
+
+    <button onclick="backToDashboard()" style="margin-top:20px; padding:10px 18px; background:#0066cc; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Quay lại Dashboard</button>
+  </div>
   <!-- Trang cá nhân -->
   <div id="profile-page" style="display:none; max-width:600px; margin:40px auto 60px; background:#fff; padding:30px 25px 40px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12); text-align:center;">
     <h2>Trang cá nhân</h2>
-    <img id="avatar-img" src="https://via.placeholder.com/100" alt="Avatar" style="border-radius:50%; object-fit:cover; width:120px; height:120px; border:3px solid #0066cc; margin-bottom:25px;" />
-    <input type="file" id="avatar-file" accept="image/*" style="margin-top:20px; cursor:pointer;" />
+    <img id="avatar-img" 
+    src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" 
+    alt="Avatar" style="border-radius:50%; object-fit:cover; width:120px; height:120px; border:3px solid #0066cc; margin-bottom:25px;" />
+    <input type="file" id="avatar-file" accept="image/*" style="display:none;" />
     <br />
     <button onclick="backToDashboard()" style="margin-top:20px;">Quay lại Dashboard</button>
     <button onclick="logout()" style="margin-top:20px;">Đăng xuất</button>
