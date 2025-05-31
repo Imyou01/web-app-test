@@ -6,7 +6,7 @@ on:
   schedule:
     # Chạy mỗi 5 phút một lần. Nếu muốn mỗi phút, dùng "*/1 * * * *"
     - cron: "*/5 * * * *"
-
+  workflow_dispatch:
 jobs:
   update-sessions:
     name: "Chạy updateSessions.js"
