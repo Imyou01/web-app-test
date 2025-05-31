@@ -19,9 +19,9 @@ const serviceAccount = JSON.parse(
 // Khởi tạo Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  // Thay YOUR_DATABASE_URL bằng URL thực của Realtime Database (có dạng https://<project-id>.firebaseio.com)
-  databaseURL: "https://<YOUR_DATABASE_URL>.firebaseio.com"
+ databaseURL: "https://lab-edu-11f05-default-rtdb.firebaseio.com"
 });
+
 
 const db = admin.database();
 
