@@ -19,7 +19,7 @@ const serviceAccount = JSON.parse(
 // Khởi tạo Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
- databaseURL: "https://lab-edu-11f05-default-rtdb.firebaseio.com"
+ databaseURL: "https://lab-edu-11f05-default-rtdb.asia-southeast1.firebasedatabase.app/"
 });
 
 
