@@ -571,3 +571,10 @@ button#add-student-btn:hover {
   color: #004a99;
   background: #f4f7ff;
 }
+.auth-form {
+  display: none;
+}
+
+.auth-form.active {
+  display: block;
+}
