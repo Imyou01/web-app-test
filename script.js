@@ -92,15 +92,13 @@ function toggleUI(isLoggedIn) {
 }
 
 function showForm(formName) {
-  const authContainer = document.getElementById("auth-container");
-  const registerForm = document.getElementById("register-form");
-  const loginForm = document.getElementById("login-form");
-  const forgotForm = document.getElementById("forgot-password-form");
+  const forms = document.querySelectorAll(".auth-form");
+  forms.forEach(form => form.classList.remove("active"));
 
-  if(authContainer) authContainer.style.display = "block";
-  if(registerForm) registerForm.style.display = (formName === "register") ? "block" : "none";
-  if(loginForm) loginForm.style.display = (formName === "login") ? "block" : "none";
-  if(forgotForm) forgotForm.style.display = (formName === "forgot") ? "block" : "none";
+  const targetForm = document.getElementById(`${formName}-form`);
+  if (targetForm) targetForm.classList.add("active");
+
+  document.getElementById("auth-container").style.display = "block";
 }
 
 // ==== SPA Routing ====
@@ -732,3 +730,12 @@ document.getElementById("avatar-file").addEventListener("change", async function
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
 }
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-show-form]").forEach(link => {
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      const form = link.getAttribute("data-show-form");
+      showForm(form);
+    });
+  });
+});
