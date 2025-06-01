@@ -1,3 +1,6 @@
+// script.js  ---------------------------------------------------------------------------------
+
+// Cấu hình Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyA7MMnjIO6UQLYoJB9YJhSl9wUt1qx0EYE",
   authDomain: "lab-edu-11f05.firebaseapp.com",
@@ -8,71 +11,34 @@ const firebaseConfig = {
   appId: "1:133738230418:web:de00824ab2dc08172dac4b",
   measurementId: "G-JMVC7YZCJT"
 };
-let currentStudentPage = 1;
-const studentsPerPage = 20;
-let pagedStudentsData = {}; // dữ liệu học viên phân trang dạng object
-let totalStudentPages = 1;
 
+// Khởi tạo Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const database = firebase.database();
 const storage = firebase.storage();
-document.addEventListener("DOMContentLoaded", () => {
-  const studentSearch = document.getElementById("student-search");
-  if (studentSearch) {
-    studentSearch.addEventListener("input", () => {
-      filterStudentsBySearch();
-    });
-  }
 
-  const hamburgerBtn = document.getElementById("hamburger-btn");
-  if (hamburgerBtn) {
-    hamburgerBtn.addEventListener("click", () => {
-      document.getElementById("nav-links").classList.toggle("show");
-    });
-  }
+// Các biến toàn cục
+let isAuthReady = false;
+let currentStudentPage = 1;
+const studentsPerPage = 20;
+let totalStudentPages = 1;
 
-  document.querySelectorAll("[data-show-form]").forEach(link => {
-    link.addEventListener("click", e => {
-      e.preventDefault();
-      const form = link.getAttribute("data-show-form");
-      showForm(form);
-    });
-  });
-});
+let allStudentsData = {};
+let allClassesData = {};
+let currentClassStudents = [];
+let calendarWeekly = null;
+let calendarMini   = null;
 
-// ===== Thêm hàm tiện ích để ẩn/hiện các phần UI =====
-function showElement(id) {
-  document.querySelectorAll(".management-page, #dashboard, #profile-page").forEach(el => {
-    el.style.display = "none";
-  });
-  const el = document.getElementById(id);
-  if (el) {
-    el.style.display = "block";
-  } else {
-    console.warn("Không tìm thấy ID:", id);
-  }
-}
-
-function hideElement(id) {
-  document.getElementById(id).style.display = "none";
-}
-function showLoading() {
-  document.getElementById("loading").style.display = "block";
-}
-function hideLoading() {
-  document.getElementById("loading").style.display = "none";
-}
+// Đường dẫn các node trong Realtime Database
 const DB_PATHS = {
   USERS: "users",
   STUDENTS: "students",
-  CLASSES: "classes"
+  CLASSES: "classes",
+  HOMEWORKS: "homeworks"
 };
 
-let isAuthReady = false;
-let selectedHomeworkClassId = null;
-let selectedHomeworkStudentId = null;
-let allClassesData = {};
+// Danh sách các trang (tham chiếu bằng ID)
 const pages = [
   "dashboard",
   "account-management",
@@ -82,11 +48,25 @@ const pages = [
   "homework-management",
   "profile-page"
 ];
-let calendarWeekly = null;
-let calendarMini   = null;
-// ==== AUTH ====
-// ===== Quan sát trạng thái đăng nhập của Firebase =====
+// Thêm vào script.js, trước phần sử dụng showPageFromHash
+function showPage(id) {
+  // Ẩn tất cả các trang management, dashboard, profile…
+  pages.forEach(pageId => {
+    const el = document.getElementById(pageId);
+    if (el) el.style.display = "none";
+  });
+  // Ẩn luôn dashboard và profile nếu đang mở
+  document.getElementById("dashboard").style.display = "none";
+  document.getElementById("profile-page").style.display = "none";
 
+  // Hiển thị trang tương ứng theo id
+  const target = document.getElementById(id);
+  if (target) {
+    target.style.display = "block";
+  }
+}
+
+// Khi trạng thái xác thực thay đổi
 auth.onAuthStateChanged(async (user) => {
   console.log("Auth state changed, user:", user);
   isAuthReady = true;
@@ -98,44 +78,47 @@ auth.onAuthStateChanged(async (user) => {
       return;
     }
 
+    // Lấy thông tin profile từ DB
     const uid = user.uid;
-    const userSnapshot = await database.ref(`users/${uid}`).once("value");
+    const userSnapshot = await database.ref(`${DB_PATHS.USERS}/${uid}`).once("value");
     const userData = userSnapshot.val() || {};
 
+    // Nếu chưa có role => hiển thị form chọn chức vụ
     if (!userData.role) {
-      hideAllManagementPages(); // <-- đảm bảo ẩn sạch
-       hideStudentForm();
+      hideAllManagementPages();
+      hideStudentForm();
       hideElement("dashboard");
       hideElement("auth-container");
       showElement("role-selection");
     } else {
+      // Nếu đã có role => hiện Dashboard
       hideElement("auth-container");
       hideElement("role-selection");
       setupDashboardUI(userData);
       showElement("dashboard");
       loadDashboard();
-      showPageFromHash();
       initStudentsListener();
-      database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
-  allStudentsData = snapshot.val() || {};
-  updateStudentOptionsForClassForm();
-});
       initClassesListener();
+      // Đợi load xong lớp để khởi tạo FullCalendar
       database.ref(DB_PATHS.CLASSES).once("value").then(() => {
         initFullCalendar();
       });
     }
   } else {
-    hideAllManagementPages(); // <-- thêm dòng này
+    hideAllManagementPages();
     toggleUI(false);
     showForm("login");
   }
 });
 
+// =========================== AUTH FUNCTIONS ===========================
+
+// Đăng ký
 function register() {
   const email = document.getElementById("register-email").value.trim();
   const password = document.getElementById("register-password").value.trim();
   const fullName = document.getElementById("register-name").value.trim();
+
   if (!email || !password || !fullName) {
     alert("Vui lòng nhập đầy đủ email, mật khẩu và họ tên");
     return;
@@ -143,55 +126,53 @@ function register() {
 
   auth.createUserWithEmailAndPassword(email, password)
     .then(async (credential) => {
-      // 1) Lưu thêm thông tin name và role vào Realtime Database
       const user = credential.user;
-      await database.ref(`users/${user.uid}`).set({
+      // Lưu thêm name và role vào Realtime Database
+      await database.ref(`${DB_PATHS.USERS}/${user.uid}`).set({
         name: fullName,
         role: null
       });
 
-      // 2) Gửi email xác thực: chỉ hiện alert + signOut sau khi Firebase đã nhận lệnh gửi email
+      // Gửi email xác thực
       user.sendEmailVerification()
         .then(() => {
-          // Khi vào đây tức là Firebase đã chấp nhận lệnh gửi email
-          alert(
-            "Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và bấm vào link xác thực trước khi đăng nhập."
-          );
-          // Đợi thêm 1.5s cho chắc chắn request đã lên server, rồi mới signOut
+          alert("Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và bấm vào link xác thực trước khi đăng nhập.");
           setTimeout(() => {
             auth.signOut();
           }, 1500);
         })
         .catch(error => {
-          // Nếu có lỗi khi gửi email xác thực, báo cho user và KHÔNG signOut
           alert("Lỗi khi gửi email xác thực: " + error.message);
         });
     })
     .catch(error => {
-      // Nếu lỗi ngay từ bước createUserWithEmailAndPassword
       alert("Lỗi đăng ký: " + error.message);
     });
 }
 
+// Đăng nhập
 function login() {
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value.trim();
+
   if (!email || !password) {
     alert("Vui lòng nhập email và mật khẩu");
     return;
   }
+
   auth.signInWithEmailAndPassword(email, password)
     .then(({ user }) => {
       if (!user.emailVerified) {
-        // Nếu email chưa được xác thực
         alert("Email của bạn chưa được xác thực. Vui lòng kiểm tra hộp thư và nhấn vào link xác thực.");
-        auth.signOut(); // Đăng xuất ngay
+        auth.signOut();
         return;
       }
-      // Nếu đã xác thực, auth.onAuthStateChanged sẽ xử lý tiếp (hiển thị Dashboard, v.v.)
+      // Sau khi xác thực, onAuthStateChanged sẽ xử lý hiển thị
     })
     .catch(error => alert("Lỗi đăng nhập: " + error.message));
 }
+
+// Quên mật khẩu
 function forgotPassword() {
   const email = document.getElementById("forgot-email").value.trim();
   if (!email) {
@@ -203,6 +184,7 @@ function forgotPassword() {
     .catch(error => alert("Lỗi: " + error.message));
 }
 
+// Đăng xuất
 function logout() {
   auth.signOut().then(() => {
     toggleUI(false);
@@ -214,14 +196,40 @@ function logout() {
   });
 }
 
-// ==== UI ====
+// =========================== UI & NAVIGATION ===========================
 
+// Ẩn tất cả các page
+function hideAllManagementPages() {
+  pages.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+}
+
+// Hiển thị một phần tử theo ID
+function showElement(id) {
+  document.querySelectorAll(".management-page, #dashboard, #profile-page").forEach(el => {
+    el.style.display = "none";
+  });
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = "block";
+  }
+}
+
+// Ẩn một phần tử theo ID
+function hideElement(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = "none";
+}
+
+// Bật/tắt UI authentication vs dashboard
 function toggleUI(isLoggedIn) {
   document.getElementById("auth-container").style.display = isLoggedIn ? "none" : "block";
   document.getElementById("dashboard").style.display = isLoggedIn ? "block" : "none";
 }
 
-// ===== Hàm hiển thị form theo tên (login/register/forgot) =====
+// Chuyển form (login/register/forgot)
 function showForm(formName) {
   const forms = document.querySelectorAll(".auth-form");
   forms.forEach(f => {
@@ -230,13 +238,13 @@ function showForm(formName) {
 
   const target = document.getElementById(`${formName}-form`);
   if (target) {
-    target.classList.add("active", "fade-in"); // thêm class fade-in
+    target.classList.add("active", "fade-in");
   }
 
   showElement("auth-container");
 }
 
-// ===== Hàm lưu “role” khi người dùng chọn xong =====
+// Lưu “role” khi user chọn xong
 async function saveUserRole() {
   const user = auth.currentUser;
   if (!user) {
@@ -249,88 +257,67 @@ async function saveUserRole() {
     return;
   }
 
-  // Lưu role vào DB
-  await database.ref(`users/${user.uid}/role`).set(selectedRole);
-  // Sau khi lưu xong, gọi lại giao diện Dashboard
-  // Đọc lại thông tin user (bao gồm name và role)
-  const userSnapshot = await database.ref(`users/${user.uid}`).once("value");
+  await database.ref(`${DB_PATHS.USERS}/${user.uid}/role`).set(selectedRole);
+  const userSnapshot = await database.ref(`${DB_PATHS.USERS}/${user.uid}`).once("value");
   const userData = userSnapshot.val();
-  
-  // Ẩn form chọn role, hiển thị Dashboard
+
   hideElement("role-selection");
   setupDashboardUI(userData);
   showElement("dashboard");
 }
 
-// ===== Hàm dựng giao diện Dashboard (với lời chào theo role hoặc theo tên) =====
+// Thiết lập UI Dashboard (hiển thị tên hoặc chức vụ)
 async function setupDashboardUI(userData) {
-  // userData có shape: { name: "...", role: "Admin" } (role không null)
   const displayNameEl = document.getElementById("display-name");
   const displayHelloEl = document.getElementById("display-name-hello");
 
-  // Nếu đã có role (lần sau đăng nhập), hiển thị “Chào mừng ngài trở lại, thưa <chức vụ>”
   if (userData.role) {
-    displayNameEl.textContent = ""; // không cần hiển thị tên nữa
-    displayHelloEl.textContent = `${userData.role}`; 
-    // Thay câu “Xin chào, <tên>!” thành “Chào mừng ngài trở lại, thưa <chức vụ>”
-    // Vì đoạn HTML gốc chứa: <p>Xin chào, <span id="display-name-hello"></span>!</p>
-    // Nên ta chỉ cần ghi đúng nội dung vào display-name-hello. Chữ “Xin chào,” vẫn nằm ở bên ngoài.
+    displayNameEl.textContent = "";
+    displayHelloEl.textContent = `${userData.role}`;
   } else {
-    // Trường hợp lần đầu (chưa có role) – có thể hiển thị tên, nhưng sau khi lưu role, hàm setupDashboardUI sẽ gọi lại
     displayNameEl.textContent = userData.name || "";
-    displayHelloEl.textContent = userData.name || ""; 
-  }
-}
-// ==== SPA Routing ====
-
-function hideAllManagementPages() {
-  pages.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = "none";
-  });
-}
-
-function showPage(pageId) {
-  hideAllManagementPages();
-  const el = document.getElementById(pageId);
-  if (el) {
-    el.classList.remove("fade-in");
-    el.offsetHeight; // force reflow để reset animation
-    el.classList.add("fade-in");
-    el.style.display = "block";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    displayHelloEl.textContent = userData.name || "";
   }
 }
 
+// Quay lại Dashboard
+function backToDashboard() {
+  window.location.hash = "dashboard";
+}
 
-
+// Chuyển trang theo hash
 function showPageFromHash() {
-  const hash = window.location.hash;
-
-  // Mapping giữa hash và id thực tế của các phần tử
-  const pageMap = {
-    "#dashboard": "dashboard",
-    "#profile": "profile-page",
-    "#class-management": "class-management-page",
-    "#homework-management": "homework-management-page",
-    "#schedule-management": "schedule-management-page"
-  };
-
-  if (pageMap[hash]) {
-    showElement(pageMap[hash]);
-
-    // Nếu cần gọi lại các hàm load dữ liệu thì thêm tại đây:
-    if (hash === "#class-management") initClassListener();
-    if (hash === "#homework-management") initHomeworkListener();
-    if (hash === "#schedule-management") initScheduleListener?.(); // Nếu có
+  const hash = window.location.hash.slice(1);
+  if (!hash || !pages.includes(hash)) {
+    window.location.hash = "dashboard";
+    return;
   }
+  const user = auth.currentUser;
+  if (!user) {
+    toggleUI(false);
+    showForm("login");
+    return;
+  }
+  showPage(hash);
+
+  if (hash === "class-management")    initClassesListener();
+  if (hash === "homework-management") showHomeworkManagement();
+  if (hash === "schedule-management") initFullCalendar();
 }
+
 window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
 });
 
-// Khi đăng nhập thành công
+// Khi load lần đầu nếu có hash và user đã xác thực
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.location.hash && isAuthReady && auth.currentUser) {
+    showPageFromHash();
+  }
+});
+
+// Sau khi login thành công
 function loadDashboard() {
   toggleUI(true);
   if (!window.location.hash) {
@@ -339,25 +326,18 @@ function loadDashboard() {
     showPageFromHash();
   }
 }
-// Hàm quay lại dashboard cho nút "Quay lại"
-function backToDashboard() {
-  window.location.hash = "dashboard";
-}
 
-// ==== Quản lý học viên ====
+// ===================== Quản lý HỌC VIÊN =====================
 
-function renderStudentList(students) {
-  allStudentsData = students; // cập nhật toàn bộ dữ liệu học viên
-
-  // Đổi object students thành array để phân trang
-  const studentEntries = Object.entries(students);
+// Render danh sách học viên (phân trang)
+function renderStudentList(dataset) {
+  // Không gán allStudentsData = dataset nữa!
+  // const studentEntries = Object.entries(students);
+  const studentEntries = Object.entries(dataset);
   totalStudentPages = Math.ceil(studentEntries.length / studentsPerPage);
-
-  // Giới hạn page trong khoảng hợp lệ
   if (currentStudentPage > totalStudentPages) currentStudentPage = totalStudentPages;
   if (currentStudentPage < 1) currentStudentPage = 1;
 
-  // Lấy phần tử của trang hiện tại
   const startIndex = (currentStudentPage - 1) * studentsPerPage;
   const endIndex = startIndex + studentsPerPage;
   const currentPageStudents = studentEntries.slice(startIndex, endIndex);
@@ -366,110 +346,111 @@ function renderStudentList(students) {
   tbody.innerHTML = "";
 
   currentPageStudents.forEach(([id, st]) => {
+     const classIds = st.classes ? Object.keys(st.classes) : [];
+     const firstClassId = classIds.length > 0 ? classIds[0] : "";
     const query = document.getElementById("student-search")?.value.toLowerCase() || "";
 
-function highlight(text) {
-  if (!query) return text;
-  const regex = new RegExp(`(${query})`, "gi");
-  return text.replace(regex, '<mark>$1</mark>');
-}
+    function highlight(text) {
+      if (!query) return text;
+      const regex = new RegExp(`(${query})`, "gi");
+      return text.replace(regex, '<mark>$1</mark>');
+    }
 
-const row = `
-  <tr class="${query && (
-    st.name?.toLowerCase().includes(query) ||
-    st.parent?.toLowerCase().includes(query) ||
-    st.parentPhone?.toLowerCase().includes(query) ||
-    st.parentJob?.toLowerCase().includes(query)
-  ) ? 'highlight-row' : ''}">
-    <td>${highlight(st.name || "")}</td>
-    <td>${st.dob || ""}</td>
-    <td>${highlight(st.parent || "")}</td>
-    <td>${highlight(st.parentPhone || "")}</td>
-    <td>${highlight(st.parentJob || "")}</td>
-    <td>${st.package || ""}</td>
-    <td>${st.sessionsAttended || 0}</td>
-    <td>${st.sessionsPaid || 0}</td>
-    <td>
-      <button onclick="editStudent('${id}')">Sửa</button>
-      <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
-    </td>
-  </tr>`;
-
-    tbody.innerHTML += row;
+    const isHighlight = query && (
+      (st.name  || "").toLowerCase().includes(query) ||
+      (st.parent|| "").toLowerCase().includes(query) ||
+      (st.parentPhone|| "").toLowerCase().includes(query) ||
+      (st.parentJob|| "").toLowerCase().includes(query)
+    );
+  // Tạo nút "Buổi học"
+  let btnBuoiHoc;
+  if (!firstClassId) {
+    btnBuoiHoc = `<button disabled>Buổi học</button>`;
+  } else {
+    btnBuoiHoc = `<button onclick="viewStudentSessions('${id}', '${firstClassId}')">Buổi học</button>`;
+  }
+    const row = `
+      <tr class="${isHighlight ? 'highlight-row' : ''}">
+        <td>${highlight(st.name || "")}</td>
+        <td>${st.dob || ""}</td>
+        <td>${highlight(st.parent || "")}</td>
+        <td>${highlight(st.parentPhone || "")}</td>
+        <td>${highlight(st.parentJob || "")}</td>
+        <td>${st.package || ""}</td>
+        <td>${st.sessionsAttended || 0}</td>
+        <td>${st.sessionsPaid || 0}</td>
+        <td>
+          <button onclick="editStudent('${id}')">Sửa</button>
+          ${btnBuoiHoc}
+          <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
+        </td>
+      </tr>`;
+  tbody.insertAdjacentHTML("beforeend", row);
   });
 
   updateStudentPaginationControls();
 }
+
+// Lọc học viên theo input tìm kiếm
 function filterStudentsBySearch() {
   const query = document.getElementById("student-search").value.toLowerCase().trim();
 
+  // Nếu query trống => reset trang và render lại toàn bộ allStudentsData gốc
   if (!query) {
-    renderStudentList(allStudentsData); // nếu ô tìm kiếm rỗng, hiện toàn bộ
+    currentStudentPage = 1;
+    renderStudentList(allStudentsData);
     return;
   }
 
   const filtered = {};
   Object.entries(allStudentsData).forEach(([id, st]) => {
-    const name = st.name?.toLowerCase() || "";
-    const parent = st.parent?.toLowerCase() || "";
-    const phone = st.parentPhone?.toLowerCase() || "";
-    const job = st.parentJob?.toLowerCase() || "";
-
-    if (name.includes(query) || parent.includes(query) || phone.includes(query) || job.includes(query)) {
+    const name   = (st.name        || "").toLowerCase();
+    const parent = (st.parent      || "").toLowerCase();
+    const phone  = (st.parentPhone || "").toLowerCase();
+    const job    = (st.parentJob   || "").toLowerCase();
+    if (
+      name.includes(query) ||
+      parent.includes(query) ||
+      phone.includes(query) ||
+      job.includes(query)
+    ) {
       filtered[id] = st;
     }
   });
 
+  currentStudentPage = 1;
   renderStudentList(filtered);
 }
 
+// Cập nhật controls phân trang
 function updateStudentPaginationControls() {
   document.getElementById("page-info").textContent = `Trang ${currentStudentPage} / ${totalStudentPages}`;
-
   const prevBtn = document.getElementById("prev-page");
   const nextBtn = document.getElementById("next-page");
-
   prevBtn.disabled = currentStudentPage <= 1;
   nextBtn.disabled = currentStudentPage >= totalStudentPages;
 }
+
+// Chuyển trang
 function changeStudentPage(newPage) {
   if (newPage < 1 || newPage > totalStudentPages) return;
   currentStudentPage = newPage;
   renderStudentList(allStudentsData);
 }
 
-
-let allStudentsData = {};
-function updateStudentOptionsForClassForm() {
-  database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
-    allStudentsData = snapshot.val() || {};
-    const select = document.getElementById("class-add-student");
-    select.innerHTML = `<option value="">-- Chọn học viên --</option>`;
-    Object.entries(allStudentsData).forEach(([id, st]) => {
-      const option = document.createElement("option");
-      option.value = id;
-      option.textContent = st.name || "(Không rõ tên)";
-      select.appendChild(option);
-    });
-  });
-}
-
-
+// Khởi tạo listener realtime cho học viên
 function initStudentsListener() {
-  showLoading();
+  showLoading(true);
   database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
     allStudentsData = snapshot.val() || {};
-
     const query = document.getElementById("student-search")?.value.trim().toLowerCase();
-    if (query) {
-      filterStudentsBySearch(); // nếu đang tìm kiếm thì lọc lại
-    } else {
-      renderStudentList(allStudentsData); // nếu không thì render toàn bộ
-    }
-
-    hideLoading();
+    if (query) filterStudentsBySearch();
+    else renderStudentList(allStudentsData);
+    showLoading(false);
   });
 }
+
+// Hiển thị form thêm/sửa học viên
 function showStudentForm() {
   document.getElementById("student-form").reset();
   document.getElementById("student-index").value = "";
@@ -484,25 +465,24 @@ function showStudentForm() {
   modalContent.classList.add("scale-up");
 }
 
-
+// Ẩn form thêm/sửa học viên
 function hideStudentForm() {
   document.getElementById("student-form-modal").style.display = "none";
   document.getElementById("student-form-container").style.display = "none";
 }
 
+// Lưu draft localStorage cho form học viên
 const fields = ["student-name", "student-dob", "student-parent", "student-parent-phone", "student-package"];
-
 fields.forEach(id => {
   const input = document.getElementById(id);
   input.addEventListener("input", () => {
     localStorage.setItem(id, input.value);
   });
-  // Nếu có nháp, điền lại
   const draft = localStorage.getItem(id);
   if (draft) input.value = draft;
 });
 
-
+// Lưu hoặc cập nhật học viên
 async function saveStudent() {
   const user = auth.currentUser;
   if (!user) {
@@ -529,54 +509,37 @@ async function saveStudent() {
   try {
     if (id) {
       await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
-      Swal.fire({
-  icon: 'success',
-  title: 'Thành công',
-  text: 'Cập nhật học viên thành công!',
-  timer: 2000,
-  showConfirmButton: false
-});
-fields.forEach(id => localStorage.removeItem(id));
+      Swal.fire({ icon: 'success', title: 'Đã cập nhật học viên!', timer: 2000, showConfirmButton: false });
     } else {
       await database.ref(DB_PATHS.STUDENTS).push(studentData);
-      // alert("Thêm học viên mới thành công!");
-Swal.fire({
-  icon: 'success',
-  title: 'Thành công',
-  text: 'Đã thêm học viên!',
-  timer: 2000,
-  showConfirmButton: false
-});
-fields.forEach(id => localStorage.removeItem(id));
+      Swal.fire({ icon: 'success', title: 'Đã thêm học viên!', timer: 2000, showConfirmButton: false });
     }
+    fields.forEach(id => localStorage.removeItem(id));
     hideStudentForm();
   } catch (error) {
     alert("Lỗi lưu học viên: " + error.message);
   }
 }
 
+// Xóa học viên
 async function deleteStudent(id) {
   if (!confirm("Bạn chắc chắn muốn xóa học viên này?")) return;
   try {
     await database.ref(`${DB_PATHS.STUDENTS}/${id}`).remove();
-    Swal.fire({
-  icon: 'success',
-  title: 'Thành công',
-  text: 'Đã xoá học viên!',
-  timer: 2000,
-  showConfirmButton: false
-});
-fields.forEach(id => localStorage.removeItem(id));
+    Swal.fire({ icon: 'success', title: 'Đã xoá học viên!', timer: 2000, showConfirmButton: false });
+    fields.forEach(id => localStorage.removeItem(id));
   } catch (error) {
     alert("Lỗi xóa học viên: " + error.message);
   }
 }
 
+// Chỉnh sửa học viên (đổ dữ liệu vào form)
 function editStudent(id) {
   database.ref(`${DB_PATHS.STUDENTS}/${id}`).once("value").then(snapshot => {
     const st = snapshot.val();
     if (!st) return alert("Học viên không tồn tại!");
 
+    // Đổ dữ liệu vào các input
     document.getElementById("student-index").value = id;
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
@@ -594,41 +557,33 @@ function editStudent(id) {
     document.getElementById("student-sessions-attended").value = st.sessionsAttended || 0;
     document.getElementById("student-sessions-paid").value = st.sessionsPaid || 0;
 
+    // Thay tiêu đề modal
     document.getElementById("student-form-title").textContent = "Chỉnh sửa học viên";
+
+    // **Bật overlay trước khi show phần content:**
+    document.getElementById("student-form-modal").style.display = "flex";
     document.getElementById("student-form-container").style.display = "block";
   }).catch(err => alert("Lỗi tải học viên: " + err.message));
 }
 
+
+// Hiển thị hoặc ẩn ô “Nhập nghề nghiệp khác”
 function parentJobChange(value) {
   document.getElementById("student-parent-job-other").style.display = (value === "Khác") ? "inline-block" : "none";
 }
 
-// ==== Quản lý lớp học ====
+// ===================== Quản lý LỚP HỌC =====================
 
-let currentClassStudents = [];
-
-function initClassesListener() {
- database.ref(DB_PATHS.CLASSES).on("value", snapshot => {
-    const classes = snapshot.val() || {};
-    // 1. Cập nhật biến toàn cục để các chỗ khác (Homeworks, FullCalendar) dùng được
-    allClassesData = classes;
-    // 2. Vẫn render danh sách lớp trong trang Quản lý lớp
-    renderClassList(classes);
-    clearSchedulePreview();
-  });
-}
-
-
+// Render danh sách lớp
 function renderClassList(classes) {
   const tbody = document.getElementById("class-list");
-   if (!tbody) {
+  if (!tbody) {
     console.warn("class-list element not found");
     return;
   }
   tbody.innerHTML = "";
   Object.entries(classes).forEach(([id, cls]) => {
     const tr = document.createElement("tr");
-
     tr.innerHTML = `
       <td>${cls.name || ""}</td>
       <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
@@ -637,10 +592,11 @@ function renderClassList(classes) {
         <button onclick="viewClassInfo('${id}')">Xem info</button>
         <button onclick="editClass('${id}')">Sửa</button>
         <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
+
       </td>
     `;
 
-    // Thêm sự kiện hover
+    // Hover để hiển thị preview lịch cố định
     tr.addEventListener("mouseenter", () => {
       showSchedulePreview(cls.fixedSchedule);
     });
@@ -652,39 +608,49 @@ function renderClassList(classes) {
   });
 }
 
+// Chỉnh sửa lớp (đổ dữ liệu vào form)
+async function editClass(id) {
+   // 1. Mở overlay + container
+   document.getElementById("class-form-modal").style.display = "flex";
+   document.getElementById("class-form-container").style.display = "block";
 
-function editClass(id) {
-  database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value").then(snapshot => {
+   // 2. Đổi tiêu đề sang “Chỉnh sửa lớp học”
+   document.getElementById("class-form-title").textContent = "Chỉnh sửa lớp học";
+  try {
+    // 3.1. Lấy dữ liệu lớp
+    const snapshot = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
     const cls = snapshot.val();
-    if (!cls) return alert("Lớp học không tồn tại!");
+    if (!cls) {
+      alert("Lớp học không tồn tại!");
+      return;
+    }
 
-    // Điền các trường lớp
+    // Điền thông tin chung
     document.getElementById("class-index").value = id;
     document.getElementById("class-name").value = cls.name || "";
     document.getElementById("class-teacher").value = cls.teacher || "";
 
-    // Danh sách học viên hiện có
+    // 3.2. Cập nhật dropdown chọn học viên (đảm bảo allStudentsData đã có giá trị)
+    await updateStudentOptionsForClassForm();
+
+    // 3.3. Đổ danh sách học viên đã có sẵn trong lớp
     currentClassStudents = cls.students ? Object.keys(cls.students) : [];
     renderClassStudentList(currentClassStudents);
 
-    // Điền lịch học cố định (nếu có)
+    // 3.4. Lịch cố định
     fillFixedScheduleForm(cls.fixedSchedule);
-
-    // Hiển thị lịch học cố định bên dưới form
     renderFixedScheduleDisplay();
 
-    document.getElementById("class-form-title").textContent = "Chỉnh sửa lớp học";
-    document.getElementById("class-form-container").style.display = "block";
-
-    // Đảm bảo lắng nghe thay đổi lịch học (nếu chưa setup)
     setupScheduleInputsListener();
-  }).catch(err => alert("Lỗi tải lớp học: " + err.message));
-}
+  } catch (err) {
+    alert("Lỗi tải lớp học: " + err.message);
+  }
+ }
 
+
+// Hiển thị form tạo lớp
 async function showClassForm() {
   currentClassStudents = [];
-
-  // Cập nhật tiêu đề và reset form
   document.getElementById("class-form-title").textContent = "Tạo lớp học mới";
   document.getElementById("class-form").reset();
   document.getElementById("class-index").value = "";
@@ -692,53 +658,53 @@ async function showClassForm() {
   renderClassStudentList([]);
   await updateStudentOptionsForClassForm();
 
-  // Reset và hiển thị lịch học cố định (nếu có)
   fillFixedScheduleForm(null);
   renderFixedScheduleDisplay();
   setupScheduleInputsListener();
 
-  // Mở popup modal thay vì hiển thị trực tiếp form
   document.getElementById("class-form-modal").style.display = "flex";
   const modalContent = document.querySelector("#class-form-modal .modal-content");
-modalContent.classList.remove("scale-up");
-modalContent.offsetHeight; // trigger reflow
-modalContent.classList.add("scale-up");
-
+  modalContent.classList.remove("scale-up");
+  modalContent.offsetHeight;
+  modalContent.classList.add("scale-up");
 }
 
+// Ẩn form lớp học
 function hideClassForm() {
   document.getElementById("class-form-modal").style.display = "none";
 }
 
-function updateStudentOptionsForClass() {
-  database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
-    const students = snapshot.val() || {};
+// Cập nhật dropdown chọn học viên khi tạo/sửa lớp
+ function updateStudentOptionsForClassForm() {
+  // Trả về Promise để có thể await bên ngoài
+  return database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
+    allStudentsData = snapshot.val() || {};
     const select = document.getElementById("class-add-student");
     select.innerHTML = `<option value="">-- Chọn học viên --</option>`;
-    Object.entries(students).forEach(([id, st]) => {
+    Object.entries(allStudentsData).forEach(([id, st]) => {
       const option = document.createElement("option");
-     option.value = id; // key Firebase của học viên
-option.textContent = st.name || "";
+      option.value = id;
+      option.textContent = st.name || "(Không rõ tên)";
       select.appendChild(option);
     });
   });
-}
+ }
 
+
+// Thêm học viên vào danh sách class
 function addStudentToClass() {
   const select = document.getElementById("class-add-student");
   const studentId = select.value;
   if (!studentId) return alert("Vui lòng chọn học viên để thêm!");
-
   if (currentClassStudents.includes(studentId)) {
     alert("Học viên đã có trong lớp!");
     return;
   }
-
   currentClassStudents.push(studentId);
   renderClassStudentList(currentClassStudents);
-} // <-- Đóng hàm ở đây
+}
 
-
+// Render danh sách học viên hiện có trong class
 function renderClassStudentList(studentIds) {
   currentClassStudents = studentIds;
   const ul = document.getElementById("class-student-list");
@@ -750,7 +716,7 @@ function renderClassStudentList(studentIds) {
     li.textContent = name;
 
     const btnRemove = document.createElement("span");
-    btnRemove.textContent = "x";
+    btnRemove.textContent = "×";
     btnRemove.className = "remove-btn";
     btnRemove.onclick = () => {
       currentClassStudents = currentClassStudents.filter(sid => sid !== id);
@@ -762,7 +728,7 @@ function renderClassStudentList(studentIds) {
   });
 }
 
-
+// Lưu hoặc cập nhật lớp học
 async function saveClass() {
   const user = auth.currentUser;
   if (!user) {
@@ -774,77 +740,74 @@ async function saveClass() {
   const id = document.getElementById("class-index").value;
   const nowTimestamp = firebase.database.ServerValue.TIMESTAMP;
 
-  // Nếu id rỗng => tạo lớp mới, cần lưu createdAt
+  if (!validateFixedSchedule()) return; // Kiểm tra form lịch cố định
+
   if (!id) {
     const newClassData = {
       name: document.getElementById("class-name").value.trim(),
       teacher: document.getElementById("class-teacher").value.trim(),
-      students: {},               // sau sẽ điền vào
+      students: {},
       fixedSchedule: getFixedScheduleFromForm(),
-      createdAt: nowTimestamp,    // **LƯU ngày tạo ở đây**
+      createdAt: nowTimestamp,
       updatedAt: nowTimestamp
     };
     currentClassStudents.forEach(studentId => {
-      // Khi thêm mới, có thể lưu giá trị true hoặc timestamp nếu muốn lưu ngày add
-      newClassData.students[studentId] = true;
+     newClassData.students[studentId] = { enrolledAt: nowTimestamp };
+      database.ref(`students/${studentId}/classes/${newClassId}`).set({ enrolledAt: nowTimestamp });
     });
-
     try {
       await database.ref(DB_PATHS.CLASSES).push(newClassData);
-      Swal.fire({
-    icon: 'success',
-    title: 'Thành công',
-    text: 'Thêm lớp học thành công!',
-    timer: 2000,
-    showConfirmButton: false
-  });
+      Swal.fire({ icon: 'success', title: 'Đã thêm lớp học!', timer: 2000, showConfirmButton: false });
       hideClassForm();
     } catch (error) {
       alert("Lỗi lưu lớp học: " + error.message);
     }
   } else {
-    // Khi id không rỗng => đang cập nhật lớp cũ, chỉ update cập nhật các trường, KHÔNG ghi đè createdAt
     const updatedClassData = {
       name: document.getElementById("class-name").value.trim(),
       teacher: document.getElementById("class-teacher").value.trim(),
-      students: {},               // sau sẽ điền lại danh sách mới
+      students: {},
       fixedSchedule: getFixedScheduleFromForm(),
       updatedAt: nowTimestamp
     };
-    currentClassStudents.forEach(studentId => {
-      updatedClassData.students[studentId] = true;
-    });
-
+     const clsSnap = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
+  const clsData = clsSnap.val() || { students: {} };
+   currentClassStudents.forEach(studentId => {
+    // Nếu học sinh đã tồn tại trong clsData.students, giữ nguyên enrolledAt
+    const prevEnrolledObj = clsData.students ? clsData.students[studentId] : null;
+    if (prevEnrolledObj && prevEnrolledObj.enrolledAt) {
+      updatedClassData.students[studentId] = { enrolledAt: prevEnrolledObj.enrolledAt };
+    } else {
+      // Nếu là học sinh mới được add lần đầu, gán enrolledAt = nowTimestamp
+      updatedClassData.students[studentId] = { enrolledAt: nowTimestamp };
+      // Và lưu ngược vào node students:
+      database.ref(`students/${studentId}/classes/${id}`).set({ enrolledAt: nowTimestamp });
+    }
+  });
     try {
       await database.ref(`${DB_PATHS.CLASSES}/${id}`).update(updatedClassData);
-      Swal.fire({
-    icon: 'success',
-    title: 'Thành công',
-    text: 'Cập nhật lớp học thành gay!',
-    timer: 2000,
-    showConfirmButton: false
-  });
+      Swal.fire({ icon: 'success', title: 'Đã cập nhật lớp học!', timer: 2000, showConfirmButton: false });
       hideClassForm();
     } catch (error) {
-      alert("Lỗi lưu lớp học: " + error.message);
+      alert("Lỗi cập nhật lớp học: " + error.message);
     }
   }
+  // … trong saveClass(), sau khi đã update classes/{classId}/students:
+//await database.ref(`students/${studentId}/classes/${classId}`).set(true);
 }
+
+// Xóa lớp học
 async function deleteClass(id) {
   if (!confirm("Bạn chắc chắn muốn xóa lớp học này?")) return;
   try {
     await database.ref(`${DB_PATHS.CLASSES}/${id}`).remove();
-    Swal.fire({
-    icon: 'success',
-    title: 'Thành công',
-    text: 'Xoá lớp học thành công!',
-    timer: 2000,
-    showConfirmButton: false
-  });
+    Swal.fire({ icon: 'success', title: 'Đã xóa lớp học!', timer: 2000, showConfirmButton: false });
   } catch (error) {
     alert("Lỗi xóa lớp học: " + error.message);
   }
 }
+
+// Lấy lịch cố định từ form
 function getFixedScheduleFromForm() {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const schedule = {};
@@ -858,6 +821,7 @@ function getFixedScheduleFromForm() {
   return schedule;
 }
 
+// Điền form với lịch cố định có sẵn
 function fillFixedScheduleForm(fixedSchedule) {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   days.forEach(day => {
@@ -871,16 +835,25 @@ function fillFixedScheduleForm(fixedSchedule) {
       timeInput.value = "";
     }
   });
-
-  renderCalendarSchedule(fixedSchedule);
+  renderFixedScheduleDisplay();
+}
+// Thiết lập sự kiện change cho các ô checkbox/time trong form lớp
+function setupScheduleInputsListener() {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  days.forEach(day => {
+    const cb = document.getElementById(`schedule-${day}`);
+    const ti = document.getElementById(`time-${day}`);
+    if (cb) cb.addEventListener("change", renderFixedScheduleDisplay);
+    if (ti) ti.addEventListener("change", renderFixedScheduleDisplay);
+  });
 }
 
+// Hiển thị danh sách lịch cố định bên dưới form
 function renderFixedScheduleDisplay() {
   const scheduleList = document.getElementById("schedule-list");
   scheduleList.innerHTML = "";
 
   const fixedSchedule = getFixedScheduleFromForm();
-
   if (Object.keys(fixedSchedule).length === 0) {
     scheduleList.innerHTML = "<li>Chưa có lịch học cố định.</li>";
   } else {
@@ -890,10 +863,191 @@ function renderFixedScheduleDisplay() {
       scheduleList.appendChild(li);
     });
   }
-
   renderCalendarSchedule(fixedSchedule);
 }
+// ----------------------------------------------------------------------------
+// 1. Hàm sinh N buổi sắp tới (sliding window) từ fixedSchedule và enrolledAt
+// ----------------------------------------------------------------------------
+function generateFutureSessionDates(fixedSchedule, enrolledAt, numSessions) {
+  // Map tên thứ (tiếng Anh) sang số getDay()
+  const weekdayMap = {
+    Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+    Thursday: 4, Friday: 5, Saturday: 6
+  };
+  // Chuyển fixedSchedule { "Wednesday": "09:30", "Saturday": "09:30" } → mảng thứ [3, 6]
+  const targetWeekdays = Object.keys(fixedSchedule)
+    .map(dayName => weekdayMap[dayName])
+    .filter(x => x !== undefined);
 
+  // Xác định ngày bắt đầu = max(hôm nay (00:00), enrolledAt (00:00))
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const enrollDate = new Date(enrolledAt);
+  enrollDate.setHours(0, 0, 0, 0);
+  const cursor = new Date(Math.max(enrollDate.getTime(), now.getTime()));
+
+  // Lặp tăng ngày từ cursor, nhặt ra đúng numSessions lần xuất hiện thứ thuộc targetWeekdays
+  const sessions = [];
+  while (sessions.length < numSessions) {
+    if (targetWeekdays.includes(cursor.getDay())) {
+      const yyyy = cursor.getFullYear();
+      const mm = String(cursor.getMonth() + 1).padStart(2, "0");
+      const dd = String(cursor.getDate()).padStart(2, "0");
+      const dateStr = `${yyyy}-${mm}-${dd}`; // "YYYY-MM-DD"
+      sessions.push(dateStr);
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return sessions;
+}
+
+// ----------------------------------------------------------------------------
+// 2. Hàm cập nhật attendance (tích / hủy tích) và điều chỉnh sessionsAttended, sessionsPaid
+// ----------------------------------------------------------------------------
+async function updateAttendanceBySchedule(classId, studentId, dateStr, isAttending) {
+  const attRef = database.ref(`attendance/${classId}/${studentId}/${dateStr}`);
+  const studentRef = database.ref(`students/${studentId}`);
+
+  try {
+    // 2.1. Lấy trạng thái cũ (oldFlag) nếu đã lưu
+    const snapOld = await attRef.once("value");
+    const oldFlag = snapOld.exists() ? !!snapOld.val() : false;
+
+    // 2.2. Tính delta để cộng/trừ sessionsAttended và sessionsPaid
+    let deltaAtt = 0, deltaPaid = 0;
+    if (!oldFlag && isAttending) {
+      // Trước chưa tick, giờ tick -> +1 attended, -1 paid
+      deltaAtt = +1;
+      deltaPaid = -1;
+    } else if (oldFlag && !isAttending) {
+      // Trước đã tick, giờ bỏ tick -> -1 attended, +1 paid
+      deltaAtt = -1;
+      deltaPaid = +1;
+    }
+    // Nếu oldFlag == isAttending, không thay đổi counts
+
+    // 2.3. Cập nhật node attendance cho ngày đó
+    await attRef.set(isAttending);
+
+    // 2.4. Nếu có delta, cập nhật students/{studentId}/sessionsAttended, sessionsPaid
+    if (deltaAtt !== 0 || deltaPaid !== 0) {
+      const stuSnap = await studentRef.once("value");
+      const stuData = stuSnap.val() || {};
+      const oldAttCount = parseInt(stuData.sessionsAttended) || 0;
+      const oldPaidCount = parseInt(stuData.sessionsPaid) || 0;
+
+      const newAttCount = oldAttCount + deltaAtt;
+      const newPaidCount = oldPaidCount + deltaPaid;
+      await studentRef.update({
+        sessionsAttended: newAttCount,
+        sessionsPaid: newPaidCount,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+
+    console.log(`Cập nhật attendance ${classId}/${studentId}/${dateStr} → ${isAttending}`);
+  } catch (err) {
+    console.error("Lỗi updateAttendanceBySchedule:", err);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. Hàm hiển thị modal "Buổi học" cho một học sinh trong một lớp
+//    – Dựa hoàn toàn vào fixedSchedule (trong classes/{classId}/fixedSchedule)
+//    – Mỗi lần mở modal, sinh numSessions ngày sắp tới, không cần lưu scheduleDates
+// ----------------------------------------------------------------------------
+async function viewStudentSessions(studentId, classId) {
+  // 3.1. Lấy info lớp (để có fixedSchedule, tên lớp)
+  const clsSnap = await database.ref(`classes/${classId}`).once("value");
+  const clsData = clsSnap.val();
+  if (!clsData) {
+    return alert("Lớp không tồn tại!");
+  }
+
+  // 3.2. Kiểm tra học sinh đã được add chưa
+  const enrolledObj = clsData.students && clsData.students[studentId];
+  if (!enrolledObj || !enrolledObj.enrolledAt) {
+    return alert("Học sinh chưa được thêm vào lớp này!");
+  }
+  const enrolledAt = enrolledObj.enrolledAt;
+  const fixedSchedule = clsData.fixedSchedule || {};
+
+  // 3.3. Sinh N buổi sắp tới (ví dụ 30 buổi)
+  const NUM_FUTURE = 30;
+  const sessionDates = generateFutureSessionDates(fixedSchedule, enrolledAt, NUM_FUTURE);
+
+  // 3.4. Lấy attendance hiện có của học sinh
+  const attSnap = await database.ref(`attendance/${classId}/${studentId}`).once("value");
+  const attendanceData = attSnap.val() || {};
+  // attendanceData có dạng: { "2025-06-07": true, "2025-06-11": false, … }
+
+  // 3.5. Xóa nội dung cũ trong slider
+  const sliderEl = document.getElementById("sessions-slider");
+  if (!sliderEl) {
+    console.warn("Không tìm thấy #sessions-slider trong DOM!");
+    return;
+  }
+  sliderEl.innerHTML = "";
+
+  // 3.6. Tạo các thẻ session-item và checkbox
+  sessionDates.forEach(dateStr => {
+    const container = document.createElement("div");
+    container.className = "session-item";
+    // Nếu attendanceData[dateStr] === true thì đã điểm danh → thêm class attended
+    if (attendanceData[dateStr] === true) {
+      container.classList.add("attended");
+    }
+
+    // Format ngày sang "DD/MM/YYYY - HH:mm"
+    const parts = dateStr.split("-");
+    // Tìm ra tên thứ (tiếng Anh) để lấy giờ từ fixedSchedule
+    const dayName = new Date(dateStr).toLocaleDateString("en-US", { weekday: "long" });
+    const timeStr = fixedSchedule[dayName] || ""; 
+    const txtDate = document.createElement("p");
+    txtDate.textContent = `${parts[2]}/${parts[1]}/${parts[0]} - ${timeStr}`;
+    container.appendChild(txtDate);
+
+    // Checkbox: nếu attendanceData[dateStr] === true → checked
+    const chk = document.createElement("input");
+    chk.type = "checkbox";
+    chk.checked = attendanceData[dateStr] === true;
+    chk.dataset.date = dateStr;
+    chk.addEventListener("change", () => {
+      const isChecked = chk.checked;
+      updateAttendanceBySchedule(classId, studentId, dateStr, isChecked);
+      if (isChecked) container.classList.add("attended");
+      else container.classList.remove("attended");
+    });
+    container.appendChild(chk);
+
+    sliderEl.appendChild(container);
+  });
+
+  // 3.7. Hiển thị tên học sinh và tên lớp lên modal
+  const stuSnap = await database.ref(`students/${studentId}`).once("value");
+  const stuData = stuSnap.val() || {};
+  document.getElementById("student-sessions-name").textContent = stuData.name || "(Không rõ)";
+  document.getElementById("student-sessions-class").textContent = clsData.name || "(Không rõ)";
+
+  // 3.8. Hiển thị modal
+  const modal = document.getElementById("student-sessions-modal");
+  modal.style.display = "flex";
+  const modalContent = document.querySelector("#student-sessions-modal .modal-content");
+  modalContent.classList.remove("scale-up");
+  // Force reflow để animation scale-up chạy lại
+  void modalContent.offsetWidth;
+  modalContent.classList.add("scale-up");
+}
+
+// ----------------------------------------------------------------------------
+// 4. Hàm đóng modal
+// ----------------------------------------------------------------------------
+function hideStudentSessions() {
+  const modal = document.getElementById("student-sessions-modal");
+  if (modal) modal.style.display = "none";
+}
+
+// Vẽ preview lịch cố định (ô calendar nhỏ bên phải)
 function renderCalendarSchedule(fixedSchedule) {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const idMap = {
@@ -905,20 +1059,14 @@ function renderCalendarSchedule(fixedSchedule) {
     Saturday: "calendar-sat",
     Sunday: "calendar-sun"
   };
-
-  // Xóa hết nội dung cũ
   days.forEach(day => {
     const cell = document.getElementById(idMap[day]);
     if (cell) cell.innerHTML = "";
   });
-
-  // Nếu fixedSchedule rỗng thì thôi
   if (!fixedSchedule || Object.keys(fixedSchedule).length === 0) return;
-
   Object.entries(fixedSchedule).forEach(([day, time]) => {
     const cell = document.getElementById(idMap[day]);
     if (cell) {
-      // Tạo div nhỏ hiển thị giờ học
       const div = document.createElement("div");
       div.textContent = time;
       div.style.backgroundColor = "#0066cc";
@@ -932,18 +1080,18 @@ function renderCalendarSchedule(fixedSchedule) {
     }
   });
 }
+
+// Kiểm tra tính hợp lệ trước khi lưu lịch cố định
 function validateFixedSchedule() {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   for (const day of days) {
     const checkbox = document.getElementById(`schedule-${day}`);
     const timeInput = document.getElementById(`time-${day}`);
-
     if (checkbox.checked && !timeInput.value) {
       alert(`Vui lòng chọn giờ học cho ${checkbox.value}!`);
       timeInput.focus();
       return false;
     }
-
     if (!checkbox.checked && timeInput.value) {
       alert(`Vui lòng tick lịch học cho ngày ${checkbox.value} hoặc xóa giờ!`);
       timeInput.focus();
@@ -952,15 +1100,15 @@ function validateFixedSchedule() {
   }
   return true;
 }
+
+// Hiển thị preview khi hover vào từng lớp
 function showSchedulePreview(fixedSchedule) {
   const ul = document.getElementById("schedule-preview-list");
   ul.innerHTML = "";
-
   if (!fixedSchedule || Object.keys(fixedSchedule).length === 0) {
     ul.innerHTML = "<li>Chưa có lịch học cố định.</li>";
     return;
   }
-
   Object.entries(fixedSchedule).forEach(([day, time]) => {
     const li = document.createElement("li");
     li.textContent = `${day}: ${time}`;
@@ -968,21 +1116,13 @@ function showSchedulePreview(fixedSchedule) {
   });
 }
 
+// Xóa preview
 function clearSchedulePreview() {
   const ul = document.getElementById("schedule-preview-list");
   ul.innerHTML = "<li>Di chuột vào lớp để xem lịch học cố định.</li>";
 }
 
-function setupScheduleInputsListener() {
-  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-  days.forEach(day => {
-    const checkbox = document.getElementById(`schedule-${day}`);
-    const timeInput = document.getElementById(`time-${day}`);
-
-    checkbox.addEventListener("change", renderFixedScheduleDisplay);
-    timeInput.addEventListener("input", renderFixedScheduleDisplay);
-  });
-}
+// Xem thông tin đầy đủ của một lớp khi click “Xem info”
 async function viewClassInfo(id) {
   try {
     const snapshot = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
@@ -1007,302 +1147,25 @@ Số buổi học cố định mỗi tuần: ${sessionsPerWeek}
 Lịch học cố định:
 ${scheduleText}
     `;
-
     alert(info);
   } catch (error) {
     alert("Lỗi lấy thông tin lớp học: " + error.message);
   }
 }
-// ======== Quản lý Bài tập về nhà =========
 
-// Khi hash change tới '#homework-management':
-function showHomeworkManagement() {
-  // Hiển thị phần Quản lý bài tập, ẩn các phần khác
-  hideAllManagementPages();
-  const el = document.getElementById("homework-management");
-  if (el) {
-    el.style.display = "block";
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  // Reset: hiển thị container lớp, ẩn 2 container sau
-  document.getElementById("homework-class-container").style.display = "block";
-  document.getElementById("homework-student-container").style.display = "none";
-  document.getElementById("homework-session-container").style.display = "none";
-
-  // Xóa cache tạm
-  selectedHomeworkClassId = null;
-  selectedHomeworkStudentId = null;
-
-  // Load danh sách lớp từ allClassesData
-  renderHomeworkClassList(allClassesData);
-}
-
-// Đăng ký sự kiện khi hash=homework-management
-window.addEventListener("hashchange", () => {
-  if (!isAuthReady) return;
-  const hash = window.location.hash.slice(1);
-  if (hash === "homework-management") {
-    // Đảm bảo user đã login
-    const user = auth.currentUser;
-    if (!user) {
-      toggleUI(false);
-      showForm("login");
-      return;
-    }
-    showHomeworkManagement();
-  }
-});
-
-// Render bảng danh sách lớp cho phần Bài tập
-function renderHomeworkClassList(classes) {
-  const tbody = document.getElementById("homework-class-list");
-  tbody.innerHTML = "";
-
-  Object.entries(classes).forEach(([classId, cls]) => {
-    const tr = document.createElement("tr");
-    const studentCount = cls.students ? Object.keys(cls.students).length : 0;
-    const teacherName = cls.teacher || "(Chưa có)";
-    const className    = cls.name || "(Không đặt tên)";
-
-    tr.innerHTML = `
-      <td>${className}</td>
-      <td>${studentCount}</td>
-      <td>${teacherName}</td>
-      <td>
-        <button onclick="selectHomeworkClass('${classId}')">Chọn</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
+// Khởi tạo listener realtime cho lớp
+function initClassesListener() {
+  database.ref(DB_PATHS.CLASSES).on("value", snapshot => {
+    const classes = snapshot.val() || {};
+    allClassesData = classes;
+    renderClassList(classes);
+    clearSchedulePreview();
   });
 }
 
-// Khi người dùng bấm "Chọn" 1 lớp
-async function selectHomeworkClass(classId) {
-  selectedHomeworkClassId = classId;
-  const cls = allClassesData[classId];
-  if (!cls) return alert("Lớp không tồn tại!");
+// ===================== Quản lý Lịch học (FullCalendar) =====================
 
-  // Hiển thị tên lớp
-  document.getElementById("homework-selected-class-name").textContent = cls.name || "";
-
-  // Ẩn container lớp, hiện container học viên
-  document.getElementById("homework-class-container").style.display = "none";
-  document.getElementById("homework-student-container").style.display = "block";
-
-  // Clear danh sách học viên
-  const ul = document.getElementById("homework-student-list");
-  ul.innerHTML = "";
-
-  // Lấy danh sách studentId trong lớp
-  const studentIds = cls.students ? Object.keys(cls.students) : [];
-
-  // Đảm bảo allStudentsData đã load (initStudentsListener đã set)
-  studentIds.forEach(stId => {
-    const st = allStudentsData[stId];
-    const name = st ? st.name : "(Không tên)";
-    const li = document.createElement("li");
-    li.style.marginBottom = "8px";
-    li.innerHTML = `
-      ${name} 
-      <button onclick="selectHomeworkStudent('${stId}')">Chọn</button>
-    `;
-    ul.appendChild(li);
-  });
-}
-
-// Quay lại danh sách lớp
-function backToHomeworkClasses() {
-  document.getElementById("homework-student-container").style.display = "none";
-  document.getElementById("homework-class-container").style.display = "block";
-  selectedHomeworkClassId = null;
-}
-
-// Khi người dùng bấm “Chọn” 1 học viên
-async function selectHomeworkStudent(studentId) {
-  selectedHomeworkStudentId = studentId;
-  const cls = allClassesData[selectedHomeworkClassId];
-  const st  = allStudentsData[studentId];
-  if (!cls || !st) return alert("Lỗi: Không tìm thấy dữ liệu lớp hoặc học viên!");
-
-  // Hiển thị tên học viên + tên lớp
-  document.getElementById("homework-selected-student-name").textContent = st.name || "";
-  document.getElementById("homework-selected-class-name-2").textContent = cls.name || "";
-
-  // Ẩn container học viên, hiện container sessions
-  document.getElementById("homework-student-container").style.display = "none";
-  document.getElementById("homework-session-container").style.display = "block";
-
-  // Build danh sách ngày buổi học dựa trên fixedSchedule
-  const fixedSchedule = cls.fixedSchedule || {};  
-  // Tạo mảng các dates (định dạng "YYYY-MM-DD") mà lớp đã có buổi học
-  // Ở đây mình chỉ sinh ra các ngày từ đầu tháng đến ngày hôm nay (bạn có thể điều chỉnh khoảng thời gian tuỳ ý)
-  // === Thêm từ đây: Lấy joinTimestamp và joinDate của học sinh ===
-let joinTimestamp = null;
-if (cls.students && cls.students[studentId]) {
-  joinTimestamp = cls.students[studentId];
-}
-let joinDate = null;
-if (joinTimestamp) {
-  joinDate = new Date(joinTimestamp);
-  joinDate.setHours(0, 0, 0, 0);
-}
-  const today = new Date();
-  const year  = today.getFullYear();
-  const month = today.getMonth() + 1; // 1..12
-  const daysInMonth = new Date(year, month, 0).getDate();
-
-  // Hàm helper: lấy ra mã weekday (0=Chủ nhật, 1=Thứ 2, … 6=Thứ 7)
-  const weekdayMap = {
-    Sunday: 0,
-    Monday: 1,
-    Tuesday: 2,
-    Wednesday: 3,
-    Thursday: 4,
-    Friday: 5,
-    Saturday: 6
-  };
-
-  // Chuyển fixedSchedule (keys là “Monday”, “Tuesday”, …) sang tập các weekday số
-  const activeWeekdays = Object.keys(fixedSchedule)
-    .map(w => weekdayMap[w])      // e.g. Monday -> 1
-    .filter(x => x !== undefined);
-
-  
-  const container = document.getElementById("homework-session-list");
-  container.innerHTML = "";
-
-  // Dùng Promise.all để đợi load xong hết
-  const promises = sessionDates.map(dateStr => {
-    return database.ref(`homeworks/${selectedHomeworkClassId}/${selectedHomeworkStudentId}/${dateStr}`)
-      .once("value")
-      .then(snapshot => {
-        const rec = snapshot.val() || { attended: false, completedHomework: false };
-        return { date: dateStr, record: rec };
-      });
-  });
-const sessionDates = [];
-if (joinDate) {
-  // Lặp từ joinDate đến hôm nay
-  let dt = new Date(joinDate);
-  while (dt.getTime() <= today.getTime()) {
-    if (activeWeekdays.includes(dt.getDay())) {
-      const yyyy = dt.getFullYear();
-      const mm2  = String(dt.getMonth() + 1).padStart(2, "0");
-      const dd2  = String(dt.getDate()).padStart(2, "0");
-      sessionDates.push(`${yyyy}-${mm2}-${dd2}`);
-    }
-    dt.setDate(dt.getDate() + 1);
-  }
-} else {
-  // Nếu không có joinDate (dữ liệu cũ chưa được migrate),
-  // fallback về logic cũ: từ ngày 1 của tháng đến hôm nay
-  const fallbackToday = new Date();
-  fallbackToday.setHours(0, 0, 0, 0);
-  const yearF = fallbackToday.getFullYear();
-  const monthF = fallbackToday.getMonth() + 1;
-  const daysInMonthF = new Date(yearF, monthF, 0).getDate();
-  for (let d = 1; d <= daysInMonthF; d++) {
-    const dt2 = new Date(yearF, monthF - 1, d);
-    if (dt2.getTime() > fallbackToday.getTime()) break;
-    if (activeWeekdays.includes(dt2.getDay())) {
-      const yyyy = dt2.getFullYear();
-      const mm2  = String(dt2.getMonth() + 1).padStart(2, "0");
-      const dd2  = String(dt2.getDate()).padStart(2, "0");
-      sessionDates.push(`${yyyy}-${mm2}-${dd2}`);
-    }
-  }
-}
-  const results = await Promise.all(promises);
-
-  // Render mỗi ngày 1 <tr>
-  results.forEach(({ date, record }) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${date}</td>
-      <td style="text-align:center;">
-        <input type="checkbox" 
-               data-date="${date}" 
-               data-type="attended" 
-               ${record.attended ? "checked" : ""} 
-               onchange="updateHomeworkRecord('${selectedHomeworkClassId}','${selectedHomeworkStudentId}','${date}','attended', this.checked)" />
-      </td>
-      <td style="text-align:center;">
-        <input type="checkbox" 
-               data-date="${date}" 
-               data-type="completedHomework" 
-               ${record.completedHomework ? "checked" : ""} 
-               onchange="updateHomeworkRecord('${selectedHomeworkClassId}','${selectedHomeworkStudentId}','${date}','completedHomework', this.checked)" />
-      </td>
-    `;
-    container.appendChild(tr);
-  });
-}
-
-// Quay lại danh sách học viên
-function backToHomeworkStudents() {
-  document.getElementById("homework-session-container").style.display = "none";
-  document.getElementById("homework-student-container").style.display = "block";
-  selectedHomeworkStudentId = null;
-}
-
-// Hàm update khi người dùng tick/un-tick checkbox
-async function updateHomeworkRecord(classId, studentId, dateStr, field, value) {
-  // classId, studentId, dateStr, field in ["attended","completedHomework"], value boolean
-  try {
-    const refPath = `homeworks/${classId}/${studentId}/${dateStr}`;
-    // Lấy data hiện tại (nếu có) để merge
-    const snapshot = await database.ref(refPath).once("value");
-    const existing = snapshot.val() || {};
-
-    const updated = {
-      ...existing,
-      [field]: value,
-      updatedAt: firebase.database.ServerValue.TIMESTAMP
-    };
-
-    await database.ref(refPath).set(updated);
-    // Có thể cho 1 toast nhỏ hoặc console.log để feedback
-    console.log(`Đã cập nhật ${field}=${value} cho ${studentId} ngày ${dateStr}`);
-  } catch (error) {
-    console.error("Lỗi cập nhật homework record:", error);
-    alert("Lỗi lưu dữ liệu. Vui lòng thử lại.");
-  }
-}
-
-// ==== Profile ====
-/*
-document.getElementById("avatar-file").addEventListener("change", async function() {
-  const file = this.files[0];
-  if (!file) return;
-
-  const user = auth.currentUser;
-  if (!user) return alert("Bạn chưa đăng nhập!");
-
-  const storageRef = storage.ref();
-  const avatarRef = storageRef.child(`avatars/${user.uid}_${Date.now()}`);
-
-  try {
-    showLoading(true);
-    await avatarRef.put(file);
-    const url = await avatarRef.getDownloadURL();
-
-    await database.ref(`${DB_PATHS.USERS}/${user.uid}`).update({ avatarUrl: url });
-
-    document.getElementById("avatar-img").src = url;
-    document.getElementById("profile-avatar").src = url;
-
-    alert("Cập nhật avatar thành công!");
-  } catch (error) {
-    alert("Lỗi upload avatar: " + error.message);
-  } finally {
-    showLoading(false);
-  }
-});
-*/
-// build event
-// ======== Phần FullCalendar đã được đặt ngay sau khi initClassesListener + once("value") ========
-
+// Xây dựng mảng sự kiện hàng tháng cho FullCalendar :contentReference[oaicite:2]{index=2}
 function buildEventsArray(year, month) {
   const events = [];
   const monthIndex = month - 1;
@@ -1312,13 +1175,9 @@ function buildEventsArray(year, month) {
     const teacherName = cls.teacher || "(Chưa có tên GV)";
     const fixed = cls.fixedSchedule || {};
 
-    // 1. Lấy createdAt từ cls (giả sử cls.createdAt là timestamp số nguyên từ Firebase)
     let createdDate = null;
     if (cls.createdAt) {
-      // Tạo Date từ timestamp (Firebase ServerValue.TIMESTAMP)  
-      // Nếu giá trị saved là 165… (ms) thì:
       createdDate = new Date(cls.createdAt);
-      // Reset thời gian thành 00:00:00 để so sánh chỉ theo ngày
       createdDate.setHours(0, 0, 0, 0);
     }
 
@@ -1332,14 +1191,12 @@ function buildEventsArray(year, month) {
 
       for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
         const dt = new Date(year, monthIndex, d);
-        dt.setHours(0, 0, 0, 0); // chỉ quan tâm ngày
-        // 2. Nếu lớp có createdDate và dt < createdDate, bỏ qua
+        dt.setHours(0, 0, 0, 0);
         if (createdDate && dt.getTime() < createdDate.getTime()) {
           continue;
         }
         if (dt.getDay() === targetWeekday) {
           const [hh, mm] = timeStr.split(":").map(Number);
-          // Tạo thời gian bắt đầu chính xác
           const startDate = new Date(year, monthIndex, d, hh, mm);
           const endDate   = new Date(startDate.getTime() + 90 * 60 * 1000);
 
@@ -1365,18 +1222,15 @@ function buildEventsArray(year, month) {
       }
     });
   });
-
   console.log(`>>> buildEventsArray(${year},${month}) =>`, events);
   return events;
 }
 
-
+// Khởi tạo FullCalendar cho trang Lịch học :contentReference[oaicite:3]{index=3}
 function initFullCalendar() {
   const today = new Date();
-  const curYear  = today.getFullYear();
-  const curMonth = today.getMonth() + 1;
 
-  // === Mini Calendar ===
+  // Mini Calendar (month view)
   const miniEl = document.getElementById("fullcalendar-mini");
   calendarMini = new FullCalendar.Calendar(miniEl, {
     initialView: 'dayGridMonth',
@@ -1394,7 +1248,7 @@ function initFullCalendar() {
   });
   calendarMini.render();
 
-  // === Weekly Calendar ===
+  // Weekly Calendar (timeGridWeek)
   const weeklyEl = document.getElementById("fullcalendar-weekly");
   calendarWeekly = new FullCalendar.Calendar(weeklyEl, {
     initialView: 'timeGridWeek',
@@ -1428,72 +1282,316 @@ function initFullCalendar() {
   calendarWeekly.render();
 }
 
-// Khi user chuyển tab (hashchange):
+// Khi chuyển hash sang #schedule-management, render lại calendar :contentReference[oaicite:4]{index=4}
 window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
-
   if (window.location.hash.slice(1) === "schedule-management" && calendarWeekly) {
-    // 1. Force render lại để FullCalendar đo đúng kích thước
     calendarWeekly.render();
-
-    // 2. Build event mới (theo tháng hiện tại)
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const evts = buildEventsArray(year, month);
-
-    // 3. Cập nhật lại event cho calendarWeekly
-    calendarWeekly.removeAllEvents();
-    calendarWeekly.addEventSource(evts);
-
-    // 4. Refresh mini nếu cần
-    calendarMini?.refetchEvents?.();
-  }
-});
-// Toggle hamburger menu (mobile)
-// Khi load trang lần đầu, nếu URL có #schedule-management, render ngay
-document.addEventListener("DOMContentLoaded", () => {
-  // (nếu bạn vẫn bind [data-show-form] ở đây)
-  // ...
-
-  if (window.location.hash.slice(1) === "schedule-management" && calendarWeekly) {
-    calendarWeekly.render();
-    const now = new Date();
-    const evts = buildEventsArray(now.getFullYear(), now.getMonth() + 1);
     calendarWeekly.removeAllEvents();
     calendarWeekly.addEventSource(evts);
     calendarMini?.refetchEvents?.();
   }
 });
-function showPageFromHash() {
-  const hash = window.location.hash.slice(1);
-  if (!hash || !pages.includes(hash)) {
-    window.location.hash = "dashboard";
+
+// ================= Quản lý BÀI TẬP VỀ NHÀ =================
+
+// Hiển thị UI Quản lý bài tập
+function showHomeworkManagement() {
+  hideAllManagementPages();
+  const el = document.getElementById("homework-management");
+  if (el) {
+    el.style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  document.getElementById("homework-class-container").style.display = "block";
+  document.getElementById("homework-student-container").style.display = "none";
+  document.getElementById("homework-session-container").style.display = "none";
+
+  renderHomeworkClassList(allClassesData);
+}
+
+// Render danh sách lớp trong Quản lý bài tập
+function renderHomeworkClassList(classes) {
+  const ul = document.getElementById("homework-class-list");
+  ul.innerHTML = "";
+  Object.entries(classes).forEach(([id, cls]) => {
+    const li = document.createElement("li");
+    li.textContent = `${cls.name} (${cls.teacher || "Chưa có GV"})`;
+    li.style.cursor = "pointer";
+    li.onclick = () => {
+      selectedHomeworkClassId = id;
+      renderHomeworkStudentList(id);
+    };
+    ul.appendChild(li);
+  });
+}
+
+// Quay lại danh sách lớp
+function backToHomeworkClasses() {
+  document.getElementById("homework-class-container").style.display = "block";
+  document.getElementById("homework-student-container").style.display = "none";
+  document.getElementById("homework-session-container").style.display = "none";
+  selectedHomeworkClassId = null;
+}
+
+// Render danh sách học viên trong lớp đã chọn
+let selectedHomeworkClassId = null;
+let selectedHomeworkStudentId = null;
+async function renderHomeworkStudentList(classId) {
+  document.getElementById("homework-class-container").style.display = "none";
+  const ul = document.getElementById("homework-student-list");
+  ul.innerHTML = "";
+  const cls = allClassesData[classId];
+  if (!cls || !cls.students) {
+    alert("Lớp này chưa có học viên!");
+    backToHomeworkClasses();
     return;
   }
+  Object.keys(cls.students).forEach(studentId => {
+    const st = allStudentsData[studentId];
+    const name = st ? st.name : "(Không rõ tên)";
+    const li = document.createElement("li");
+    li.textContent = name;
+    li.style.cursor = "pointer";
+    li.onclick = () => {
+      selectedHomeworkStudentId = studentId;
+      renderHomeworkSessions(classId, studentId);
+    };
+    ul.appendChild(li);
+  });
+  document.getElementById("homework-student-container").style.display = "block";
+}
+
+// Quay lại danh sách học viên
+function backToHomeworkStudents() {
+  document.getElementById("homework-session-container").style.display = "none";
+  document.getElementById("homework-student-container").style.display = "block";
+  selectedHomeworkStudentId = null;
+}
+
+// Render bảng session (ngày) kèm checkbox
+async function renderHomeworkSessions(classId, studentId) {
+  document.getElementById("homework-student-container").style.display = "none";
+  const container = document.getElementById("homework-session-list");
+  container.innerHTML = "";
+
+  // Lấy thông tin cls để xác định ngày học (dựa vào fixedSchedule + createdAt)
+  const clsSnapshot = await database.ref(`${DB_PATHS.CLASSES}/${classId}`).once("value");
+  const cls = clsSnapshot.val();
+  if (!cls) return;
+
+  const fixedSchedule = cls.fixedSchedule || {};
+  const activeWeekdays = Object.keys(fixedSchedule).map(day => {
+    const weekdayMap = {
+      Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+      Thursday: 4, Friday: 5, Saturday: 6
+    };
+    return weekdayMap[day];
+  });
+
+  // Tìm danh sách ngày trong tháng hiện tại (hoặc kể từ ngày tạo)
+  let sessionDates = [];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthIndex = month - 1;
+  const lastDayOfMonth  = new Date(year, monthIndex + 1, 0);
+
+  let startDateObj = null;
+  if (cls.createdAt) {
+    startDateObj = new Date(cls.createdAt);
+    startDateObj.setHours(0, 0, 0, 0);
+  } else {
+    startDateObj = new Date(year, monthIndex, 1);
+    startDateObj.setHours(0, 0, 0, 0);
+  }
+
+  for (let d = startDateObj.getDate(); d <= lastDayOfMonth.getDate(); d++) {
+    const dt = new Date(year, monthIndex, d);
+    dt.setHours(0, 0, 0, 0);
+    if (dt.getMonth() !== monthIndex) break;
+    if (dt.getTime() > new Date().setHours(0,0,0,0)) break;
+    if (activeWeekdays.includes(dt.getDay())) {
+      const yyyy = dt.getFullYear();
+      const mm2 = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd2 = String(dt.getDate()).padStart(2, "0");
+      sessionDates.push(`${yyyy}-${mm2}-${dd2}`);
+    }
+  }
+
+  // Lấy dữ liệu homework record từ DB (đồng thời hiển thị checkbox)
+  const promises = sessionDates.map(date => {
+    return database.ref(`${DB_PATHS.HOMEWORKS}/${classId}/${studentId}/${date}`).once("value")
+      .then(snapshot => {
+        return { date, record: snapshot.val() || {} };
+      });
+  });
+
+  const results = await Promise.all(promises);
+
+  // Render bảng
+  results.forEach(({ date, record }) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${date}</td>
+      <td style="text-align:center;">
+        <input type="checkbox" data-date="${date}" data-type="attended"
+               ${record.attended ? "checked" : ""}
+               onchange="updateHomeworkRecord('${classId}','${studentId}','${date}','attended', this.checked)" />
+      </td>
+      <td style="text-align:center;">
+        <input type="checkbox" data-date="${date}" data-type="completedHomework"
+               ${record.completedHomework ? "checked" : ""}
+               onchange="updateHomeworkRecord('${classId}','${studentId}','${date}','completedHomework', this.checked)" />
+      </td>
+    `;
+    container.appendChild(tr);
+  });
+
+  document.getElementById("homework-session-container").style.display = "block";
+}
+
+// Update homework record khi tick/un-tick
+async function updateHomeworkRecord(classId, studentId, dateStr, field, value) {
+  try {
+    const refPath = `${DB_PATHS.HOMEWORKS}/${classId}/${studentId}/${dateStr}`;
+    const snapshot = await database.ref(refPath).once("value");
+    const existing = snapshot.val() || {};
+
+    const updated = {
+      ...existing,
+      [field]: value,
+      updatedAt: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    await database.ref(refPath).set(updated);
+    console.log(`Đã cập nhật ${field}=${value} cho ${studentId} ngày ${dateStr}`);
+  } catch (error) {
+    console.error("Lỗi cập nhật homework record:", error);
+    alert("Lỗi lưu dữ liệu. Vui lòng thử lại.");
+  }
+}
+
+// ===================== Quản lý TÀI KHOẢN =====================
+
+// (Nếu cần, bạn có thể thêm các hàm CRUD cho tài khoản ở đây)
+
+// ===================== Trang Cá nhân =====================
+
+// Khi click avatar mở trang cá nhân
+function openProfile() {
+   window.location.hash = "profile-page";
+  hideAllManagementPages();
+  const el = document.getElementById("profile-page");
+  if (el) el.style.display = "block";
+
   const user = auth.currentUser;
-  if (!user) {
-    toggleUI(false);
-    showForm("login");
-    return;
+  if (!user) return;
+
+  database.ref(`${DB_PATHS.USERS}/${user.uid}`).once("value").then(snapshot => {
+    const data = snapshot.val() || {};
+    document.getElementById("profile-name").textContent = data.name || "";
+    document.getElementById("profile-email").textContent = user.email || "";
+    document.getElementById("profile-role").textContent = data.role || "";
+    document.getElementById("avatar-img").src = data.avatarUrl || document.getElementById("avatar-img").src;
+    document.getElementById("profile-avatar").src = data.avatarUrl || document.getElementById("profile-avatar").src;
+  });
+}
+function updateStickyBackVisibility() {
+  const hash = window.location.hash.slice(1);
+  const stickyBtn = document.getElementById("sticky-back");
+  const isMgmtPage = ["account-management","student-management","class-management","schedule-management","homework-management","profile-page"].includes(hash);
+  if (stickyBtn) {
+    stickyBtn.style.display = isMgmtPage ? "block" : "none";
   }
-  showPage(hash);
 }
 
-window.addEventListener("hashchange", () => {
-  if (!isAuthReady) return;
-  showPageFromHash();
+
+window.addEventListener("hashchange", updateStickyBackVisibility);
+document.addEventListener("DOMContentLoaded", updateStickyBackVisibility);
+
+// Upload avatar (commented out, bạn có thể bật nếu cần) :contentReference[oaicite:5]{index=5}
+
+document.getElementById("avatar-file").addEventListener("change", async function() {
+  const file = this.files[0];
+  if (!file) return;
+
+  const user = auth.currentUser;
+  if (!user) return alert("Bạn chưa đăng nhập!");
+
+  const storageRef = storage.ref();
+  const avatarRef = storageRef.child(`avatars/${user.uid}_${Date.now()}`);
+
+  try {
+    showLoading(true);
+    await avatarRef.put(file);
+    const url = await avatarRef.getDownloadURL();
+
+    await database.ref(`${DB_PATHS.USERS}/${user.uid}`).update({ avatarUrl: url });
+
+    document.getElementById("avatar-img").src = url;
+    document.getElementById("profile-avatar").src = url;
+
+    alert("Cập nhật avatar thành công!");
+  } catch (error) {
+    alert("Lỗi upload avatar: " + error.message);
+  } finally {
+    showLoading(false);
+  }
 });
-if (window.location.hash && isAuthReady && auth.currentUser) {
-  showPageFromHash();
+// Lọc danh sách lớp theo từ khóa nhập vào
+function filterClassesBySearch() {
+  const query = document.getElementById("class-search").value.toLowerCase().trim();
+
+  // Lấy tbody chứa tất cả rows của class-list
+  const tbody = document.getElementById("class-list");
+  // Nếu query rỗng, render lại toàn bộ allClassesData
+  if (!query) {
+    renderClassList(allClassesData);
+    return;
+  }
+
+  // Tạo object filteredClasses chỉ chứa lớp thỏa điều kiện
+  const filtered = {};
+  Object.entries(allClassesData).forEach(([id, cls]) => {
+    const name = (cls.name || "").toLowerCase();
+    const teacher = (cls.teacher || "").toLowerCase();
+    if (name.includes(query) || teacher.includes(query)) {
+      filtered[id] = cls;
+    }
+  });
+
+  renderClassList(filtered);
 }
-// loading 
+// Lọc danh sách lớp trong Quản lý bài tập
+function filterHomeworkClassesBySearch() {
+  const query = document.getElementById("homework-class-search").value.toLowerCase().trim();
+
+  if (!query) {
+    renderHomeworkClassList(allClassesData);
+    return;
+  }
+
+  // Chỉ render những lớp mà tên hoặc tên giáo viên thỏa điều kiện
+  const filtered = {};
+  Object.entries(allClassesData).forEach(([id, cls]) => {
+    const name = (cls.name || "").toLowerCase();
+    const teacher = (cls.teacher || "").toLowerCase();
+    if (name.includes(query) || teacher.includes(query)) {
+      filtered[id] = cls;
+    }
+  });
+
+  renderHomeworkClassList(filtered);
+}
+
+// ===================== Loading =====================
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
 }
-document.addEventListener("DOMContentLoaded", () => {
-  if (isAuthReady && auth.currentUser) {
-    showPageFromHash();
-  }
-});
