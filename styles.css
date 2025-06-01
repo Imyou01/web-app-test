@@ -1,3 +1,5 @@
+/* styles.css :contentReference[oaicite:6]{index=6} */
+
 /* Reset cơ bản */
 * {
   box-sizing: border-box;
@@ -25,6 +27,12 @@ body {
 
 .auth-form.active {
   display: block;
+}
+
+.auth-form h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #004a99;
 }
 
 .auth-form input {
@@ -155,6 +163,11 @@ body {
   box-shadow: 0 10px 20px rgba(0,0,0,0.08);
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  text-align: center;
 }
 
 .card:hover {
@@ -166,6 +179,7 @@ body {
   width: 44px;
   height: 44px;
   color: #0066cc;
+  margin-bottom: 10px;
 }
 
 /* Management pages */
@@ -209,7 +223,7 @@ table th {
   color: #004a99;
 }
 
-/* Buttons */
+/* Buttons chung */
 button {
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0,0,0,0.08);
@@ -223,6 +237,7 @@ button:hover {
 .delete-btn {
   background-color: #e83a3a;
   margin-left: 8px;
+  color: white;
 }
 
 .delete-btn:hover {
@@ -249,12 +264,12 @@ button:hover {
 }
 
 #student-form input[type="text"],
-#student-form input[type="date"],
 #student-form input[type="number"],
 #student-form select,
 #class-form input[type="text"],
 #class-form input[type="number"],
-#class-form select {
+#class-form select,
+#class-form input[type="time"] {
   width: 100%;
   padding: 12px 14px;
   margin-top: 10px;
@@ -266,12 +281,12 @@ button:hover {
 }
 
 #student-form input[type="text"]:focus,
-#student-form input[type="date"]:focus,
 #student-form input[type="number"]:focus,
 #student-form select:focus,
 #class-form input[type="text"]:focus,
 #class-form input[type="number"]:focus,
-#class-form select:focus {
+#class-form select:focus,
+#class-form input[type="time"]:focus {
   border-color: #004a99;
   outline: none;
 }
@@ -280,6 +295,7 @@ button:hover {
 button[type="button"] {
   background-color: #d9534f;
   margin-left: 10px;
+  color: white;
   transition: background-color 0.3s ease;
 }
 
@@ -287,7 +303,7 @@ button[type="button"]:hover {
   background-color: #b02828;
 }
 
-/* List học viên lớp */
+/* Danh sách học viên trong lớp */
 #class-student-list {
   list-style: none;
   padding-left: 0;
@@ -327,43 +343,7 @@ button[type="button"]:hover {
   background-color: #b72828;
 }
 
-/* Trang cá nhân */
-#profile-page {
-  max-width: 600px;
-  margin: 40px auto 60px;
-  background: white;
-  padding: 30px 25px 40px;
-  border-radius: 14px;
-  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
-  text-align: center;
-}
-
-#profile-page h2 {
-  margin-bottom: 30px;
-  font-weight: 700;
-  color: #004a99;
-}
-
-#profile-avatar,
-#avatar-img {
-  border-radius: 50%;
-  object-fit: cover;
-  width: 120px;
-  height: 120px;
-  border: 3px solid #0066cc;
-  margin-bottom: 25px;
-}
-
-#avatar-file {
-  margin-top: 20px;
-  cursor: pointer;
-}
-
-#profile-page button {
-  margin: 12px 8px 0 8px;
-}
-
-/* Loading */
+/* Loading Overlay */
 #loading {
   display: none;
   position: fixed;
@@ -391,6 +371,7 @@ button[type="button"]:hover {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
 /* Lịch học cố định (checkbox + input time) */
 #class-fixed-schedule > div {
   display: flex;
@@ -420,434 +401,222 @@ button[type="button"]:hover {
   outline: none;
 }
 
-/* Lịch học dạng calendar */
-#calendar-schedule {
-  margin-top: 15px;
-  border: 1px solid #aac0db;
-  border-radius: 12px;
-  overflow: hidden;
-  font-size: 14px;
-  user-select: none;
+/* Preview lịch cố định (ô calendar nhỏ) */
+#schedule-preview-list {
+  list-style: none;
+  padding-left: 0;
 }
 
-#calendar-schedule thead tr th {
-  padding: 10px 0;
-  background-color: #004a99;
-  color: white;
-  font-weight: 700;
-  text-align: center;
-  border-right: 1px solid #aac0db;
+#schedule-preview-list li {
+  font-weight: 600;
+  color: #004a99;
+  margin-bottom: 4px;
 }
 
-#calendar-schedule thead tr th:last-child {
-  border-right: none;
-}
-
-#calendar-schedule tbody tr td {
-  border-right: 1px solid #aac0db;
-  border-bottom: 1px solid #aac0db;
+/* Các ô calendar nhỏ (preview) */
+#calendar-mon, #calendar-tue, #calendar-wed, #calendar-thu, #calendar-fri, #calendar-sat, #calendar-sun {
   min-height: 60px;
   vertical-align: top;
   padding: 6px 8px;
   position: relative;
-}
-
-#calendar-schedule tbody tr td:last-child {
-  border-right: none;
-}
-
-/* Ô có giờ học (do JS thêm div style inline) */
-#calendar-schedule tbody tr td div {
-  background-color: #0066cc !important;
-  color: white !important;
-  padding: 6px 8px !important;
-  margin: 4px 0 !important;
-  border-radius: 6px !important;
-  font-weight: 600 !important;
-  text-align: center !important;
-  cursor: default;
-}
-
-/* Danh sách học viên trong lớp */
-#class-student-list {
-  max-height: 160px;
-  overflow-y: auto;
-  padding-left: 0;
-  margin-top: 10px;
   border: 1px solid #aac0db;
-  border-radius: 8px;
-}
-
-#class-student-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-  font-size: 15px;
-  color: #004a99;
-  padding: 8px 14px;
-  border-bottom: 1px solid #cdd9f1;
-  cursor: default;
-}
-
-#class-student-list li:last-child {
-  border-bottom: none;
-}
-
-.remove-btn {
-  background: #e83a3a;
   border-radius: 6px;
-  font-weight: 700;
-  padding: 0 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  font-size: 16px;
-  user-select: none;
-}
-
-.remove-btn:hover {
-  background-color: #b72828;
-}
-
-/* Các nút form thêm học viên, thêm lớp */
-button#add-student-btn {
-  margin-top: 10px;
-  background-color: #0066cc;
-  padding: 10px 16px;
-  font-weight: 700;
-  font-size: 15px;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
-  cursor: pointer;
-}
-
-button#add-student-btn:hover {
-  background-color: #004a99;
-}
-#class-management-container {
-  display: block; /* hoặc bỏ style flex */
-}
-
-
-#class-table-container {
-  flex: 3; /* Chiếm 75% chiều ngang */
-}
-
-#class-schedule-preview {
-  flex: 1; /* Chiếm 25% chiều ngang */
-  border: 1px solid #aac0db; 
-  border-radius: 12px; 
-  padding: 15px; 
-  min-height: 180px; 
-  font-weight: 600; 
-  color: #004a99;
+  margin-bottom: 8px;
   background: #f4f7ff;
 }
-.auth-form {
-  display: none;
-}
 
-.auth-form.active {
-  display: block;
-}
-/* Lịch học tháng */
-#schedule-container table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-#schedule-container th,
-#schedule-container td {
-  border: 1px solid #aac0db;
-  padding: 6px;
-  text-align: center;
-  font-size: 13px;
-}
-
-#schedule-container th {
-  background-color: #004a99;
-  color: white;
-  font-weight: 600;
-}
-
-#schedule-container td {
-  min-width: 80px;
-  max-width: 120px;
-  height: 40px;
-  vertical-align: middle;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Ô thời gian (cột đầu) */
-#schedule-container td:first-child {
-  background-color: #f4f7ff;
-  font-weight: 600;
-}
-
-/* Ô có lớp học */
-#schedule-container td > div {
-  /* Nếu bạn muốn style thêm cho phần chứa tên giáo viên */
-}
-
-/* (Tùy chọn) Highlight dòng giờ hiện tại */
-.current-time-row {
-  background-color: #fff2cc !important;
-}
-/* ---------- FullCalendar custom styles ---------- */
-
-/* Đảm bảo container cho lịch tuần có chiều cao đủ lớn */
+/* Schedule Management (FullCalendar) */
+#fc-mini-calendar-container,
 #fc-weekly-container {
-  height: 600px;  /* bạn có thể điều chỉnh tùy mong muốn */
+  max-width: 900px;
+  margin: 20px auto;
   background: white;
+  border-radius: 12px;
+  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
 }
 
-/* FullCalendar sẽ render trực tiếp vào div#fullcalendar-weekly */
-/* Nếu muốn custom màu nền, font-size, có thể thêm vào đây */
-
-/* Mini‐calendar (month view) */
-#fc-mini-calendar-container {
-  background: white;
+#fullcalendar-mini {
+  padding: 10px;
 }
 
-/* Chỉ định chiều cao để fullCalendar mini hiển thị trọn vẹn */
-#fc-mini-calendar-container .fc-view-harness {
-  height: 500px; /* độ cao gợi ý, bạn điều chỉnh sao cho vừa */
+#fullcalendar-weekly {
+  padding: 10px;
 }
 
-/* Khi mini‐calendar bật chế độ ngày hiện tại, define màu highlight: */
-.fc .fc-day-today {
-  background-color: #e6f7ff !important;
-}
-
-/* Chỉnh lại một chút padding để phù hợp với giao diện: */
-.fc .fc-scroller {
-  /* nếu bạn muốn remove scroll bar, hoặc set auto, tùy bạn */
-}
-
-/* (Tùy chọn) Để block event (lớp học) hiển thị màu khác, bạn có thể override như sau: */
-.fc-event {
-  border: none !important;
-  font-size: 13px;
-  padding: 4px;
-  border-radius: 4px !important;
-}
 /* Homework Management */
+#homework-class-list,
+#homework-student-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+#homework-class-list li,
 #homework-student-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 10px 14px;
-  border-bottom: 1px solid #cdd9f1;
-  font-weight: 600;
+  margin-bottom: 8px;
+  background: #f4f7ff;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+#homework-class-list li:hover,
+#homework-student-list li:hover {
+  background: #e6f0ff;
+}
+
+/* Profile Page */
+#profile-page {
+  max-width: 600px;
+  margin: 40px auto 60px;
+  background: white;
+  padding: 30px 25px 40px;
+  border-radius: 14px;
+  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
+  text-align: center;
+}
+
+#profile-page h2 {
+  margin-bottom: 30px;
+  font-weight: 700;
   color: #004a99;
 }
-#homework-student-list li:last-child {
-  border-bottom: none;
+
+#profile-avatar,
+#avatar-img {
+  border-radius: 50%;
+  object-fit: cover;
+  width: 120px;
+  height: 120px;
+  border: 3px solid #0066cc;
+  margin-bottom: 25px;
 }
-#homework-session-list tr td {
+
+#profile-page button {
+  margin: 12px 8px 0 8px;
+}
+
+/* Pagination controls */
+#student-pagination {
+  text-align: center;
+  margin-top: 10px;
+}
+
+#student-pagination button {
   padding: 8px 12px;
-  border: 1px solid #ccc;
-}
-#homework-session-list input[type="checkbox"] {
-  transform: scale(1.2);
-  cursor: pointer;
-}
-/* Hamburger button */
-.hamburger {
-  display: none;
-  font-size: 26px;
-  background: none;
+  background: #0066cc;
+  color: white;
   border: none;
-  cursor: pointer;
-  color: #004a99;
+  border-radius: 6px;
+  margin: 0 5px;
 }
 
-/* Nav links responsive */
-#nav-links {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
+#student-pagination button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
-  .hamburger {
-    display: block;
-  }
-
-  #nav-links {
-    display: none;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  #nav-links.show {
-    display: flex;
-  }
-}
-@media (max-width: 600px) {
-  .auth-form,
-  #student-form-container,
-  #class-form-container {
-    padding: 20px 15px;
-    font-size: 14px;
-  }
-
-  input,
-  select,
-  button {
-    font-size: 16px;
-    padding: 14px 16px;
-  }
-}
-button {
-  min-height: 48px; /* đủ chuẩn tap area */
+#student-pagination span {
   font-size: 16px;
-  padding: 12px 18px;
-}
-@media (max-width: 500px) {
-  .grid-container {
-    grid-template-columns: 1fr;
-  }
-
-  .card {
-    font-size: 15px;
-    padding: 20px;
-  }
-}
-/* Hamburger button */
-.hamburger {
-  display: none;
-  font-size: 26px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #004a99;
-  margin-left: auto;
+  margin: 0 10px;
 }
 
-/* Responsive menu */
-@media (max-width: 768px) {
-  #main-nav {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .hamburger {
-    display: block;
-  }
-
-  #nav-links {
-    display: none;
-    flex-direction: column;
-    width: 100%;
-    margin-top: 10px;
-    gap: 10px;
-  }
-
-  #nav-links.show {
-    display: flex;
-  }
-
-  #nav-links a {
-    padding: 10px;
-    width: 100%;
-    text-align: left;
-  }
+/* Scrollbar tùy chỉnh (nếu muốn) */
+::-webkit-scrollbar {
+  width: 8px;
 }
-/* Hiệu ứng xuất hiện */
-.fade-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.scale-up {
-  animation: scaleUp 0.4s ease forwards;
-}
-@keyframes scaleUp {
-  0% { transform: scale(0.9); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.slide-left {
-  animation: slideLeft 0.4s ease forwards;
-}
-@keyframes slideLeft {
-  from { transform: translateX(40px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-.highlight-row {
-  background-color: #fff9c4 !important; /* vàng nhạt */
-}
-
-mark {
-  background-color: #ffe082;
-  padding: 2px 4px;
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
   border-radius: 4px;
-  font-weight: bold;
 }
-/* ==== Modal overlay ==== */
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b3b3b3;
+}
+/* Cho phép overlay cuộn khi nội dung vượt quá màn hình */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.3);
-  backdrop-filter: blur(4px);
-  display: none;
-  align-items: flex-start; /* popup hiện từ trên */
+  background: rgba(0,0,0,0.4);
+  display: none;       /* phải giữ line này */
   justify-content: center;
-  overflow-y: auto;
-  z-index: 9999;
-  padding-top: 50px;
+  align-items: center;
+  z-index: 1000;
+  overflow-y: auto;    /* cho phép cuộn khi modal-content quá cao */
+  padding: 20px;       /* khoảng cách để modal không chạm sát viền */
 }
 
 .modal-content {
-  background: white;
+  background: #e6f0ff;
+  padding: 25px;
   border-radius: 12px;
-  padding: 20px 30px;
   max-width: 600px;
-  width: 90%;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  transform: scale(0.85);
-  transition: transform 0.3s ease;
+  width: 100%;
+  max-height: 90vh;    /* giới hạn chiều cao */
+  overflow-y: auto;    /* bật scroll bên trong modal khi nội dung quá dài */
 }
-
-.modal-content.scale-up {
-  transform: scale(1);
-}
-
-.modal-close {
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  font-size: 24px;
-  color: #888;
-  background: none;
+.back-btn {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #0066cc;
+  color: white;
   border: none;
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
-  z-index: 10000;
+  transition: background-color 0.3s;
 }
-.modal-close:hover {
-  background: #b02828;
+.back-btn:hover {
+  background: #004a99;
 }
-@keyframes scaleUp {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
+/* Cho phép đặt nút ở cùng dòng với h2 */
+.management-page h2 {
+  display: inline-block;
+  margin-right: 20px;
 }
-.scale-up {
-  animation: scaleUp 0.3s ease forwards;
+.back-btn {
+  vertical-align: middle;
+}
+/* Giảm padding và canh kích thước cho các nút chứa icon */
+/* Chỉ áp dụng font-size:0 cho .back-btn */
+.management-page .back-btn {
+  padding: 6px 8px;
+  font-size: 0;
+}
+.management-page .back-btn i {
+  width: 20px;
+  height: 20px;
+}
+/* Thanh trượt ngang */
+#sessions-slider-container {
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 10px;
+  border: 1px solid #aac0db;
+  border-radius: 8px;
+  background: #f4f7ff;
+  margin: 20px 0;
+}
+.session-item {
+  display: inline-block;
+  width: 120px;
+  margin-right: 12px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px;
+  vertical-align: top;
+  text-align: center;
+  position: relative;
+}
+.session-item.attended {
+  background-color: #d4edda; /* xanh nhạt nếu đã điểm danh */
 }
 
