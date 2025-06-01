@@ -1,30 +1,220 @@
+<!-- index.html :contentReference[oaicite:0]{index=0} -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ứng dụng quản lý học viên</title>
+
+  <!-- CSS chính -->
   <link rel="stylesheet" href="styles.css" />
-   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
-  <!-- Firebase SDK -->
+
+  <!-- FullCalendar CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
+
+  <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+
+  <!-- FullCalendar JS -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+
   <!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+    });
+  </script>
 </head>
-<script src="https://unpkg.com/lucide@latest"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    lucide.createIcons();
-  });
-</script>
-
 <body>
-  <!-- AUTH Container -->
+  <!-- Loading Overlay -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Đang tải...</p>
+  </div>
+
+  <!-- Popup Modal: Thêm/Sửa Học viên -->
+  <div id="student-form-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" onclick="hideStudentForm()">×</button>
+      <div id="student-form-container">
+        <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
+        <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
+          <input type="hidden" id="student-index" />
+
+          <label>Họ và Tên:<br />
+            <input type="text" id="student-name" required />
+          </label><br />
+
+          <label>Năm sinh:<br />
+            <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh" required />
+          </label><br />
+
+          <label>Bố/Mẹ:<br />
+            <input type="text" id="student-parent" required />
+          </label><br />
+
+          <label>Số điện thoại bố/mẹ:<br />
+            <input type="text" id="student-parent-phone" required />
+          </label><br />
+
+          <label>Nghề nghiệp bố mẹ:<br />
+            <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
+              <option value="">-- Chọn nghề nghiệp --</option>
+              <option value="Công nhân">Công nhân</option>
+              <option value="Giáo viên">Giáo viên</option>
+              <option value="Kinh doanh">Kinh doanh</option>
+              <option value="Bác sĩ">Bác sĩ</option>
+              <option value="Nông dân">Nông dân</option>
+              <option value="Khác">Khác</option>
+            </select>
+            <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none;" />
+          </label><br />
+
+          <label>Gói đăng ký:<br />
+            <input type="text" id="student-package" placeholder="(Không bắt buộc)" />
+          </label><br />
+
+          <label>Số buổi đã học:<br />
+            <input type="number" id="student-sessions-attended" min="0" value="0" required />
+          </label><br />
+
+          <label>Số buổi đã đóng:<br />
+            <input type="number" id="student-sessions-paid" min="0" value="0" required />
+          </label><br />
+
+          <button type="submit">Lưu</button>
+          <button type="button" onclick="hideStudentForm()">Hủy</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Modal: Thêm/Sửa Lớp học -->
+  <div id="class-form-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" onclick="hideClassForm()">×</button>
+      <div id="class-form-container">
+        <h3 id="class-form-title">Tạo lớp học mới</h3>
+        <form id="class-form" onsubmit="event.preventDefault(); saveClass()">
+          <input type="hidden" id="class-index" />
+
+          <label>Tên lớp học:<br />
+            <input type="text" id="class-name" required />
+          </label><br />
+
+          <label>Giáo viên đứng lớp:<br />
+            <input type="text" id="class-teacher" required />
+          </label><br />
+
+          <label>Lịch học cố định (tuần):</label>
+          <div id="class-fixed-schedule">
+            <div>
+              <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
+              <label for="schedule-mon">Thứ 2</label>
+              <input type="time" id="time-mon" class="required-time" />
+            </div>
+            <div>
+              <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
+              <label for="schedule-tue">Thứ 3</label>
+              <input type="time" id="time-tue" class="required-time" />
+            </div>
+            <div>
+              <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
+              <label for="schedule-wed">Thứ 4</label>
+              <input type="time" id="time-wed" class="required-time" />
+            </div>
+            <div>
+              <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
+              <label for="schedule-thu">Thứ 5</label>
+              <input type="time" id="time-thu" class="required-time" />
+            </div>
+            <div>
+              <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
+              <label for="schedule-fri">Thứ 6</label>
+              <input type="time" id="time-fri" class="required-time" />
+            </div>
+            <div>
+              <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
+              <label for="schedule-sat">Thứ 7</label>
+              <input type="time" id="time-sat" class="required-time" />
+            </div>
+            <div>
+              <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
+              <label for="schedule-sun">Chủ Nhật</label>
+              <input type="time" id="time-sun" class="required-time" />
+            </div>
+          </div>
+
+          <label>Danh sách học viên thêm vào lớp:<br />
+            <select id="class-add-student">
+              <option value="">-- Chọn học viên --</option>
+            </select>
+            <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm học viên</button>
+          </label>
+          <ul id="class-student-list"></ul>
+
+          <button type="submit">Lưu lớp học</button>
+          <button type="button" onclick="hideClassForm()">Hủy</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lưu modal styles -->
+  <style>
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #e6f0ff;
+      padding: 25px 25px 30px;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 100%;
+      position: relative;
+      animation: scale-up 0.3s ease-in-out;
+    }
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    @keyframes scale-up {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    #student-form-container, #class-form-container {
+      display: none;
+    }
+  </style>
+
+  <!-- Container chính: Authentication -->
   <div id="auth-container">
     <div id="login-form" class="auth-form active">
       <h2>Đăng nhập</h2>
@@ -53,81 +243,89 @@
       <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
     </div>
   </div>
-<!-- Giao diện Chọn Chức Vụ (mặc định ẩn) -->
-<div id="role-selection" class="auth-form" style="display:none;">
-  <h2>Chọn chức vụ</h2>
-  <p>Vui lòng chọn chức vụ của bạn:</p>
-  <form id="role-form" onsubmit="event.preventDefault(); saveUserRole();">
-    <select id="select-role" required style="width:100%; padding:12px 15px; margin:14px 0; border:1px solid #ccc; border-radius:6px; font-size:15px;">
-      <option value="">-- Chọn chức vụ --</option>
-      <option value="Admin">Admin</option>
-      <option value="Hội Đồng">Hội Đồng</option>
-      <option value="Giáo Viên">Giáo Viên</option>
-      <option value="Gia Sư">Gia Sư</option>
-      <option value="Trợ Giảng">Trợ Giảng</option>
-    </select>
-    <button type="submit" style="width:100%; padding:14px; background:#0066cc; border:none; border-radius:6px; color:white; font-weight:700; font-size:16px; cursor:pointer; margin-top:20px;">Xác nhận</button>
-  </form>
-</div>
-  <!-- DASHBOARD -->
-  <div id="dashboard" style="display:none;">
-    <!-- Nav -->
-    <nav id="main-nav" style="max-width:900px; margin:15px auto; padding:12px 20px; background:#f4f7ff; border-radius:12px; text-align:center; box-shadow:0 0 8px rgb(0 102 204 / 0.2);">
-      <button id="hamburger-btn" class="hamburger">&#9776;</button>
-     <div id="nav-links">
-      <a href="#dashboard" class="active" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Dashboard</a>
-      <a href="#account-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Quản lý tài khoản</a>
-      <a href="#student-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Quản lý học viên</a>
-      <a href="#class-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Quản lý lớp học</a>
-      <a href="#schedule-management" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Lịch học</a>
-      <a href="#profile-page" style="margin:0 14px; font-weight:600; color:#004a99; text-decoration:none; padding:6px 10px; border-radius:6px;">Trang cá nhân</a>
-      <a href="#" onclick="logout(); return false;" style="margin:0 14px; font-weight:600; color:#cc0000;">Đăng xuất</a>
-    </div> 
-    </nav>
 
-    <!-- Header -->
-   <header style="max-width:900px; margin:10px auto 30px; padding:18px 24px; background:#0066cc; border-radius:12px; color:white; display:flex; align-items:center; gap:16px; cursor:pointer; box-shadow:0 2px 8px rgb(0 0 0 / 0.15);">
-    <div class="avatar-container" onclick="openProfile()">
-      <img id="avatar-img" 
-      src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" 
-      alt="Avatar" style="width:56px; height:56px; border-radius:50%; border:2.5px solid white; object-fit:cover;" />
-      <span id="display-name" style="font-weight:700; font-size:20px;"></span>
-      <p style="margin:0; font-size:15px; opacity:0.9;">Chào mừng ngài trở lại, thưa <span id="display-name-hello"></span>!</p>
-    </div>
-  </header>
-
-    <!-- Main grid cards -->
-    <main class="grid-container">
-  <a class="card" href="#account-management">
-    <div class="icon lucide" data-lucide="users"></div>
-    <div>Quản lý tài khoản</div>
-  </a>
-  <a class="card" href="#student-management">
-    <div class="icon lucide" data-lucide="graduation-cap"></div>
-    <div>Quản lý học viên</div>
-  </a>
-  <a class="card" href="#class-management">
-    <div class="icon lucide" data-lucide="school"></div>
-    <div>Quản lý lớp học</div>
-  </a>
-  <a class="card" onclick="alert('Chức năng quản lý ngân sách đang phát triển')">
-    <div class="icon lucide" data-lucide="wallet"></div>
-    <div>Quản lý ngân sách</div>
-  </a>
-  <a class="card" href="#homework-management">
-    <div class="icon lucide" data-lucide="book-open"></div>
-    <div>Quản lý bài tập về nhà</div>
-  </a>
-  <a class="card" href="#schedule-management">
-    <div class="icon lucide" data-lucide="calendar-days"></div>
-    <div>Lịch học</div>
-  </a>
-</main>
+  <!-- Chọn chức vụ (ẩn mặc định) -->
+  <div id="role-selection" class="auth-form" style="display:none;">
+    <h2>Chọn chức vụ</h2>
+    <p>Vui lòng chọn chức vụ của bạn:</p>
+    <form id="role-form" onsubmit="event.preventDefault(); saveUserRole();">
+      <select id="select-role" required>
+        <option value="">-- Chọn chức vụ --</option>
+        <option value="Admin">Admin</option>
+        <option value="Hội Đồng">Hội Đồng</option>
+        <option value="Giáo Viên">Giáo Viên</option>
+        <option value="Gia Sư">Gia Sư</option>
+        <option value="Trợ Giảng">Trợ Giảng</option>
+      </select>
+      <button type="submit">Xác nhận</button>
+    </form>
   </div>
 
-  <!-- Trang quản lý Tài khoản -->
-  <div id="account-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12);">
+  <!-- Dashboard chính (ẩn khi chưa login) -->
+  <div id="dashboard" style="display:none;">
+    <!-- Thanh điều hướng -->
+    <nav id="main-nav">
+      <button id="hamburger-btn" class="hamburger">&#9776;</button>
+      <div id="nav-links">
+        <a href="#dashboard" class="active">Dashboard</a>
+        <a href="#account-management">Quản lý tài khoản</a>
+        <a href="#student-management">Quản lý học viên</a>
+        <a href="#class-management">Quản lý lớp học</a>
+        <a href="#schedule-management">Lịch học</a>
+        <a href="#homework-management">Quản lý bài tập</a>
+        <a href="#profile-page">Trang cá nhân</a>
+        <a href="#" onclick="logout(); return false;" style="color:#cc0000;">Đăng xuất</a>
+      </div>
+    </nav>
+<!-- Chèn ngay dưới <body> hoặc dưới <nav> nào đó -->
+<button id="sticky-back" onclick="backToDashboard()" style="display:none; position:fixed; top:20px; left:20px; z-index:1000;">
+  ← Quay lại
+</button>
+
+    <!-- Header -->
+    <header onclick="openProfile()">
+      <div class="avatar-container">
+        <img id="avatar-img" src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" alt="Avatar" />
+        <span id="display-name"></span>
+        <p>Chào mừng ngài trở lại, thưa <span id="display-name-hello"></span>!</p>
+      </div>
+    </header>
+
+    <!-- Các ô chức năng (grid cards) -->
+    <main class="grid-container">
+      <a class="card" href="#account-management">
+        <div class="icon lucide" data-lucide="users"></div>
+        <div>Quản lý tài khoản</div>
+      </a>
+      <a class="card" href="#student-management">
+        <div class="icon lucide" data-lucide="graduation-cap"></div>
+        <div>Quản lý học viên</div>
+      </a>
+      <a class="card" href="#class-management">
+        <div class="icon lucide" data-lucide="school"></div>
+        <div>Quản lý lớp học</div>
+      </a>
+      <a class="card" onclick="alert('Chức năng quản lý nhân sự đang phát triển')">
+        <div class="icon lucide" data-lucide="user-check"></div>
+        <div>Quản lý nhân sự</div>
+      </a>
+      <a class="card" href="#schedule-management">
+        <div class="icon lucide" data-lucide="calendar-days"></div>
+        <div>Lịch học</div>
+      </a>
+      <a class="card" href="#homework-management">
+        <div class="icon lucide" data-lucide="book-open"></div>
+        <div>Quản lý bài tập</div>
+      </a>
+    </main>
+  </div>
+
+  <!-- Trang Quản lý Tài khoản -->
+  <div id="account-management" class="management-page" style="display:none;">
     <h2>Quản lý tài khoản</h2>
+<button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
     <table>
       <thead>
         <tr>
@@ -140,299 +338,161 @@
       </thead>
       <tbody id="account-list"></tbody>
     </table>
-    <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
   </div>
 
-  <!-- Trang quản lý Học viên -->
-  <div id="student-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12);">
+  <!-- Trang Quản lý Học viên -->
+  <div id="student-management" class="management-page" style="display:none;">
     <h2>Quản lý học viên</h2>
-    <button onclick="showStudentForm()" style="margin-bottom:15px;">Tạo hồ sơ học viên mới</button>
-    <input type="text" id="student-search" placeholder="Tìm học viên theo tên, bố mẹ, SĐT..." style="width: 100%; padding: 10px 14px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px;" oninput="filterStudentsBySearch()" />
+  <button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
+    <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
+    <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
     <table>
       <thead>
         <tr>
           <th>Họ và tên</th>
           <th>Năm sinh</th>
           <th>Bố/Mẹ</th>
-          <th>Số điện thoại bố/mẹ</th>
-          <th>Nghề nghiệp bố mẹ</th>
-          <th>Gói đăng ký</th>
-          <th>Số buổi đã học</th>
-          <th>Số buổi đã đóng</th>
+          <th>Số điện thoại</th>
+          <th>Nghề nghiệp</th>
+          <th>Gói</th>
+          <th>Buổi đã học</th>
+          <th>Buổi đã đóng</th>
           <th>Hành động</th>
         </tr>
       </thead>
       <tbody id="student-list"></tbody>
     </table>
- <div id="student-pagination" style="text-align:center; margin-top: 10px;">
-  <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
-  <span id="page-info">Trang 1 / 1</span>
-  <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Trang sau</button>
-</div>
-
-    <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
-
-    <!-- Form tạo/sửa học viên -->
-     <!-- Popup học viên -->
-<div id="student-form-modal" class="modal-overlay">
-  <div class="modal-content">
-    <button class="modal-close" onclick="hideStudentForm()">×</button>
-    <div id="student-form-container" style="display:none; max-width:600px; margin-top:30px; background:#e6f0ff; padding:25px 25px 30px; border-radius:12px;">
-      <h3 id="student-form-title" style="margin-top:0; font-weight:700; font-size:22px; color:#004a99;">Tạo hồ sơ học viên mới</h3>
-      <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
-        <input type="hidden" id="student-index" />
-        <label>Họ và Tên:<br />
-          <input type="text" id="student-name" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <label>năm sinh:<br />
-          <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh" required />
-        </label><br />
-        <label>Bố/Mẹ:<br />
-          <input type="text" id="student-parent" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <label>Số điện thoại bố/mẹ:<br />
-          <input type="text" id="student-parent-phone" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <label>Nghề nghiệp bố mẹ:<br />
-          <select id="student-parent-job" onchange="parentJobChange(this.value)" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:10px; border-radius:8px; border:1px solid #aac0db; font-size:15px;">
-            <option value="">-- Chọn nghề nghiệp --</option>
-            <option value="Công nhân">Công nhân</option>
-            <option value="Giáo viên">Giáo viên</option>
-            <option value="Kinh doanh">Kinh doanh</option>
-            <option value="Bác sĩ">Bác sĩ</option>
-            <option value="Nông dân">Nông dân</option>
-            <option value="Khác">Khác</option>
-          </select>
-          <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none; margin-top:5px; padding:12px 14px; border-radius:8px; border:1px solid #aac0db; font-size:15px; width:100%;" />
-        </label><br />
-        <label>Gói đăng ký:<br />
-          <input type="text" id="student-package" placeholder="(Không bắt buộc)" style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <label>Số buổi đã học:<br />
-          <input type="number" id="student-sessions-attended" min="0" value="0" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <label>Số buổi đã đóng:<br />
-          <input type="number" id="student-sessions-paid" min="0" value="0" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <button type="submit" style="padding:12px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Lưu</button>
-        <button type="button" onclick="hideStudentForm()" style="padding:12px 20px; font-weight:700; background:#d9534f; color:#fff; border:none; border-radius:8px; cursor:pointer; margin-left:10px; transition:background-color 0.3s;">Hủy</button>
-      </form>
+    <div id="student-pagination">
+      <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
+      <span id="page-info">Trang 1 / 1</span>
+      <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Trang sau</button>
     </div>
   </div>
-</div>
-  <!-- Trang quản lý Lớp học -->
-   <div id="class-management" class="management-page" style="display: none;">
-  <div id="class-management-container" style="display:flex; gap:20px; align-items:flex-start;">
-  <div id="class-table-container" style="width:100%;">
-    <button onclick="showClassForm()" style="margin-bottom: 15px;">Tạo lớp học mới</button>
-    <table>
-      <thead>
-        <tr>
-          <th>Tên lớp học</th>
-          <th>Số lượng học viên</th>
-          <th>Giáo viên đứng lớp</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
-      <tbody id="class-list"></tbody>
-    </table>
-    <button onclick="backToDashboard()" style="margin-top:10px;">Quay lại Dashboard</button>
-  </div>
 
-  <div id="class-schedule-preview" style="
-    flex:1;
-    border: 1px solid #aac0db; 
-    border-radius: 12px; 
-    padding: 15px; 
-    min-height: 180px; 
-    font-weight: 600; 
-    color: #004a99;
-    background: #f4f7ff;
-  ">
-    <h4>Lịch học cố định</h4>
-    <ul id="schedule-preview-list" style="list-style:none; padding-left:0;">
-      <li>Di chuột vào lớp để xem lịch học cố định.</li>
-    </ul>
-  </div>
-  </div>
-    <!-- Form tạo/sửa lớp học -->
-     <div id="class-schedule-display" style="background:#fff; padding:15px; border-radius:10px; border:1px solid #aac0db; margin-top:20px; max-height:250px; overflow-y:auto;">
-  <h4>Lịch học cố định của lớp</h4>
-  <ul id="schedule-list" style="list-style:none; padding-left:0; font-weight:600; color:#004a99;"></ul>
-</div>
-<!-- Popup lớp học -->
-<div id="class-form-modal" class="modal-overlay">
-  <div class="modal-content">
-    <button class="modal-close" onclick="hideClassForm()">×</button>
-    <div id="class-form-container" style="display:none; max-width:600px; margin-top:30px; background:#e6f0ff; padding:25px 25px 30px; border-radius:12px;">
-      <h3 id="class-form-title" style="margin-top:0; font-weight:700; font-size:22px; color:#004a99;">Tạo lớp học mới</h3>
-      <form id="class-form" onsubmit="event.preventDefault(); saveClass()">
-        <input type="hidden" id="class-index" />
-        <label>Tên lớp học:<br />
-          <input type="text" id="class-name" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-        <label>Giáo viên đứng lớp:<br />
-          <input type="text" id="class-teacher" required style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:20px; border-radius:8px; border:1px solid #aac0db; font-size:15px;" />
-        </label><br />
-       <label>Lịch học cố định (tuần):</label>
-        <div id="class-fixed-schedule" style="margin-bottom:20px;">
-      <div>
-      <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
-      <label for="schedule-mon">Thứ 2</label>
-      <input type="time" id="time-mon" class="required-time" style="margin-left: 10px;" />
-     </div>
-      <div>
-     <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
-    <label for="schedule-tue">Thứ 3</label>
-    <input type="time" id="time-tue" class="required-time" style="margin-left: 10px;" />
-  </div>
-  <div>
-    <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
-    <label for="schedule-wed">Thứ 4</label>
-    <input type="time" id="time-wed" class="required-time" style="margin-left: 10px;" />
-  </div>
-  <div>
-    <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
-    <label for="schedule-thu">Thứ 5</label>
-    <input type="time" id="time-thu" class="required-time" style="margin-left: 10px;" />
-  </div>
-  <div>
-    <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
-    <label for="schedule-fri">Thứ 6</label>
-    <input type="time" id="time-fri" class="required-time" style="margin-left: 10px;" />
-  </div>
-  <div>
-    <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
-    <label for="schedule-sat">Thứ 7</label>
-    <input type="time" id="time-sat" class="required-time" style="margin-left: 10px;" />
-  </div>
-  <div>
-    <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
-    <label for="schedule-sun">Chủ nhật</label>
-    <input type="time" id="time-sun" class="required-time" style="margin-left: 10px;" />
-  </div>
-</div>
-
-<label>Lịch học dạng calendar (tuần):</label>
-<table id="calendar-schedule" style="width:100%; border-collapse: collapse; margin-top:10px;">
-  <thead>
-    <tr style="background:#004a99; color:#fff; text-align:center;">
-      <th style="padding:8px; border:1px solid #aac0db;">Thứ 2</th>
-      <th style="padding:8px; border:1px solid #aac0db;">Thứ 3</th>
-      <th style="padding:8px; border:1px solid #aac0db;">Thứ 4</th>
-      <th style="padding:8px; border:1px solid #aac0db;">Thứ 5</th>
-      <th style="padding:8px; border:1px solid #aac0db;">Thứ 6</th>
-      <th style="padding:8px; border:1px solid #aac0db;">Thứ 7</th>
-      <th style="padding:8px; border:1px solid #aac0db;">Chủ nhật</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td id="calendar-mon" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-      <td id="calendar-tue" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-      <td id="calendar-wed" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-      <td id="calendar-thu" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-      <td id="calendar-fri" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-      <td id="calendar-sat" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-      <td id="calendar-sun" style="padding:15px; border:1px solid #aac0db; min-height:60px; vertical-align:top;"></td>
-    </tr>
-  </tbody>
-</table>
-
-        <label>Thêm học viên:<br />
-          <select id="class-add-student" style="width:100%; padding:12px 14px; margin-top:10px; margin-bottom:10px; border-radius:8px; border:1px solid #aac0db; font-size:15px;">
-  <option value="">-- Chọn học viên --</option>
-  <!-- Các option sẽ được JS load: value là id học viên, text là tên học viên -->
-</select>
-          <button type="button" onclick="addStudentToClass()" style="margin-top:10px; padding:10px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Thêm</button>
-        </label><br />
-        <label>Danh sách học viên trong lớp:</label>
-        <ul id="class-student-list" style="list-style:none; padding-left:0; max-height:160px; overflow-y:auto; border:1px solid #aac0db; border-radius:8px; margin-top:10px; margin-bottom:20px;"></ul>
-        <button type="submit" style="padding:12px 20px; font-weight:700; background:#0066cc; color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background-color 0.3s;">Lưu</button>
-        <button type="button" onclick="hideClassForm()" style="padding:12px 20px; font-weight:700; background:#d9534f; color:#fff; border:none; border-radius:8px; cursor:pointer; margin-left:10px; transition:background-color 0.3s;">Hủy</button>
-      </form>
-    </div>
-  </div>
-  </div> 
-<!-- Trang Quản lý Bài tập về nhà -->
-<div id="homework-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgba(0,0,0,0.12);">
-  <h2>Quản lý bài tập về nhà</h2>
-
-  <!-- Bước 1: Danh sách Lớp -->
-  <div id="homework-class-container">
-    <h3>Chọn lớp</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Tên lớp</th>
-          <th>Số học viên</th>
-          <th>Giáo viên</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
-      <tbody id="homework-class-list"></tbody>
-    </table>
-  </div>
-
-  <!-- Bước 2: Danh sách Học viên (ẩn khi chưa chọn lớp) -->
-  <div id="homework-student-container" style="display:none; margin-top:30px;">
-    <button onclick="backToHomeworkClasses()" style="margin-bottom:10px;">← Quay lại danh sách lớp</button>
-    <h3>Học viên trong lớp: <span id="homework-selected-class-name"></span></h3>
-    <ul id="homework-student-list" style="list-style:none; padding-left:0;"></ul>
-  </div>
-
-  <!-- Bước 3: Danh sách Ngày buổi học (ẩn khi chưa chọn học viên) -->
-  <div id="homework-session-container" style="display:none; margin-top:30px;">
-    <button onclick="backToHomeworkStudents()" style="margin-bottom:10px;">← Quay lại danh sách học viên</button>
-    <h3>Ngày học của <span id="homework-selected-student-name"></span> trong lớp <span id="homework-selected-class-name-2"></span></h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Ngày</th>
-          <th>Đi học</th>
-          <th>Hoàn thành bài tập</th>
-        </tr>
-      </thead>
-      <tbody id="homework-session-list"></tbody>
-    </table>
-  </div>
-
-  <button onclick="backToDashboard()" style="margin-top:20px;">Quay lại Dashboard</button>
-</div>
-<!-- Trang Lịch học -->
-<div id="schedule-management" class="management-page" style="display:none; max-width:900px; margin:40px auto 60px; background:#fff; padding:30px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12);">
-    <div style="display:flex; gap:20px;">
-      <!-- Lịch tuần -->
-      <div id="fc-weekly-container" style="flex: 3; border:1px solid #aac0db; border-radius:8px; overflow:hidden;">
-        <div id="fullcalendar-weekly"></div>
+  <!-- Trang Quản lý Lớp học -->
+  <div id="class-management" class="management-page" style="display:none;">
+    <h2>Quản lý lớp học</h2>
+ <button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
+<!-- Thanh tìm kiếm cho lớp học -->
+  <input type="text"
+          id="class-search"
+          placeholder="Tìm lớp học..."
+          oninput="filterClassesBySearch()"
+          style="margin: 10px 0; padding: 8px; width: 100%; max-width: 300px;" />
+    <div id="class-management-container">
+      <div id="class-table-container">
+        <button onclick="showClassForm()">Tạo lớp học mới</button>
+        <table>
+          <thead>
+            <tr>
+              <th>Tên lớp</th>
+              <th>Số lượng học viên</th>
+              <th>Giáo viên</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="class-list"></tbody>
+        </table>
       </div>
-
-      <!-- Mini‐calendar -->
-      <div id="fc-mini-calendar-container" style="flex: 1; border:1px solid #aac0db; border-radius:8px; padding:10px; max-width: 200px;">
-        <div id="fullcalendar-mini"></div>
+      <div id="class-schedule-preview">
+        <h4>Lịch học cố định</h4>
+        <ul id="schedule-preview-list">
+          <li>Di chuột vào lớp để xem lịch học cố định.</li>
+        </ul>
       </div>
     </div>
-
-    <button onclick="backToDashboard()" style="margin-top:20px; padding:10px 18px; background:#0066cc; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">Quay lại Dashboard</button>
+    <div id="class-schedule-display">
+      <h4>Lịch học cố định của lớp</h4>
+      <ul id="schedule-list"></ul>
+    </div>
   </div>
-  <!-- Trang cá nhân -->
-  <div id="profile-page" style="display:none; max-width:600px; margin:40px auto 60px; background:#fff; padding:30px 25px 40px; border-radius:14px; box-shadow:0 0 18px rgb(0 0 0 / 0.12); text-align:center;">
+
+  <!-- Trang Lịch học (Schedule Management) -->
+  <div id="schedule-management" class="management-page" style="display:none;">
+    <h2>Lịch học</h2>
+  <button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
+    <div id="fc-mini-calendar-container">
+      <div id="fullcalendar-mini"></div>
+    </div>
+    <div id="fc-weekly-container">
+      <div id="fullcalendar-weekly"></div>
+    </div>
+  </div>
+
+  <!-- Trang Quản lý Bài tập về nhà -->
+  <div id="homework-management" class="management-page" style="display:none;">
+    <h2>Quản lý bài tập về nhà</h2>
+<button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
+<!-- Thanh tìm kiếm để lọc danh sách lớp -->
+  <input type="text"
+         id="homework-class-search"
+         placeholder="Tìm lớp..."
+         oninput="filterHomeworkClassesBySearch()"
+         style="margin: 10px 0; padding: 8px; width: 100%; max-width: 300px;" />
+    <!-- 1. Container chọn lớp -->
+    <div id="homework-class-container">
+      <h3>Chọn lớp:</h3>
+      <ul id="homework-class-list"></ul>
+    </div>
+    <!-- 2. Container chọn học viên (ẩn khi chưa click lớp) -->
+    <div id="homework-student-container" style="display:none;">
+      <button onclick="backToHomeworkClasses()">← Quay lại danh sách lớp</button>
+      <h3>Chọn học viên:</h3>
+      <ul id="homework-student-list"></ul>
+    </div>
+    <!-- 3. Container xem chi tiết bài tập từng ngày (ẩn khi chưa chọn học viên) -->
+    <div id="homework-session-container" style="display:none;">
+      <button onclick="backToHomeworkStudents()">← Quay lại danh sách học viên</button>
+      <h3>Chi tiết bài tập theo ngày</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Ngày</th>
+            <th>Đã điểm danh</th>
+            <th>Đã làm bài tập</th>
+          </tr>
+        </thead>
+        <tbody id="homework-session-list"></tbody>
+      </table>
+    </div>
+ <button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
+  </div>
+
+  <!-- Trang Cá nhân -->
+  <div id="profile-page" class="management-page" style="display:none;">
     <h2>Trang cá nhân</h2>
-    <img id="avatar-img" 
-    src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" 
-    alt="Avatar" style="border-radius:50%; object-fit:cover; width:120px; height:120px; border:3px solid #0066cc; margin-bottom:25px;" />
-    <input type="file" id="avatar-file" accept="image/*" style="display:none;" />
-    <br />
-    <button onclick="backToDashboard()" style="margin-top:20px;">Quay lại Dashboard</button>
-    <button onclick="logout()" style="margin-top:20px;">Đăng xuất</button>
+   <button onclick="backToDashboard()">
+  <i data-lucide="arrow-left"></i>
+</button>
+    <img id="profile-avatar" src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" alt="Avatar" />
+    <p><strong>Họ và tên:</strong> <span id="profile-name"></span></p>
+    <p><strong>Email:</strong> <span id="profile-email"></span></p>
+    <p><strong>Chức vụ:</strong> <span id="profile-role"></span></p>
+    <input type="file" id="avatar-file" style="margin-top:15px;" />
   </div>
-
-  <!-- Loading -->
-  <div id="loading" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.85); text-align:center; padding-top:20%; z-index:9999;">
-    <div class="spinner" style="border:5px solid #f3f3f3; border-top:5px solid #0066cc; border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; margin:0 auto 10px auto;"></div>
-    <p>Đang tải dữ liệu...</p>
+<!-- modal điểm danh -->
+<div id="student-sessions-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content" style="max-width:800px; width:100%;">
+    <button class="modal-close" onclick="hideStudentSessions()">×</button>
+    <h3>Buổi học của <span id="student-sessions-name"></span> trong lớp <span id="student-sessions-class"></span></h3>
+    <div id="sessions-slider-container">
+      <div id="sessions-slider" class="sessions-slider"></div>
+    </div>
+    <button onclick="hideStudentSessions()">Đóng</button>
   </div>
+</div>
 
+  <!-- Script chính -->
   <script src="script.js"></script>
 </body>
 </html>
