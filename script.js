@@ -663,6 +663,7 @@ async function showClassForm() {
   setupScheduleInputsListener();
 
   document.getElementById("class-form-modal").style.display = "flex";
+  document.getElementById("class-form-container").style.display = "block";
   const modalContent = document.querySelector("#class-form-modal .modal-content");
   modalContent.classList.remove("scale-up");
   modalContent.offsetHeight;
@@ -672,6 +673,7 @@ async function showClassForm() {
 // Ẩn form lớp học
 function hideClassForm() {
   document.getElementById("class-form-modal").style.display = "none";
+  document.getElementById("class-form-container").style.display = "none";
 }
 
 // Cập nhật dropdown chọn học viên khi tạo/sửa lớp
