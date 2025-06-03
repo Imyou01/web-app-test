@@ -677,33 +677,60 @@ function hideClassForm() {
 }
 
 // Cập nhật dropdown chọn học viên khi tạo/sửa lớp
- function updateStudentOptionsForClassForm() {
-  // Trả về Promise để có thể await bên ngoài
+function updateStudentOptionsForClassForm() {
   return database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
     allStudentsData = snapshot.val() || {};
-    const select = document.getElementById("class-add-student");
-    select.innerHTML = `<option value="">-- Chọn học viên --</option>`;
+
+    const datalist = document.getElementById("class-add-student-datalist");
+    datalist.innerHTML = ""; 
     Object.entries(allStudentsData).forEach(([id, st]) => {
       const option = document.createElement("option");
-      option.value = id;
-      option.textContent = st.name || "(Không rõ tên)";
-      select.appendChild(option);
+      option.value = st.name || "(Không rõ tên)";
+      option.dataset.id = id; // lưu luôn studentId vào data-id để dùng sau
+      datalist.appendChild(option);
     });
   });
- }
+}
+/**
+ * Lọc các option trong <select id="class-add-student"> dựa vào nội dung ô #class-add-student-search.
+ * Mỗi lần gõ, hàm này sẽ lấy toàn bộ allStudentsData, tìm tên học sinh có chứa từ khóa, rồi rebuild <option>.
+ */
+function filterClassStudentOptions() {
+  const query = document.getElementById("class-add-student-search").value.toLowerCase();
+  const datalist = document.getElementById("class-add-student-datalist");
+  datalist.innerHTML = "";
+  Object.entries(allStudentsData).forEach(([id, st]) => {
+    if ((st.name || "").toLowerCase().includes(query)) {
+      const option = document.createElement("option");
+      option.value = st.name;
+      option.dataset.id = id;
+      datalist.appendChild(option);
+    }
+  });
+}
 
 
 // Thêm học viên vào danh sách class
 function addStudentToClass() {
-  const select = document.getElementById("class-add-student");
-  const studentId = select.value;
-  if (!studentId) return alert("Vui lòng chọn học viên để thêm!");
+  const input = document.getElementById("class-add-student-search");
+  const chosenName = input.value;
+  // Tìm studentId từ tên trong allStudentsData
+  let studentId = "";
+  Object.entries(allStudentsData).forEach(([id, st]) => {
+    if (st.name === chosenName) {
+      studentId = id;
+    }
+  });
+  if (!studentId) {
+    return alert("Vui lòng chọn chính xác tên học viên từ danh sách gợi ý!");
+  }
   if (currentClassStudents.includes(studentId)) {
-    alert("Học viên đã có trong lớp!");
-    return;
+    return alert("Học viên đã có trong lớp!");
   }
   currentClassStudents.push(studentId);
   renderClassStudentList(currentClassStudents);
+  input.value = "";        // xóa hết ô search sau khi thêm
+  filterClassStudentOptions(); // reset datalist về tất cả
 }
 
 // Render danh sách học viên hiện có trong class
@@ -1379,6 +1406,7 @@ function backToHomeworkStudents() {
 
 // Render bảng session (ngày) kèm checkbox
 async function renderHomeworkSessions(classId, studentId) {
+  console.log("renderHomeworkSessions called with:", classId, studentId);
   document.getElementById("homework-student-container").style.display = "none";
   const container = document.getElementById("homework-session-list");
   container.innerHTML = "";
@@ -1386,9 +1414,11 @@ async function renderHomeworkSessions(classId, studentId) {
   // Lấy thông tin cls để xác định ngày học (dựa vào fixedSchedule + createdAt)
   const clsSnapshot = await database.ref(`${DB_PATHS.CLASSES}/${classId}`).once("value");
   const cls = clsSnapshot.val();
+  console.log("Class data:", cls);
   if (!cls) return;
 
   const fixedSchedule = cls.fixedSchedule || {};
+   console.log("fixedSchedule:", fixedSchedule);
   const activeWeekdays = Object.keys(fixedSchedule).map(day => {
     const weekdayMap = {
       Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
@@ -1396,35 +1426,26 @@ async function renderHomeworkSessions(classId, studentId) {
     };
     return weekdayMap[day];
   });
-
+console.log("activeWeekdays:", activeWeekdays);
   // Tìm danh sách ngày trong tháng hiện tại (hoặc kể từ ngày tạo)
-  let sessionDates = [];
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const monthIndex = month - 1;
-  const lastDayOfMonth  = new Date(year, monthIndex + 1, 0);
-
-  let startDateObj = null;
-  if (cls.createdAt) {
-    startDateObj = new Date(cls.createdAt);
-    startDateObj.setHours(0, 0, 0, 0);
-  } else {
-    startDateObj = new Date(year, monthIndex, 1);
-    startDateObj.setHours(0, 0, 0, 0);
-  }
-
-  for (let d = startDateObj.getDate(); d <= lastDayOfMonth.getDate(); d++) {
-    const dt = new Date(year, monthIndex, d);
-    dt.setHours(0, 0, 0, 0);
-    if (dt.getMonth() !== monthIndex) break;
-    if (dt.getTime() > new Date().setHours(0,0,0,0)) break;
-    if (activeWeekdays.includes(dt.getDay())) {
-      const yyyy = dt.getFullYear();
-      const mm2 = String(dt.getMonth() + 1).padStart(2, "0");
-      const dd2 = String(dt.getDate()).padStart(2, "0");
+  const sessionDates = [];
+  // Tính ngày bắt đầu = max(hôm nay 00:00, createdAt 00:00)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const enrollDate = cls.createdAt ? new Date(cls.createdAt) : new Date();
+  enrollDate.setHours(0, 0, 0, 0);
+  const cursor = new Date(Math.max(today.getTime(), enrollDate.getTime()));
+  // Muốn hiển thị 30 buổi kế tiếp
+  const NUM_SESSIONS = 30;
+  while (sessionDates.length < NUM_SESSIONS) {
+    if (activeWeekdays.includes(cursor.getDay())) {
+      const yyyy = cursor.getFullYear();
+      const mm2 = String(cursor.getMonth() + 1).padStart(2, "0");
+      const dd2 = String(cursor.getDate()).padStart(2, "0");
       sessionDates.push(`${yyyy}-${mm2}-${dd2}`);
     }
+    cursor.setDate(cursor.getDate() + 1);
+    console.log("sessionDates:", sessionDates);
   }
 
   // Lấy dữ liệu homework record từ DB (đồng thời hiển thị checkbox)
