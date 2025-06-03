@@ -153,9 +153,15 @@
           </div>
 
           <label>Danh sách học viên thêm vào lớp:<br />
-            <select id="class-add-student">
-              <option value="">-- Chọn học viên --</option>
-            </select>
+            <input
+              type="text"
+              id="class-add-student-search"
+              placeholder="Tìm học viên..."
+               list="class-add-student-datalist"
+              oninput="filterClassStudentOptions()"
+              style="width: 100%; padding: 6px; margin-bottom: 6px; box-sizing: border-box;"  />
+             <datalist id="class-add-student-datalist">             
+             </datalist>
             <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm học viên</button>
           </label>
           <ul id="class-student-list"></ul>
