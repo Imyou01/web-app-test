@@ -76,11 +76,51 @@
             </select>
             <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none;" />
           </label><br />
+<label>Gói đăng ký: <span style="font-weight: normal; color: #555;">(Không bắt buộc)</span></label>
+          
+          <div style="margin-top: 8px;">
+            <select id="student-package-type" onchange="handlePackageTypeChange()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+              <option value="">-- Chọn loại gói --</option>
+              <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
+              <option value="Luyện thi chứng chỉ">Luyện thi chứng chỉ</option>
+            </select>
+          </div>
+          
+          <div id="package-options-container" style="margin-top: 10px;">
+            <div id="general-english-options-container" style="display: none;">
+                <label>Khóa học:</label>
+                <select id="general-english-course" onchange="updateStudentPackageName()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
+                  </select>
+            </div>
 
-          <label>Gói đăng ký:<br />
-            <input type="text" id="student-package" placeholder="(Không bắt buộc)" />
-          </label><br />
+            <div id="certificate-options-container" style="display: none; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background-color: #f9f9f9;">
+              <label>Loại chứng chỉ:</label>
+              <select id="student-certificate-type" onchange="populateCourseDropdown()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
+                <option value="">-- Chọn chứng chỉ --</option>
+                <option value="IELTS">IELTS</option>
+                <option value="TOEIC">TOEIC</option>
+                <option value="HSK">HSK</option>
+                <option value="YCT">YCT</option>
+              </select>
 
+              <div id="certificate-course-wrapper" style="display: none; margin-top: 10px;">
+                <label>Khóa học cụ thể:</label>
+                <select id="student-certificate-course" onchange="updateStudentPackageName()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
+                  </select>
+                 <div id="combo-selection-container" style="display: none; margin-top: 15px; padding: 10px; border: 1px dashed #0066cc; border-radius: 6px;">
+                  <p id="combo-selection-title" style="margin: 0 0 10px 0; font-weight: bold; color: #0066cc;"></p>
+                  <div id="combo-checkboxes-list" style="max-height: 150px; overflow-y: auto;">
+                    </div>
+              </div>
+              </div>
+            </div>
+          </div>
+        
+          <div style="margin-top: 15px;">
+            <label>Tên gói đầy đủ (Tự động):</label>
+            <input type="text" id="student-package" placeholder="Chọn khóa học để tạo tên gói..." readonly style="width: 100%; padding: 8px; background-color: #eee; margin-top: 5px;" />
+          </div>
+          <br />
           <label>Số buổi đã học:<br />
             <input type="number" id="student-sessions-attended" min="0" value="0" required />
           </label><br />
@@ -102,9 +142,8 @@
       <button class="modal-close" onclick="hideClassForm()">×</button>
       <div id="class-form-container">
         <h3 id="class-form-title">Tạo lớp học mới</h3>
-        <form id="class-form" onsubmit="event.preventDefault(); saveClass()">
+        <form id="class-form">
           <input type="hidden" id="class-index" />
-
           <label>Tên lớp học:<br />
             <input type="text" id="class-name" required />
           </label><br />
@@ -151,7 +190,10 @@
               <input type="time" id="time-sun" class="required-time" />
             </div>
           </div>
-
+  <label>Ngày bắt đầu lớp học:<br />
+  <input type="date" id="class-start-date" required />
+</label><br />
+<div id="class-add-wrapper">
           <label>Danh sách học viên thêm vào lớp:<br />
             <input
               type="text"
@@ -165,7 +207,7 @@
             <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm học viên</button>
           </label>
           <ul id="class-student-list"></ul>
-
+</div>
           <button type="submit">Lưu lớp học</button>
           <button type="button" onclick="hideClassForm()">Hủy</button>
         </form>
@@ -278,7 +320,7 @@
         <a href="#student-management">Quản lý học viên</a>
         <a href="#class-management">Quản lý lớp học</a>
         <a href="#schedule-management">Lịch học</a>
-        <a href="#homework-management">Quản lý bài tập</a>
+       <a href="#homework-management">Quản lý bài tập</a>
         <a href="#profile-page">Trang cá nhân</a>
         <a href="#" onclick="logout(); return false;" style="color:#cc0000;">Đăng xuất</a>
       </div>
@@ -431,48 +473,40 @@
     </div>
   </div>
 
-  <!-- Trang Quản lý Bài tập về nhà -->
-  <div id="homework-management" class="management-page" style="display:none;">
-    <h2>Quản lý bài tập về nhà</h2>
-<button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
-<!-- Thanh tìm kiếm để lọc danh sách lớp -->
-  <input type="text"
-         id="homework-class-search"
-         placeholder="Tìm lớp..."
-         oninput="filterHomeworkClassesBySearch()"
-         style="margin: 10px 0; padding: 8px; width: 100%; max-width: 300px;" />
-    <!-- 1. Container chọn lớp -->
-    <div id="homework-class-container">
-      <h3>Chọn lớp:</h3>
-      <ul id="homework-class-list"></ul>
+ <!-- Quản lý bài tập -->
+<div id="homework-management" class="management-page" style="display:none;">
+  <h2>Quản lý bài tập & Điểm danh</h2>
+  <button onclick="backToDashboard()" style="margin-top: 9px;">← Quay lại Dashboard</button>
+  <div style="display: flex; gap: 32px;">
+    <!-- Danh sách lớp -->
+    <div id="homework-class-container" style="min-width:220px;"></div>
+    <ul id="homework-class-list" style="min-width:220px; border-right:1px solid #ccc;"></ul>
+  </div>
+</div>
+
+<!-- ✅ Modal hiển thị BẢNG -->
+<div id="homework-modal-overlay" class="modal-overlay">
+  <div class="modal-content" style="max-width: 90vw; width: auto;">
+    <button class="modal-close" onclick="hideHomeworkModal()">×</button>
+    <h3 id="homework-modal-title">Bảng điểm danh & Bài tập</h3>
+
+    <!-- Nút cuộn trái/phải -->
+    <div style="text-align: right; margin-bottom: 6px;">
+      <button onclick="scrollBySessions(-1)">←</button>
+      <button onclick="scrollBySessions(1)">→</button>
     </div>
-    <!-- 2. Container chọn học viên (ẩn khi chưa click lớp) -->
-    <div id="homework-student-container" style="display:none;">
-      <button onclick="backToHomeworkClasses()">← Quay lại danh sách lớp</button>
-      <h3>Chọn học viên:</h3>
-      <ul id="homework-student-list"></ul>
-    </div>
-    <!-- 3. Container xem chi tiết bài tập từng ngày (ẩn khi chưa chọn học viên) -->
-    <div id="homework-session-container" style="display:none;">
-      <button onclick="backToHomeworkStudents()">← Quay lại danh sách học viên</button>
-      <h3>Chi tiết bài tập theo ngày</h3>
-      <table>
+
+    <!-- Vùng scroll ngang -->
+    <div id="homework-scroll-container" style="overflow-x: auto; max-height: 80vh;">
+      <table id="homework-table" style="border-collapse: collapse; min-width: max-content;">
         <thead>
-          <tr>
-            <th>Ngày</th>
-            <th>Đã điểm danh</th>
-            <th>Đã làm bài tập</th>
-          </tr>
+          <tr id="homework-table-head"></tr>
         </thead>
-        <tbody id="homework-session-list"></tbody>
+        <tbody id="attendance-table-body"></tbody>
       </table>
     </div>
- <button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
   </div>
+</div>
 
   <!-- Trang Cá nhân -->
   <div id="profile-page" class="management-page" style="display:none;">
