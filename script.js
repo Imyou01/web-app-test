@@ -48,6 +48,89 @@ const pages = [
   "homework-management",
   "profile-page"
 ];
+// script.js
+
+// script.js
+
+// XÓA đối tượng certificateCourses cũ và THAY THẾ bằng 2 đối tượng mới dưới đây
+
+const generalEnglishCourses = [
+  { name: "Tiếng Anh cho trẻ em (Mầm non)", sessions: 8 }, // 1 tháng
+  { name: "Tiếng Anh cho học sinh (TH+THCS+THPT)", sessions: 8 }, // 1 tháng
+  { name: "Luyện thi THPT Quốc Gia (điểm cao)", sessions: 8 }, // 1 tháng
+  { name: "Combo 3X: Tiếng Anh cho trẻ em (Mầm non)", sessions: 24 }, // 3 tháng
+  { name: "Combo 3X: Tiếng Anh cho học sinh (TH+THCS+THPT)", sessions: 24 }, // 3 tháng
+  { name: "Combo 3X: Luyện thi THPT Quốc Gia (điểm cao)", sessions: 24 }, // 3 tháng
+  { name: "Combo 6X: Tiếng Anh cho trẻ em (Mầm non)", sessions: 48 }, // 6 tháng
+  { name: "Combo 6X: Tiếng Anh cho học sinh (TH+THCS+THPT)", sessions: 48 }, // 6 tháng
+  { name: "Combo 6X: Luyện thi THPT Quốc Gia (điểm cao)", sessions: 48 }, // 6 tháng
+  { name: "Combo 12X: Tiếng Anh cho trẻ em (Mầm non)", sessions: 96 }, // 12 tháng
+  { name: "Combo 12X: Tiếng Anh cho học sinh (TH+THCS+THPT)", sessions: 96 }, // 12 tháng
+  { name: "Combo 12X: Luyện thi THPT Quốc Gia (điểm cao)", sessions: 96 }, // 12 tháng
+];
+
+const certificateCourses = {
+  IELTS: [
+    { name: "Giao tiếp cơ bản", sessions: 18 },
+    { name: "Nền tảng IELTS 4.0", sessions: 18 },
+    { name: "Khởi động IELTS 5.0", sessions: 27 },
+    { name: "Bứt phá IELTS 6.5", sessions: 40 },
+    { name: "Chinh phục IELTS 7.0+", sessions: 40 },
+    { name: "Luyện đề IELTS 7.0+", sessions: 18 },
+    { name: "Combo 2 khóa: Giao tiếp + IELTS 4.0", sessions: 36 },
+    { name: "Combo 2 khóa: IELTS 4.0 + IELTS 5.0", sessions: 45 },
+    { name: "Combo 2 khóa: IELTS 5.0 + IELTS 6.5", sessions: 67 },
+    { name: "Combo 2 khóa: IELTS 6.5 + IELTS 7.0+", sessions: 80 },
+    { name: "Combo 3 khóa: Giao tiếp + IELTS 4.0 + IELTS 5.0", sessions: 53 },
+    { name: "Combo 3 khóa: IELTS 4.0 + IELTS 5.0 + IELTS 6.5", sessions: 85 },
+    { name: "Combo 3 khóa: IELTS 5.0 + IELTS 6.5 + IELTS 7.0+", sessions: 107 },
+    { name: "Combo 3 khóa: IELTS 6.5 + IELTS 7.0+ + Luyện đề 7.0+", sessions: 98 },
+    { name: "Combo 4 khóa: Giao tiếp + IELTS 4.0 + IELTS 5.0 + IELTS 6.5", sessions: 93 },
+    { name: "Combo 4 khóa: IELTS 4.0 + IELTS 5.0 + IELTS 6.5 + IELTS 7.0+", sessions: 125 },
+    { name: "Combo 4 khóa: IELTS 5.0 + IELTS 6.5 + IELTS 7.0+ + Luyện đề 7.0+", sessions: 125 },
+    { name: "Combo 5 khóa: Giao tiếp + IELTS 4.0 + IELTS 5.0 + IELTS 6.5 + IELTS 7.0+", sessions: 133 },
+    { name: "Combo 5 khóa: IELTS 4.0 + IELTS 5.0 + IELTS 6.5 + IELTS 7.0+ + Luyện đề 7.0+", sessions: 143 }
+  ],
+  TOEIC: [
+    { name: "Nền tảng - TOEIC 450", sessions: 25 },
+    { name: "TOEIC 600+", sessions: 30 },
+    { name: "TOEIC 700+", sessions: 25 },
+    { name: "TOEIC S + W (230)", sessions: 25 },
+    { name: "TOEIC S + W (320)", sessions: 25 }
+  ],
+  HSK_BASE: [
+    { name: "HSK1", sessions: 18 }, { name: "HSK2", sessions: 20 }, { name: "HSK3", sessions: 28 }, { name: "HSK4", sessions: 50 }, { name: "HSK5", sessions: 80 },
+    { name: "HSKK sơ cấp", sessions: 10 }, { name: "HSKK trung cấp", sessions: 18 }, { name: "HSKK cao cấp", sessions: 25 },
+    { name: "Sơ cấp A1-A2", sessions: 45 }, { name: "Trung cấp B1", sessions: 65 }, { name: "Trung-cao cấp B2", sessions: 75 },
+  ],
+  YCT_BASE: [], // Sẽ được tạo tự động
+   HSK: [
+    // Khóa lẻ
+    { name: "HSK1", sessions: 18 }, { name: "HSK2", sessions: 20 }, { name: "HSK3", sessions: 28 }, { name: "HSK4", sessions: 50 }, { name: "HSK5", sessions: 80 },
+    { name: "HSKK sơ cấp", sessions: 10 }, { name: "HSKK trung cấp", sessions: 18 }, { name: "HSKK cao cấp", sessions: 25 },
+    { name: "Sơ cấp A1-A2", sessions: 45 }, { name: "Trung cấp B1", sessions: 65 }, { name: "Trung-cao cấp B2", sessions: 75 },
+    // Combo (Thêm thuộc tính selectionLimit)
+    { name: "Combo HSK + HSKK: 2 khoá bất kì", selectionLimit: 2 },
+    { name: "Combo HSK + HSKK: 3 khoá bất kì", selectionLimit: 3 },
+    { name: "Combo HSK + HSKK: 4 khoá bất kì", selectionLimit: 4 },
+    { name: "Combo HSK + HSKK: 5 khoá bất kì", selectionLimit: 5 },
+    { name: "Combo Giao Tiếp: 2 khoá bất kì", selectionLimit: 2 },
+    { name: "Combo Giao Tiếp: 3 khoá bất kì", selectionLimit: 3 },
+  ],
+  YCT: []
+};
+
+// Tự động tạo danh sách YCT_BASE
+certificateCourses.YCT_BASE = certificateCourses.HSK_BASE.map(course => ({
+    name: course.name.replace(/HSK/g, 'YCT'),
+    sessions: course.sessions
+}));
+// Tự động tạo danh sách khóa YCT đầy đủ
+certificateCourses.YCT = certificateCourses.HSK.map(course => ({
+    name: course.name.replace(/HSK/g, 'YCT'),
+    sessions: course.sessions,
+    selectionLimit: course.selectionLimit // Chép cả selectionLimit
+}));
 // Thêm vào script.js, trước phần sử dụng showPageFromHash
 function showPage(id) {
   // Ẩn tất cả các trang management, dashboard, profile…
@@ -65,6 +148,7 @@ function showPage(id) {
     target.style.display = "block";
   }
 }
+// hoặc (curr || 0) - 1 nếu bỏ điểm danh
 
 // Khi trạng thái xác thực thay đổi
 auth.onAuthStateChanged(async (user) => {
@@ -286,7 +370,7 @@ function backToDashboard() {
 }
 
 // Chuyển trang theo hash
-function showPageFromHash() {
+async function showPageFromHash() {
   const hash = window.location.hash.slice(1);
   if (!hash || !pages.includes(hash)) {
     window.location.hash = "dashboard";
@@ -301,7 +385,7 @@ function showPageFromHash() {
   showPage(hash);
 
   if (hash === "class-management")    initClassesListener();
-  if (hash === "homework-management") showHomeworkManagement();
+  if (hash === "homework-management") await showHomeworkManagement();
   if (hash === "schedule-management") initFullCalendar();
 }
 
@@ -309,9 +393,22 @@ window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
 });
+document.getElementById("class-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  saveClass();
+});
 
 // Khi load lần đầu nếu có hash và user đã xác thực
 document.addEventListener("DOMContentLoaded", () => {
+  const monthsSelect = document.getElementById('student-package-months');
+  if (monthsSelect) {
+    for (let i = 1; i <= 30; i++) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = `${i} tháng`;
+      monthsSelect.appendChild(option);
+    }
+  }
   if (window.location.hash && isAuthReady && auth.currentUser) {
     showPageFromHash();
   }
@@ -328,7 +425,211 @@ function loadDashboard() {
 }
 
 // ===================== Quản lý HỌC VIÊN =====================
+/**
+ * HÀM MỚI
+ * Điền vào ô lựa chọn khóa học cho Tiếng Anh Phổ Thông
+ */
+function populateGeneralCourseDropdown() {
+    const courseSelect = document.getElementById('general-english-course');
+    courseSelect.innerHTML = '<option value="">-- Chọn khóa học --</option>'; // Reset
+    generalEnglishCourses.forEach(course => {
+        const option = document.createElement('option');
+        option.value = course.name;
+        option.textContent = `${course.name} (${course.sessions} buổi)`;
+        courseSelect.appendChild(option);
+    });
+}
 
+
+/**
+ * HÀM CẬP NHẬT
+ * Xử lý khi người dùng thay đổi loại gói chính.
+ */
+function handlePackageTypeChange() {
+  const packageType = document.getElementById('student-package-type').value;
+  const generalContainer = document.getElementById('general-english-options-container');
+  const certificateContainer = document.getElementById('certificate-options-container');
+
+  // Ẩn tất cả các container con trước
+  generalContainer.style.display = 'none';
+  certificateContainer.style.display = 'none';
+  
+  if (packageType === 'Lớp tiếng Anh phổ thông') {
+    populateGeneralCourseDropdown(); // Điền dữ liệu trước khi hiển thị
+    generalContainer.style.display = 'block';
+  } else if (packageType === 'Luyện thi chứng chỉ') {
+    certificateContainer.style.display = 'block';
+  }
+  
+  // Reset các lựa chọn con khi ẩn đi để tránh nhầm lẫn
+  document.getElementById('general-english-course').value = '';
+  document.getElementById('student-certificate-type').value = '';
+  document.getElementById('certificate-course-wrapper').style.display = 'none';
+  document.getElementById('student-certificate-course').innerHTML = '';
+  
+  updateStudentPackageName();
+}
+
+/**
+ * HÀM CẬP NHẬT
+ * Điền vào ô lựa chọn khóa học dựa trên loại chứng chỉ đã chọn.
+ */
+// script.js
+
+/**
+ * HÀM MỚI
+ * Xử lý chính khi người dùng chọn một khóa học cụ thể.
+ * Sẽ quyết định xem có nên hiển thị phần chọn combo hay không.
+ */
+function handleCourseSelection() {
+  const certType = document.getElementById('student-certificate-type').value;
+  const courseSelect = document.getElementById('student-certificate-course');
+  const comboContainer = document.getElementById('combo-selection-container');
+  
+  const selectedCourseName = courseSelect.value;
+  const courseData = certificateCourses[certType]?.find(c => c.name === selectedCourseName);
+
+  if (courseData && courseData.selectionLimit > 0) {
+    // Đây là một khóa combo, hiển thị phần chọn
+    generateComboCheckboxes(certType, courseData.selectionLimit);
+    comboContainer.style.display = 'block';
+  } else {
+    // Khóa học bình thường, ẩn phần chọn combo
+    comboContainer.style.display = 'none';
+    document.getElementById('combo-checkboxes-list').innerHTML = ''; // Dọn dẹp
+  }
+  updateStudentPackageName(); // Cập nhật tên gói cuối cùng
+}
+
+/**
+ * HÀM MỚI
+ * Tạo ra danh sách các checkbox để chọn khóa con cho combo.
+ */
+function generateComboCheckboxes(certType, limit) {
+  const listContainer = document.getElementById('combo-checkboxes-list');
+  const title = document.getElementById('combo-selection-title');
+  listContainer.innerHTML = ''; // Xóa các checkbox cũ
+  title.textContent = `Vui lòng chọn đúng ${limit} khóa học:`;
+
+  const baseCourses = certificateCourses[`${certType}_BASE`];
+  if (!baseCourses) return;
+
+  baseCourses.forEach(course => {
+    const div = document.createElement('div');
+    div.style.marginBottom = '5px';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = course.name;
+    checkbox.dataset.sessions = course.sessions;
+    checkbox.id = `combo-chk-${course.name.replace(/\s/g, '-')}`;
+    
+    checkbox.onchange = () => {
+      const checkedBoxes = listContainer.querySelectorAll('input[type="checkbox"]:checked');
+      if (checkedBoxes.length > limit) {
+        alert(`Bạn chỉ được chọn tối đa ${limit} khóa học.`);
+        checkbox.checked = false;
+      }
+      updateStudentPackageName();
+    };
+
+    const label = document.createElement('label');
+    label.htmlFor = checkbox.id;
+    label.textContent = ` ${course.name} (${course.sessions} buổi)`;
+    
+    div.appendChild(checkbox);
+    div.appendChild(label);
+    listContainer.appendChild(div);
+  });
+}
+
+/**
+ * HÀM CẬP NHẬT (thay thế populateCourseDropdown cũ)
+ * Điền danh sách khóa học và gán sự kiện onchange mới.
+ */
+function populateCourseDropdown() {
+  const certType = document.getElementById('student-certificate-type').value;
+  const courseWrapper = document.getElementById('certificate-course-wrapper');
+  const courseSelect = document.getElementById('student-certificate-course');
+  // Quan trọng: Gán sự kiện onchange mới cho thẻ select này
+  courseSelect.onchange = handleCourseSelection;
+
+  courseSelect.innerHTML = '<option value="">-- Chọn khóa học --</option>';
+  
+  // Ẩn phần chọn combo khi thay đổi loại chứng chỉ
+  document.getElementById('combo-selection-container').style.display = 'none';
+
+  if (certType && certificateCourses[certType]) {
+    certificateCourses[certType].forEach(course => {
+      const option = document.createElement('option');
+      option.value = course.name;
+      // Hiển thị số buổi cho khóa lẻ, hoặc chỉ tên cho combo
+      const displayText = course.sessions ? `${course.name} (${course.sessions} buổi)` : course.name;
+      option.textContent = displayText;
+      courseSelect.appendChild(option);
+    });
+    courseWrapper.style.display = 'block';
+  } else {
+    courseWrapper.style.display = 'none';
+  }
+  updateStudentPackageName();
+}
+
+/**
+ * HÀM VIẾT LẠI HOÀN TOÀN (thay thế updateStudentPackageName cũ)
+ * Tạo tên gói cuối cùng, có khả năng xử lý cả combo.
+ */
+// script.js
+
+/**
+ * HÀM VIẾT LẠI HOÀN TOÀN (thay thế updateStudentPackageName cũ)
+ * Tạo tên gói cuối cùng VÀ cập nhật số buổi đã đóng.
+ */
+function updateStudentPackageName() {
+  const packageType = document.getElementById('student-package-type').value;
+  const packageInput = document.getElementById('student-package');
+  const sessionsPaidInput = document.getElementById('student-sessions-paid');
+  
+  let finalPackageName = '';
+  let totalSessions = 0;
+  let selectedCourse = null;
+
+  if (packageType === 'Lớp tiếng Anh phổ thông') {
+    const courseName = document.getElementById('general-english-course').value;
+    if (courseName) {
+      selectedCourse = generalEnglishCourses.find(c => c.name === courseName);
+    }
+  } else if (packageType === 'Luyện thi chứng chỉ') {
+    const certType = document.getElementById('student-certificate-type').value;
+    const courseName = document.getElementById('student-certificate-course').value;
+    if (certType && courseName) {
+      selectedCourse = certificateCourses[certType]?.find(c => c.name === courseName);
+    }
+  }
+
+  if (selectedCourse) {
+    if (selectedCourse.selectionLimit > 0) { // Xử lý cho combo
+      const checkedBoxes = document.querySelectorAll('#combo-checkboxes-list input:checked');
+      const selectedNames = [];
+      checkedBoxes.forEach(box => {
+        totalSessions += parseInt(box.dataset.sessions, 10);
+        selectedNames.push(box.value);
+      });
+      
+      if (selectedNames.length > 0) {
+        finalPackageName = `${selectedCourse.name} (${selectedNames.join(' + ')})`;
+      } else {
+        finalPackageName = selectedCourse.name;
+      }
+    } else { // Xử lý cho khóa lẻ
+      totalSessions = selectedCourse.sessions;
+      finalPackageName = selectedCourse.name;
+    }
+  }
+
+  // Cập nhật tên gói và số buổi
+  packageInput.value = totalSessions > 0 ? `${finalPackageName} (${totalSessions} buổi)` : finalPackageName;
+  sessionsPaidInput.value = totalSessions;
+}
 // Render danh sách học viên (phân trang)
 function renderStudentList(dataset) {
   // Không gán allStudentsData = dataset nữa!
@@ -369,9 +670,13 @@ function renderStudentList(dataset) {
   } else {
     btnBuoiHoc = `<button onclick="viewStudentSessions('${id}', '${firstClassId}')">Buổi học</button>`;
   }
+  const attended = st.sessionsAttended || 0;
+    const paid = st.sessionsPaid || 0;
+    const isWarning = paid > 0 && attended >= paid;
+    const warningClass = isWarning ? 'student-warning' : '';
     const row = `
       <tr class="${isHighlight ? 'highlight-row' : ''}">
-        <td>${highlight(st.name || "")}</td>
+      <td class="${warningClass}">${highlight(st.name || "")}</td>
         <td>${st.dob || ""}</td>
         <td>${highlight(st.parent || "")}</td>
         <td>${highlight(st.parentPhone || "")}</td>
@@ -454,6 +759,7 @@ function initStudentsListener() {
 function showStudentForm() {
   document.getElementById("student-form").reset();
   document.getElementById("student-index").value = "";
+  document.getElementById("student-package").value = "";
   document.getElementById("student-parent-job-other").style.display = "none";
 
   document.getElementById("student-form-modal").style.display = "flex";
@@ -539,34 +845,48 @@ function editStudent(id) {
     const st = snapshot.val();
     if (!st) return alert("Học viên không tồn tại!");
 
-    // Đổ dữ liệu vào các input
+    document.getElementById("student-form").reset();
+    handlePackageTypeChange();
+    
     document.getElementById("student-index").value = id;
     document.getElementById("student-name").value = st.name || "";
-    document.getElementById("student-dob").value = st.dob || "";
-    document.getElementById("student-parent").value = st.parent || "";
-    document.getElementById("student-parent-phone").value = st.parentPhone || "";
-    if (["Công nhân", "Giáo viên", "Kinh doanh", "Bác sĩ", "Nông dân"].includes(st.parentJob)) {
-      document.getElementById("student-parent-job").value = st.parentJob;
-      document.getElementById("student-parent-job-other").style.display = "none";
-    } else {
-      document.getElementById("student-parent-job").value = "Khác";
-      document.getElementById("student-parent-job-other").value = st.parentJob || "";
-      document.getElementById("student-parent-job-other").style.display = "inline-block";
-    }
-    document.getElementById("student-package").value = st.package || "";
-    document.getElementById("student-sessions-attended").value = st.sessionsAttended || 0;
+    // ... (toàn bộ các dòng gán giá trị khác của bạn ở đây) ...
     document.getElementById("student-sessions-paid").value = st.sessionsPaid || 0;
+    
+    const packageStr = st.package || "";
+    document.getElementById("student-package").value = packageStr;
+    
+    // Lưu ý: Do tính phức tạp, chúng tôi sẽ không tự động chọn lại các khóa con
+    // trong combo khi sửa. Người dùng sẽ phải chọn lại nếu muốn thay đổi.
+    // Logic dưới đây chỉ chọn các dropdown chính.
+    
+    const courseNameMatch = packageStr.match(/^(.*?)(?:\s\(.*\))?$/);
+    if (!courseNameMatch) return;
+    const courseName = courseNameMatch[1];
 
-    // Thay tiêu đề modal
+    if (generalEnglishCourses.some(c => c.name === courseName)) {
+        document.getElementById('student-package-type').value = 'Lớp tiếng Anh phổ thông';
+        handlePackageTypeChange();
+        document.getElementById('general-english-course').value = courseName;
+    } else {
+        for (const certType in certificateCourses) {
+            if (certificateCourses[certType]?.some(c => c.name === courseName)) {
+                document.getElementById('student-package-type').value = 'Luyện thi chứng chỉ';
+                handlePackageTypeChange();
+                document.getElementById('student-certificate-type').value = certType;
+                populateCourseDropdown();
+                document.getElementById('student-certificate-course').value = courseName;
+                // Không cố gắng check các ô con của combo
+                break;
+            }
+        }
+    }
+
     document.getElementById("student-form-title").textContent = "Chỉnh sửa học viên";
-
-    // **Bật overlay trước khi show phần content:**
     document.getElementById("student-form-modal").style.display = "flex";
     document.getElementById("student-form-container").style.display = "block";
   }).catch(err => alert("Lỗi tải học viên: " + err.message));
 }
-
-
 // Hiển thị hoặc ẩn ô “Nhập nghề nghiệp khác”
 function parentJobChange(value) {
   document.getElementById("student-parent-job-other").style.display = (value === "Khác") ? "inline-block" : "none";
@@ -698,6 +1018,13 @@ function updateStudentOptionsForClassForm() {
 function filterClassStudentOptions() {
   const query = document.getElementById("class-add-student-search").value.toLowerCase();
   const datalist = document.getElementById("class-add-student-datalist");
+
+  if (query.length > 0) {
+    datalist.style.display = "block";
+  } else {
+    datalist.style.display = "none";
+  }
+
   datalist.innerHTML = "";
   Object.entries(allStudentsData).forEach(([id, st]) => {
     if ((st.name || "").toLowerCase().includes(query)) {
@@ -708,8 +1035,6 @@ function filterClassStudentOptions() {
     }
   });
 }
-
-
 // Thêm học viên vào danh sách class
 function addStudentToClass() {
   const input = document.getElementById("class-add-student-search");
@@ -758,73 +1083,131 @@ function renderClassStudentList(studentIds) {
 }
 
 // Lưu hoặc cập nhật lớp học
+let isSavingClass = false;
+// script.js
+
+// HÃY THAY THẾ TOÀN BỘ HÀM saveClass() CŨ BẰNG HÀM MỚI NÀY
+
 async function saveClass() {
+  if (isSavingClass) return;
+  isSavingClass = true;
   const user = auth.currentUser;
   if (!user) {
     alert("Vui lòng đăng nhập để thêm hoặc sửa lớp học!");
     showForm("login");
     toggleUI(false);
+    isSavingClass = false; // Nhớ reset cờ
     return;
   }
+
+  // Lấy dữ liệu từ form
+  const name = document.getElementById("class-name").value.trim();
+  const teacher = document.getElementById("class-teacher").value.trim();
+  const startDate = document.getElementById("class-start-date").value;
+  const fixedSchedule = getFixedScheduleFromForm();
   const id = document.getElementById("class-index").value;
   const nowTimestamp = firebase.database.ServerValue.TIMESTAMP;
 
-  if (!validateFixedSchedule()) return; // Kiểm tra form lịch cố định
-
-  if (!id) {
-    const newClassData = {
-      name: document.getElementById("class-name").value.trim(),
-      teacher: document.getElementById("class-teacher").value.trim(),
-      students: {},
-      fixedSchedule: getFixedScheduleFromForm(),
-      createdAt: nowTimestamp,
-      updatedAt: nowTimestamp
-    };
-    currentClassStudents.forEach(studentId => {
-     newClassData.students[studentId] = { enrolledAt: nowTimestamp };
-      database.ref(`students/${studentId}/classes/${newClassId}`).set({ enrolledAt: nowTimestamp });
-    });
-    try {
-      await database.ref(DB_PATHS.CLASSES).push(newClassData);
-      Swal.fire({ icon: 'success', title: 'Đã thêm lớp học!', timer: 2000, showConfirmButton: false });
-      hideClassForm();
-    } catch (error) {
-      alert("Lỗi lưu lớp học: " + error.message);
-    }
-  } else {
-    const updatedClassData = {
-      name: document.getElementById("class-name").value.trim(),
-      teacher: document.getElementById("class-teacher").value.trim(),
-      students: {},
-      fixedSchedule: getFixedScheduleFromForm(),
-      updatedAt: nowTimestamp
-    };
-     const clsSnap = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
-  const clsData = clsSnap.val() || { students: {} };
-   currentClassStudents.forEach(studentId => {
-    // Nếu học sinh đã tồn tại trong clsData.students, giữ nguyên enrolledAt
-    const prevEnrolledObj = clsData.students ? clsData.students[studentId] : null;
-    if (prevEnrolledObj && prevEnrolledObj.enrolledAt) {
-      updatedClassData.students[studentId] = { enrolledAt: prevEnrolledObj.enrolledAt };
-    } else {
-      // Nếu là học sinh mới được add lần đầu, gán enrolledAt = nowTimestamp
-      updatedClassData.students[studentId] = { enrolledAt: nowTimestamp };
-      // Và lưu ngược vào node students:
-      database.ref(`students/${studentId}/classes/${id}`).set({ enrolledAt: nowTimestamp });
-    }
-  });
-    try {
-      await database.ref(`${DB_PATHS.CLASSES}/${id}`).update(updatedClassData);
-      Swal.fire({ icon: 'success', title: 'Đã cập nhật lớp học!', timer: 2000, showConfirmButton: false });
-      hideClassForm();
-    } catch (error) {
-      alert("Lỗi cập nhật lớp học: " + error.message);
-    }
+  if (!name || !teacher || !startDate) {
+    Swal.fire("Lỗi", "Vui lòng điền đầy đủ thông tin lớp học.", "error");
+    isSavingClass = false; // Nhớ reset cờ
+    return;
   }
-  // … trong saveClass(), sau khi đã update classes/{classId}/students:
-//await database.ref(`students/${studentId}/classes/${classId}`).set(true);
-}
 
+  if (!validateFixedSchedule()) {
+    isSavingClass = false; // Nhớ reset cờ
+    return;
+  }
+
+  try {
+    if (!id) {
+      // === TẠO LỚP MỚI ===
+      const newClassRef = database.ref(DB_PATHS.CLASSES).push();
+      const newClassId = newClassRef.key;
+
+      const newClassData = {
+        name,
+        teacher,
+        students: {}, // Khởi tạo object students rỗng
+        fixedSchedule,
+        startDate,
+        createdAt: nowTimestamp,
+        updatedAt: nowTimestamp
+      };
+
+      // =================================================================
+      // THAY ĐỔI Ở ĐÂY: Lấy thêm Tên và Gói đăng ký của học viên
+      // =================================================================
+      currentClassStudents.forEach(studentId => {
+        const studentInfo = allStudentsData[studentId]; // Tra cứu thông tin học viên
+        if (studentInfo) {
+          newClassData.students[studentId] = {
+            enrolledAt: nowTimestamp,
+            studentName: studentInfo.name || '(Không rõ tên)',
+            packageName: studentInfo.package || '(Chưa có gói)'
+          };
+        }
+      });
+      // =================================================================
+
+      await newClassRef.set(newClassData);
+
+      // Ghi vào từng học viên (phần này không cần thay đổi)
+      await Promise.all(currentClassStudents.map(studentId =>
+        database.ref(`students/${studentId}/classes/${newClassId}`).set({ enrolledAt: nowTimestamp })
+      ));
+
+      Swal.fire({ icon: 'success', title: 'Đã thêm lớp học!', timer: 2000, showConfirmButton: false });
+    } else {
+      // === CẬP NHẬT LỚP CŨ ===
+      const clsSnap = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
+      const clsData = clsSnap.val() || { students: {} };
+
+      const updatedClassData = {
+        name,
+        teacher,
+        students: {}, // Khởi tạo object students rỗng
+        fixedSchedule,
+        updatedAt: nowTimestamp
+      };
+
+      if (startDate) updatedClassData.startDate = startDate;
+
+      // =================================================================
+      // THAY ĐỔI Ở ĐÂY: Lấy thêm Tên và Gói đăng ký của học viên
+      // =================================================================
+      currentClassStudents.forEach(studentId => {
+        const studentInfo = allStudentsData[studentId]; // Tra cứu thông tin học viên
+        // Giữ lại ngày đăng ký ban đầu nếu đã có
+        const enrolledAt = clsData.students?.[studentId]?.enrolledAt || nowTimestamp; 
+        
+        if (studentInfo) {
+          updatedClassData.students[studentId] = {
+            enrolledAt: enrolledAt,
+            studentName: studentInfo.name || '(Không rõ tên)',
+            packageName: studentInfo.package || '(Chưa có gói)'
+          };
+        }
+      });
+      // =================================================================
+
+      await database.ref(`${DB_PATHS.CLASSES}/${id}`).update(updatedClassData);
+
+      // Cập nhật lại thông tin lớp học trong từng học viên
+      await Promise.all(currentClassStudents.map(studentId =>
+        database.ref(`students/${studentId}/classes/${id}`).set({ enrolledAt: updatedClassData.students[studentId].enrolledAt })
+      ));
+
+      Swal.fire({ icon: 'success', title: 'Đã cập nhật lớp học!', timer: 2000, showConfirmButton: false });
+    }
+
+    hideClassForm();
+  } catch (error) {
+    console.error("Lỗi khi lưu lớp học:", error);
+    Swal.fire("Lỗi", error.message, "error");
+  }
+  isSavingClass = false;
+}
 // Xóa lớp học
 async function deleteClass(id) {
   if (!confirm("Bạn chắc chắn muốn xóa lớp học này?")) return;
@@ -838,18 +1221,22 @@ async function deleteClass(id) {
 
 // Lấy lịch cố định từ form
 function getFixedScheduleFromForm() {
-  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const schedule = {};
-  days.forEach(day => {
-    const checkbox = document.getElementById(`schedule-${day}`);
-    const timeInput = document.getElementById(`time-${day}`);
-    if (checkbox && checkbox.checked && checkbox.value && timeInput && timeInput.value) {
-      schedule[checkbox.value] = timeInput.value;
+  const dayCheckboxes = document.querySelectorAll("input[name='schedule-day']:checked");
+
+  dayCheckboxes.forEach(checkbox => {
+    const day = checkbox.value; // ví dụ: "Tuesday"
+    const dayKey = checkbox.id.split("-")[1]; // "mon", "tue", ...
+    const timeInput = document.getElementById(`time-${dayKey}`);
+    const time = timeInput?.value;
+
+    if (time) {
+      schedule[day] = time; // ví dụ: { Tuesday: "16:00" }
     }
   });
+
   return schedule;
 }
-
 // Điền form với lịch cố định có sẵn
 function fillFixedScheduleForm(fixedSchedule) {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -897,38 +1284,41 @@ function renderFixedScheduleDisplay() {
 // ----------------------------------------------------------------------------
 // 1. Hàm sinh N buổi sắp tới (sliding window) từ fixedSchedule và enrolledAt
 // ----------------------------------------------------------------------------
-function generateFutureSessionDates(fixedSchedule, enrolledAt, numSessions) {
-  // Map tên thứ (tiếng Anh) sang số getDay()
-  const weekdayMap = {
-    Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
-    Thursday: 4, Friday: 5, Saturday: 6
-  };
-  // Chuyển fixedSchedule { "Wednesday": "09:30", "Saturday": "09:30" } → mảng thứ [3, 6]
-  const targetWeekdays = Object.keys(fixedSchedule)
-    .map(dayName => weekdayMap[dayName])
-    .filter(x => x !== undefined);
-
-  // Xác định ngày bắt đầu = max(hôm nay (00:00), enrolledAt (00:00))
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const enrollDate = new Date(enrolledAt);
-  enrollDate.setHours(0, 0, 0, 0);
-  const cursor = new Date(Math.max(enrollDate.getTime(), now.getTime()));
-
-  // Lặp tăng ngày từ cursor, nhặt ra đúng numSessions lần xuất hiện thứ thuộc targetWeekdays
+function generateSessionDates(startDateStr, scheduleArray, numberOfWeeks = 12) {
   const sessions = [];
-  while (sessions.length < numSessions) {
-    if (targetWeekdays.includes(cursor.getDay())) {
-      const yyyy = cursor.getFullYear();
-      const mm = String(cursor.getMonth() + 1).padStart(2, "0");
-      const dd = String(cursor.getDate()).padStart(2, "0");
-      const dateStr = `${yyyy}-${mm}-${dd}`; // "YYYY-MM-DD"
-      sessions.push(dateStr);
-    }
-    cursor.setDate(cursor.getDate() + 1);
+  const startDate = new Date(startDateStr);
+  const dayNameToNumber = {
+    "Sunday": 0, "Monday": 1, "Tuesday": 2,
+    "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6
+  };
+
+  for (let week = 0; week < numberOfWeeks; week++) {
+    scheduleArray.forEach(({ day, time }) => {
+      const sessionDate = new Date(startDate); // startDate gốc
+      const targetDay = dayNameToNumber[day];
+
+      // Tìm ngày đầu tiên có 'day' trong tuần kể từ startDate
+      const startDay = sessionDate.getDay();
+      let daysToAdd = targetDay - startDay;
+      if (daysToAdd < 0) daysToAdd += 7;
+
+      // Cộng thêm số tuần
+      daysToAdd += week * 7;
+      sessionDate.setDate(sessionDate.getDate() + daysToAdd);
+
+      // Chỉ thêm nếu ngày >= startDate gốc
+      if (sessionDate >= startDate) {
+        sessions.push({
+          date: sessionDate.toISOString().split("T")[0],
+          time: time
+        });
+      }
+    });
   }
+
   return sessions;
 }
+
 
 // ----------------------------------------------------------------------------
 // 2. Hàm cập nhật attendance (tích / hủy tích) và điều chỉnh sessionsAttended, sessionsPaid
@@ -979,6 +1369,23 @@ async function updateAttendanceBySchedule(classId, studentId, dateStr, isAttendi
     console.error("Lỗi updateAttendanceBySchedule:", err);
   }
 }
+function updateHomeworkScore(classId, studentId, score) {
+  const today = new Date().toISOString().split("T")[0];
+  const parsed = parseInt(score);
+
+  if (isNaN(parsed) || parsed < 0 || parsed > 10) {
+    alert("Điểm phải từ 0 đến 10");
+    return;
+  }
+
+  database.ref(`homeworkScores/${classId}/${studentId}/${today}`).set(parsed)
+    .then(() => {
+      console.log(`✔ Điểm bài tập đã lưu: ${parsed}`);
+    })
+    .catch(err => {
+      console.error("❌ Lỗi lưu điểm:", err);
+    });
+}
 
 // ----------------------------------------------------------------------------
 // 3. Hàm hiển thị modal "Buổi học" cho một học sinh trong một lớp
@@ -987,6 +1394,14 @@ async function updateAttendanceBySchedule(classId, studentId, dateStr, isAttendi
 // ----------------------------------------------------------------------------
 async function viewStudentSessions(studentId, classId) {
   // 3.1. Lấy info lớp (để có fixedSchedule, tên lớp)
+const listEl = document.getElementById("class-student-list");
+if (listEl) listEl.style.display = "none";
+
+const searchEl = document.getElementById("class-add-student-search");
+if (searchEl) searchEl.style.display = "none";
+
+const addBtnEl = document.getElementById("add-student-btn");
+if (addBtnEl) addBtnEl.style.display = "none";
   const clsSnap = await database.ref(`classes/${classId}`).once("value");
   const clsData = clsSnap.val();
   if (!clsData) {
@@ -1017,7 +1432,6 @@ async function viewStudentSessions(studentId, classId) {
     return;
   }
   sliderEl.innerHTML = "";
-
   // 3.6. Tạo các thẻ session-item và checkbox
   sessionDates.forEach(dateStr => {
     const container = document.createElement("div");
@@ -1066,6 +1480,12 @@ async function viewStudentSessions(studentId, classId) {
   // Force reflow để animation scale-up chạy lại
   void modalContent.offsetWidth;
   modalContent.classList.add("scale-up");
+  //wrap & remove
+  const addWrapper = document.getElementById("class-add-wrapper");
+if (addWrapper) {
+  addWrapper.remove(); // xoá luôn phần thêm học viên và danh sách
+}
+
 }
 
 // ----------------------------------------------------------------------------
@@ -1198,17 +1618,20 @@ function initClassesListener() {
 function buildEventsArray(year, month) {
   const events = [];
   const monthIndex = month - 1;
-  const lastDayOfMonth  = new Date(year, monthIndex + 1, 0);
+  const lastDayOfMonth = new Date(year, monthIndex + 1, 0);
 
+  // Dùng để so sánh ngày theo yyyy-mm-dd
+  function toDateString(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
   Object.values(allClassesData).forEach(cls => {
     const teacherName = cls.teacher || "(Chưa có tên GV)";
     const fixed = cls.fixedSchedule || {};
-
-    let createdDate = null;
-    if (cls.createdAt) {
-      createdDate = new Date(cls.createdAt);
-      createdDate.setHours(0, 0, 0, 0);
-    }
+    const startDateStr = cls.startDate;
+    const startDate = startDateStr ? new Date(startDateStr) : null;
 
     Object.entries(fixed).forEach(([weekdayEng, timeStr]) => {
       const weekdayMap = {
@@ -1221,40 +1644,43 @@ function buildEventsArray(year, month) {
       for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
         const dt = new Date(year, monthIndex, d);
         dt.setHours(0, 0, 0, 0);
-        if (createdDate && dt.getTime() < createdDate.getTime()) {
+
+        // ✅ Sửa TẠI ĐÂY: so sánh ngày theo chuỗi yyyy-mm-dd
+        if (startDate && toDateString(dt) < toDateString(startDate)) {
           continue;
         }
+
         if (dt.getDay() === targetWeekday) {
           const [hh, mm] = timeStr.split(":").map(Number);
-          const startDate = new Date(year, monthIndex, d, hh, mm);
-          const endDate   = new Date(startDate.getTime() + 90 * 60 * 1000);
+          const startDateTime = new Date(year, monthIndex, d, hh, mm);
+          const endDateTime = new Date(startDateTime.getTime() + 90 * 60 * 1000);
 
           function toISOStringNoTZ(date) {
             const yyyy = date.getFullYear();
-            const mm2  = (date.getMonth() + 1).toString().padStart(2, "0");
-            const dd2  = date.getDate().toString().padStart(2, "0");
-            const hh2  = date.getHours().toString().padStart(2, "0");
+            const mm2 = (date.getMonth() + 1).toString().padStart(2, "0");
+            const dd2 = date.getDate().toString().padStart(2, "0");
+            const hh2 = date.getHours().toString().padStart(2, "0");
             const min2 = date.getMinutes().toString().padStart(2, "0");
             return `${yyyy}-${mm2}-${dd2}T${hh2}:${min2}:00`;
           }
 
           events.push({
             title: teacherName,
-            start: toISOStringNoTZ(startDate),
-            end:   toISOStringNoTZ(endDate),
+            start: toISOStringNoTZ(startDateTime),
+            end: toISOStringNoTZ(endDateTime),
             allDay: false,
             backgroundColor: "#0066cc",
-            borderColor:     "#0066cc",
-            textColor:       "#fff"
+            borderColor: "#0066cc",
+            textColor: "#fff"
           });
         }
       }
     });
   });
+
   console.log(`>>> buildEventsArray(${year},${month}) =>`, events);
   return events;
 }
-
 // Khởi tạo FullCalendar cho trang Lịch học :contentReference[oaicite:3]{index=3}
 function initFullCalendar() {
   const today = new Date();
@@ -1326,49 +1752,317 @@ window.addEventListener("hashchange", () => {
     calendarMini?.refetchEvents?.();
   }
 });
-
-// ================= Quản lý BÀI TẬP VỀ NHÀ =================
-
-// Hiển thị UI Quản lý bài tập
-function showHomeworkManagement() {
-  hideAllManagementPages();
-  const el = document.getElementById("homework-management");
-  if (el) {
-    el.style.display = "block";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+//              QUẢN LÝ BÀI TẬP VỀ NHÀ          //
+/**
+ * Hàm này khôi phục lại giao diện danh sách lớp và ẩn modal điểm danh.
+ * Đây là trạng thái xem mặc định của trang Quản lý bài tập.
+ */
+function showClassListAndHideModal() {
+  // 1. Ẩn modal overlay của bảng điểm danh
+  const modal = document.getElementById("homework-modal-overlay");
+  if (modal) {
+    modal.style.display = "none";
   }
 
-  document.getElementById("homework-class-container").style.display = "block";
-  document.getElementById("homework-student-container").style.display = "none";
-  document.getElementById("homework-session-container").style.display = "none";
+  // 2. Hiển thị lại các thành phần của danh sách lớp
+  const container = document.getElementById("homework-class-container");
+  if (container) {
+    container.style.display = "block"; // hoặc 'flex' tùy vào layout của bạn
+  }
 
-  renderHomeworkClassList(allClassesData);
+  const list = document.getElementById("homework-class-list");
+  if (list) {
+    list.style.display = "block"; // QUAN TRỌNG NHẤT: Hiển thị lại danh sách
+  }
+}
+/**
+ * Tạo ra một danh sách các buổi học "cuốn chiếu".
+ * Bắt đầu từ ngày khai giảng của lớp và kết thúc vào một ngày trong tương lai
+ * tính từ thời điểm hiện tại.
+ * @param {object} fixedSchedule - Lịch học cố định (vd: { Monday: "18:00", ...})
+ * @param {string} startDateStr - Ngày lớp học bắt đầu (vd: "2025-06-03")
+ * @param {number} monthsInFuture - Cần tạo lịch cho bao nhiêu tháng trong tương lai.
+ * @returns {Array} - Mảng các buổi học.
+ */
+function generateRollingSessions(fixedSchedule, startDateStr, monthsInFuture = 3) {
+  const sessions = [];
+  const dayNameToNumber = {
+    "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3,
+    "Thursday": 4, "Friday": 5, "Saturday": 6
+  };
+
+  const scheduleArray = Object.entries(fixedSchedule).map(([day, time]) => ({
+    dayNumber: dayNameToNumber[day],
+    time,
+  }));
+
+  // Ngày bắt đầu tính toán là ngày khai giảng của lớp
+  let cursorDate = new Date(startDateStr);
+  
+  // Ngày kết thúc là `monthsInFuture` tháng tính từ HÔM NAY
+  let endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + monthsInFuture);
+
+  // Vòng lặp sẽ chạy cho đến khi ngày tính toán vượt qua ngày kết thúc
+  while (cursorDate <= endDate) {
+    scheduleArray.forEach(({ dayNumber, time }) => {
+      // Chỉ thêm buổi học nếu nó nằm trong tuần đang xét
+      if (cursorDate.getDay() === dayNumber) {
+        const dateStr = cursorDate.toISOString().split("T")[0];
+        // Kiểm tra để đảm bảo không thêm trùng lặp
+        if (!sessions.some(s => s.date === dateStr)) {
+          sessions.push({ date: dateStr, time });
+        }
+      }
+    });
+
+    // Di chuyển con trỏ đến ngày tiếp theo
+    cursorDate.setDate(cursorDate.getDate() + 1);
+  }
+
+  sessions.sort((a, b) => a.date.localeCompare(b.date));
+  return sessions;
+}
+async function showHomeworkManagement() {
+  const classListEl = document.getElementById("homework-class-list");
+  const tableBody = document.getElementById("attendance-table-body");
+
+  classListEl.innerHTML = "";
+  if (tableBody) {
+      tableBody.innerHTML = "";
+  }
+ // document.getElementById("homework-attendance-container").style.display = "none";
+
+  const snapshot = await database.ref(DB_PATHS.CLASSES).once("value");
+  const classes = snapshot.val() || {};
+
+  Object.entries(classes).forEach(([classId, cls]) => {
+    const li = document.createElement("li");
+    li.textContent = cls.name || "Không tên";
+   li.onclick = () => {
+  console.log("Bạn đã click vào classId:", classId);
+  renderHomeworkAttendanceTable(classId);
+};
+    classListEl.appendChild(li);
+  });
+  showClassListAndHideModal();
 }
 
-// Render danh sách lớp trong Quản lý bài tập
-function renderHomeworkClassList(classes) {
-  const ul = document.getElementById("homework-class-list");
-  ul.innerHTML = "";
-  Object.entries(classes).forEach(([id, cls]) => {
-    const li = document.createElement("li");
-    li.textContent = `${cls.name} (${cls.teacher || "Chưa có GV"})`;
-    li.style.cursor = "pointer";
-    li.onclick = () => {
-      selectedHomeworkClassId = id;
-      renderHomeworkStudentList(id);
-    };
-    ul.appendChild(li);
+function generateNextNSessions(fixedSchedule, startDateStr, count = 30) {
+  const sessions = [];
+  const dayNameToNumber = {
+    "Sunday": 0, "Monday": 1, "Tuesday": 2,
+    "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6
+  };
+
+  const scheduleArray = Object.entries(fixedSchedule).map(([day, time]) => ({
+    dayNumber: dayNameToNumber[day],
+    time,
+  }));
+
+  let currentDate = new Date(startDateStr);
+  while (sessions.length < count) {
+    scheduleArray.forEach(({ dayNumber, time }) => {
+      const tempDate = new Date(currentDate);
+      const currentDay = tempDate.getDay();
+      let daysToAdd = (dayNumber - currentDay + 7) % 7;
+      const sessionDate = new Date(tempDate.setDate(tempDate.getDate() + daysToAdd));
+      const dateStr = sessionDate.toISOString().split("T")[0];
+      if (!sessions.some(s => s.date === dateStr)) {
+        sessions.push({ date: dateStr, time });
+      }
+    });
+    currentDate.setDate(currentDate.getDate() + 7);
+  }
+
+  sessions.sort((a, b) => a.date.localeCompare(b.date));
+  return sessions.slice(0, count);
+}
+function showHomeworkModal(className) {
+  document.getElementById("homework-modal-title").textContent = `Bảng điểm danh – ${className}`;
+  document.getElementById("homework-modal-overlay").style.display = "flex";
+}
+function hideHomeworkModal() {
+  showClassListAndHideModal();
+}
+function scrollBySessions(direction) {
+  const scrollContainer = document.getElementById("homework-scroll-container");
+  const step = 120 * 5; // 5 cột
+  scrollContainer.scrollLeft += direction * step;
+}
+// script.js
+
+async function renderHomeworkAttendanceTable(classId) {
+  const classSnap = await database.ref(`classes/${classId}`).once("value");
+  const cls = classSnap.val();
+  if (!cls) return alert("Lớp không tồn tại");
+
+  const students = cls.students || {};
+  const fixedSchedule = cls.fixedSchedule || {};
+  const startDate = cls.startDate || new Date().toISOString().split("T")[0];
+  const sessions = generateRollingSessions(fixedSchedule, startDate, 3);
+  // Lấy dữ liệu học viên, điểm danh và điểm bài tập
+  const studentSnap = await database.ref("students").once("value");
+  const allStudents = studentSnap.val() || {};
+  const attSnap = await database.ref(`attendance/${classId}`).once("value");
+  const attendance = attSnap.val() || {};
+  const scoreSnap = await database.ref(`homeworkScores/${classId}`).once("value");
+  const scores = scoreSnap.val() || {};
+
+  // Render bảng
+  const tableHeadRow = document.getElementById("homework-table-head");
+  const tableBody = document.getElementById("attendance-table-body");
+  const scrollContainer = document.getElementById("homework-scroll-container");
+
+  let headerHTML = `<th style="min-width: 180px; position: sticky; left: 0; background-color: #f3f6fb; z-index: 1;">Họ tên học viên</th>`;
+sessions.forEach((s) => {
+  const d = new Date(s.date);
+  const label = `${d.getDate()}/${d.getMonth() + 1}`;
+  headerHTML += `<th style="min-width: 120px;">${label}</th>`; // Nối chuỗi trong biến
+});
+tableHeadRow.innerHTML = headerHTML;
+  Object.keys(students).forEach(studentId => {
+    const student = allStudents[studentId];
+    if (!student) return;
+ const attended = student.sessionsAttended || 0;
+    const paid = student.sessionsPaid || 0;
+    const isWarning = paid > 0 && attended >= paid;
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    nameCell.className = isWarning ? 'student-warning' : '';
+    nameCell.textContent = student.name || "(Không rõ tên)";
+    // CSS để giữ cột tên học viên cố định khi cuộn ngang
+    nameCell.style.position = "sticky";
+    nameCell.style.left = "0";
+    nameCell.style.backgroundColor = "#fff"; // Màu nền để không bị nội dung khác đè lên
+    nameCell.style.zIndex = "1";
+    row.appendChild(nameCell);
+
+    sessions.forEach((session) => {
+      const dateStr = session.date;
+      const checked = attendance?.[studentId]?.[dateStr] === true;
+      const score = scores?.[studentId]?.[dateStr] ?? "";
+
+      const td = document.createElement("td");
+      td.style.minWidth = "120px";
+      td.innerHTML = `
+        <input type="checkbox"
+               onchange="toggleAttendance('${classId}', '${studentId}', '${dateStr}', this.checked)"
+               ${checked ? "checked" : ""} />
+        <select onchange="updateHomeworkScore('${classId}', '${studentId}', '${dateStr}', this.value)">
+          <option value="">Chưa làm</option>
+          ${[...Array(11).keys()].map(i =>
+            `<option value="${i}" ${score == i ? "selected" : ""}>${i}</option>`
+          ).join("")}
+        </select>
+      `;
+      row.appendChild(td);
+    });
+
+    tableBody.appendChild(row);
+  });
+
+  // Ẩn danh sách lớp, hiện bảng modal
+  document.getElementById("homework-class-container").style.display = "none";
+  document.getElementById("homework-class-list").style.display = "none";
+  showHomeworkModal(cls.name || "Không rõ tên lớp");
+
+  // =================================================================
+  // PHẦN LOGIC MỚI: TỰ ĐỘNG CUỘN ĐẾN BUỔI HỌC GẦN NHẤT
+  // =================================================================
+  setTimeout(() => {
+    // 1. Lấy ngày hôm nay (chỉ tính ngày, bỏ qua giờ) để so sánh
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 2. Tìm index của buổi học đầu tiên (Buổi T) tính từ hôm nay trở đi
+    const closestIndex = sessions.findIndex(s => new Date(s.date) >= today);
+
+    // Nếu không tìm thấy buổi nào trong tương lai, thì cuộn đến cuối
+    if (closestIndex === -1) {
+        scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+        return;
+    }
+
+    // 3. Tính toán index của cột đầu tiên cần hiển thị (T-2)
+    //    Dùng Math.max để đảm bảo không bị số âm nếu T là 1 trong 2 buổi đầu tiên
+    const visibleStartIndex = Math.max(0, closestIndex - 2);
+
+    // 4. Lấy chiều rộng của một cột ngày tháng (cột thứ 2 trong a)
+    //    (cột đầu tiên là tên học viên)
+    const firstDateColumn = tableHeadRow.children[1];
+    if (!firstDateColumn) return; // Thoát nếu không có cột nào
+
+    const columnWidth = firstDateColumn.offsetWidth;
+
+    // 5. Tính toán vị trí cần cuộn đến và thực thi
+    const scrollPosition = visibleStartIndex * columnWidth;
+    scrollContainer.scrollLeft = scrollPosition;
+
+  }, 0); // Dùng setTimeout(..., 0) để đảm bảo trình duyệt đã render xong bảng
+}
+// script.js
+
+/**
+ * HÀM NÂNG CẤP: Cập nhật trạng thái điểm danh và tăng/giảm số buổi đã học
+ */
+function toggleAttendance(classId, studentId, dateStr, isChecked) {
+  // Cập nhật trạng thái điểm danh (như cũ)
+  database.ref(`attendance/${classId}/${studentId}/${dateStr}`).set(isChecked);
+
+  // Cập nhật số buổi đã học của học viên
+  const studentSessionsRef = database.ref(`students/${studentId}/sessionsAttended`);
+
+  // Sử dụng transaction để đảm bảo an toàn dữ liệu
+  studentSessionsRef.transaction((currentSessions) => {
+    const currentVal = currentSessions || 0;
+    if (isChecked) {
+      // Nếu tick chọn, tăng lên 1
+      return currentVal + 1;
+    } else {
+      // Nếu bỏ tick, giảm đi 1 (đảm bảo không nhỏ hơn 0)
+      return Math.max(0, currentVal - 1);
+    }
   });
 }
 
+function updateHomeworkScore(classId, studentId, dateStr, value) {
+  if (value === "") {
+    database.ref(`homeworkScores/${classId}/${studentId}/${dateStr}`).remove();
+  } else {
+    database.ref(`homeworkScores/${classId}/${studentId}/${dateStr}`).set(parseInt(value));
+  }
+}
+// Render danh sách lớp trong Quản lý bài tập
+/* function renderHomeworkClassList() {
+  const container = document.getElementById("homework-class-list");
+  container.innerHTML = "";
+
+  database.ref(DB_PATHS.CLASSES).once("value").then(snapshot => {
+    const classes = snapshot.val() || {};
+
+    for (const classId in classes) {
+      const cls = classes[classId];
+      const li = document.createElement("li");
+      li.textContent = cls.name;
+
+      li.onclick = () => {
+        document.getElementById("homework-class-container").style.display = "none";
+        document.getElementById("homework-student-list").style.display = "block";
+        document.getElementById("homework-attendance-container").style.display = "block";
+
+        renderHomeworkStudentListForClass(classId);
+        renderHomeworkTableForClass(classId, cls);
+      };
+
+      container.appendChild(li);
+    }
+  });
+} */
 // Quay lại danh sách lớp
 function backToHomeworkClasses() {
-  document.getElementById("homework-class-container").style.display = "block";
-  document.getElementById("homework-student-container").style.display = "none";
-  document.getElementById("homework-session-container").style.display = "none";
-  selectedHomeworkClassId = null;
+  showClassListAndHideModal();
 }
-
 // Render danh sách học viên trong lớp đã chọn
 let selectedHomeworkClassId = null;
 let selectedHomeworkStudentId = null;
@@ -1600,7 +2294,6 @@ function filterHomeworkClassesBySearch() {
     renderHomeworkClassList(allClassesData);
     return;
   }
-
   // Chỉ render những lớp mà tên hoặc tên giáo viên thỏa điều kiện
   const filtered = {};
   Object.entries(allClassesData).forEach(([id, cls]) => {
