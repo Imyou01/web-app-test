@@ -619,4 +619,58 @@ button[type="button"]:hover {
 .session-item.attended {
   background-color: #d4edda; /* xanh nhạt nếu đã điểm danh */
 }
+#homework-student-list li {
+  background: #f9faff;
+  border: 1px solid #dde4f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+.clickable-student {
+  cursor: pointer;
+  color: #004a99;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.clickable-student:hover {
+  color: #007bff;
+}
+#class-add-student-datalist {
+  display: none;
+}
+#homework-student-list {
+  display: none !important;
+}
+#homework-scroll-container table {
+  border-collapse: collapse;
+  min-width: max-content;
+}
+
+#homework-scroll-container th,
+#homework-scroll-container td {
+  border: 1px solid #ccc;
+  padding: 8px 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#homework-scroll-container th {
+  background-color: #f3f6fb;
+  font-weight: bold;
+}
+/* styles.css */
+
+/* Thêm vào cuối tệp */
+.student-warning {
+  color: #d9534f; /* Màu đỏ cảnh báo */
+  font-weight: bold;
+}
+
+.student-warning::before {
+  content: '⚠️ '; /* Biểu tượng chấm than */
+  margin-right: 4px;
+}
+
+
 
