@@ -374,6 +374,7 @@
 <button onclick="backToDashboard()">
   <i data-lucide="arrow-left"></i>
 </button>
+<div class="table-scroll-wrapper">
     <table>
       <thead>
         <tr>
@@ -386,6 +387,7 @@
       </thead>
       <tbody id="account-list"></tbody>
     </table>
+    </div>
   </div>
 
   <!-- Trang Quản lý Học viên -->
@@ -396,6 +398,7 @@
 </button>
     <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
     <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
+    <div class="table-scroll-wrapper">
     <table>
       <thead>
         <tr>
@@ -412,6 +415,7 @@
       </thead>
       <tbody id="student-list"></tbody>
     </table>
+    </div>
     <div id="student-pagination">
       <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
       <span id="page-info">Trang 1 / 1</span>
@@ -434,6 +438,7 @@
     <div id="class-management-container">
       <div id="class-table-container">
         <button onclick="showClassForm()">Tạo lớp học mới</button>
+        <div class="table-scroll-wrapper">
         <table>
           <thead>
             <tr>
@@ -445,6 +450,7 @@
           </thead>
           <tbody id="class-list"></tbody>
         </table>
+        </div>
       </div>
       <div id="class-schedule-preview">
         <h4>Lịch học cố định</h4>
