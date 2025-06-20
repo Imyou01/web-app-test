@@ -671,6 +671,76 @@ button[type="button"]:hover {
   content: '⚠️ '; /* Biểu tượng chấm than */
   margin-right: 4px;
 }
+/* styles.css */
 
+/* ====================================================== */
+/* === CSS TỐI ƯU CHO DI ĐỘNG (RESPONSIVE DESIGN) === */
+/* ====================================================== */
+
+/* Áp dụng cho màn hình có chiều rộng tối đa là 768px */
+@media screen and (max-width: 768px) {
+
+  /* --- Giao diện tổng thể --- */
+  .management-page, .auth-form {
+    /* Giảm lề để có thêm không gian */
+    margin-left: 10px;
+    margin-right: 10px;
+    padding: 15px;
+  }
+
+  /* --- Xử lý các bảng thông thường (vd: Quản lý học viên, tài khoản) --- */
+  /* Ẩn a của bảng */
+  table thead {
+    display: none;
+  }
+
+  /* Chuyển mỗi hàng thành một card */
+  table tr {
+    display: block;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  /* Chuyển mỗi ô thành một dòng riêng */
+  table td {
+    display: block;
+    text-align: right; /* Đưa nội dung sang phải */
+    padding-left: 50%; /* Tạo không gian bên trái cho tiêu đề */
+    position: relative;
+    border-bottom: 1px solid #eee;
+  }
+
+  table td:last-child {
+    border-bottom: none;
+  }
+
+  /* Thêm tiêu đề cho mỗi ô bằng pseudo-element ::before */
+  table td::before {
+    content: attr(data-label); /* Lấy nội dung từ thuộc tính data-label */
+    position: absolute;
+    left: 10px;
+    width: calc(50% - 20px);
+    text-align: left;
+    font-weight: bold;
+    color: #004a99;
+  }
+
+  /* --- Tối ưu riêng cho Bảng điểm danh --- */
+  /* Bảng này quá rộng nên ta sẽ tối ưu để cuộn ngang dễ hơn */
+  #homework-scroll-container th,
+  #homework-scroll-container td {
+    /* Giảm kích thước chữ và padding để vừa hơn trên điện thoại */
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  #homework-scroll-container th,
+  #homework-scroll-container td:first-child {
+    /* Giảm chiều rộng cột tên để tiết kiệm không gian */
+    min-width: 120px !important;
+  }
+}
 
 
