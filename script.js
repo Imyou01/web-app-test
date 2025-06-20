@@ -196,8 +196,6 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 // =========================== AUTH FUNCTIONS ===========================
-
-// Đăng ký
 function register() {
   const email = document.getElementById("register-email").value.trim();
   const password = document.getElementById("register-password").value.trim();
@@ -211,29 +209,66 @@ function register() {
   auth.createUserWithEmailAndPassword(email, password)
     .then(async (credential) => {
       const user = credential.user;
-      // Lưu thêm name và role vào Realtime Database
-      await database.ref(`${DB_PATHS.USERS}/${user.uid}`).set({
-        name: fullName,
-        role: null
-      });
+      console.log("Auth user created:", user.uid); // Log this to see if it reaches here
 
-      // Gửi email xác thực
-      user.sendEmailVerification()
-        .then(() => {
-          alert("Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và bấm vào link xác thực trước khi đăng nhập.");
-          setTimeout(() => {
-            auth.signOut();
-          }, 1500);
-        })
-        .catch(error => {
-          alert("Lỗi khi gửi email xác thực: " + error.message);
-        });
+      // Introduce a small delay OR rely on onAuthStateChanged to pick up the new user
+      // For a more immediate write, a slight delay can sometimes help with propagation
+      // of the new user's auth state to the Realtime Database rules engine.
+      setTimeout(async () => {
+        try {
+          // Lưu thêm name và role vào Realtime Database
+          await database.ref(`${DB_PATHS.USERS}/${user.uid}`).set({
+            name: fullName,
+            role: null // Set initial role to null
+          });
+          console.log("User data written to DB successfully for:", user.uid);
+
+          // Gửi email xác thực
+          user.sendEmailVerification()
+            .then(() => {
+              Swal.fire({
+                icon: 'success',
+                title: 'Đăng ký thành công!',
+                text: "Đã gửi email xác thực. Vui lòng kiểm tra hộp thư và bấm vào link xác thực trước khi đăng nhập.",
+                timer: 4000,
+                showConfirmButton: false
+              });
+              setTimeout(() => {
+                auth.signOut(); // Sign out to force re-login and email verification
+              }, 1500);
+            })
+            .catch(error => {
+              console.error("Lỗi khi gửi email xác thực:", error);
+              Swal.fire({
+                icon: 'error',
+                title: 'Lỗi!',
+                text: "Lỗi khi gửi email xác thực: " + error.message,
+              });
+              // Optionally, delete the created user if email sending fails critically
+              // user.delete();
+            });
+        } catch (dbError) {
+          console.error("Lỗi khi lưu dữ liệu người dùng vào Realtime Database:", dbError);
+          Swal.fire({
+            icon: 'error',
+            title: 'Lỗi!',
+            text: "Lỗi lưu dữ liệu người dùng: " + dbError.message + ". Vui lòng thử lại.",
+          });
+          // It's good practice to delete the Auth user if the DB write fails
+          // to prevent orphaned Auth accounts.
+          user.delete().catch(delErr => console.error("Error deleting auth user:", delErr));
+        }
+      }, 500); // Small delay, e.g., 500ms
     })
     .catch(error => {
-      alert("Lỗi đăng ký: " + error.message);
+      console.error("Lỗi đăng ký Auth:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Lỗi đăng ký!',
+        text: error.message,
+      });
     });
 }
-
 // Đăng nhập
 function login() {
   const email = document.getElementById("login-email").value.trim();
