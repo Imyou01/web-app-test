@@ -674,7 +674,7 @@ button[type="button"]:hover {
 /* styles.css */
 
 /* ====================================================== */
-/* === CSS TỐI ƯU CHO DI ĐỘNG (RESPONSIVE DESIGN) === */
+/* === CSS TỐI ƯU CHO DI ĐỘNG (PHIÊN BẢN HOÀN CHỈNH) === */
 /* ====================================================== */
 
 /* Áp dụng cho màn hình có chiều rộng tối đa là 768px */
@@ -682,20 +682,18 @@ button[type="button"]:hover {
 
   /* --- Giao diện tổng thể --- */
   .management-page, .auth-form {
-    /* Giảm lề để có thêm không gian */
     margin-left: 10px;
     margin-right: 10px;
     padding: 15px;
   }
 
-  /* --- Xử lý các bảng thông thường (vd: Quản lý học viên, tài khoản) --- */
-  /* Ẩn a của bảng */
-  table thead {
+  /* --- Xử lý các bảng thông thường (TRỪ BẢNG ĐIỂM DANH) --- */
+  /* Dùng :not() để loại trừ bảng điểm danh ra khỏi quy tắc này */
+  table:not(#homework-table) thead {
     display: none;
   }
 
-  /* Chuyển mỗi hàng thành một card */
-  table tr {
+  table:not(#homework-table) tr {
     display: block;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -703,22 +701,20 @@ button[type="button"]:hover {
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   }
 
-  /* Chuyển mỗi ô thành một dòng riêng */
-  table td {
+  table:not(#homework-table) td {
     display: block;
-    text-align: right; /* Đưa nội dung sang phải */
-    padding-left: 50%; /* Tạo không gian bên trái cho tiêu đề */
+    text-align: right;
+    padding-left: 50%;
     position: relative;
     border-bottom: 1px solid #eee;
   }
 
-  table td:last-child {
+  table:not(#homework-table) td:last-child {
     border-bottom: none;
   }
 
-  /* Thêm tiêu đề cho mỗi ô bằng pseudo-element ::before */
-  table td::before {
-    content: attr(data-label); /* Lấy nội dung từ thuộc tính data-label */
+  table:not(#homework-table) td::before {
+    content: attr(data-label);
     position: absolute;
     left: 10px;
     width: calc(50% - 20px);
@@ -727,19 +723,57 @@ button[type="button"]:hover {
     color: #004a99;
   }
 
-  /* --- Tối ưu riêng cho Bảng điểm danh --- */
-  /* Bảng này quá rộng nên ta sẽ tối ưu để cuộn ngang dễ hơn */
-  #homework-scroll-container th,
-  #homework-scroll-container td {
-    /* Giảm kích thước chữ và padding để vừa hơn trên điện thoại */
-    font-size: 13px;
-    padding: 6px 8px;
+  /* --- Tối ưu Giao diện chọn lớp ở Quản lý bài tập --- */
+  #homework-management > div {
+    flex-direction: column; /* Chuyển thành cột dọc */
   }
 
-  #homework-scroll-container th,
-  #homework-scroll-container td:first-child {
-    /* Giảm chiều rộng cột tên để tiết kiệm không gian */
-    min-width: 120px !important;
+  #homework-class-container {
+      display: none; /* Ẩn div rỗng không cần thiết */
+  }
+
+  #homework-class-list {
+      width: 100%; /* Chiếm toàn bộ chiều rộng */
+      border-right: none; /* Bỏ đường viền bên phải */
+  }
+
+  /* --- Tối ưu riêng cho Bảng điểm danh (KHÔI PHỤC CUỘN NGANG) --- */
+  #homework-modal-overlay .modal-content {
+    /* Cho phép modal rộng hơn trên điện thoại */
+    max-width: 95vw; 
+  }
+  
+  #homework-table {
+    display: table; /* Giữ nguyên là dạng bảng */
+  }
+
+  #homework-table thead {
+    display: table-header-group; /* HIỂN THỊ LẠI a ngày tháng */
+  }
+
+  #homework-table tr {
+    display: table-row; /* Giữ nguyên là hàng ngang */
+    border: none;
+    margin-bottom: 0;
+  }
+
+  #homework-table td {
+    display: table-cell; /* Giữ nguyên là ô trong cột */
+    text-align: center; /* Căn giữa lại cho đẹp */
+    position: static;
+    padding-left: 8px;
+    border-bottom: 1px solid #ccc;
+    font-size: 13px; /* Giảm kích thước chữ để vừa hơn */
+    padding: 6px 8px;
+  }
+  
+  #homework-table td:first-child {
+      min-width: 120px !important; /* Đặt lại chiều rộng cột tên */
+  }
+
+  /* Ẩn các label giả đi cho bảng điểm danh */
+  #homework-table td::before {
+    content: none;
   }
 }
 
