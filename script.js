@@ -676,15 +676,15 @@ function renderStudentList(dataset) {
     const warningClass = isWarning ? 'student-warning' : '';
     const row = `
       <tr class="${isHighlight ? 'highlight-row' : ''}">
-      <td class="${warningClass}">${highlight(st.name || "")}</td>
-        <td>${st.dob || ""}</td>
-        <td>${highlight(st.parent || "")}</td>
-        <td>${highlight(st.parentPhone || "")}</td>
-        <td>${highlight(st.parentJob || "")}</td>
-        <td>${st.package || ""}</td>
-        <td>${st.sessionsAttended || 0}</td>
-        <td>${st.sessionsPaid || 0}</td>
-        <td>
+        <td data-label="Họ và tên" class="${warningClass}">${highlight(st.name || "")}</td>
+        <td data-label="Năm sinh">${st.dob || ""}</td>
+        <td data-label="Bố/Mẹ">${highlight(st.parent || "")}</td>
+        <td data-label="Số điện thoại">${highlight(st.parentPhone || "")}</td>
+        <td data-label="Nghề nghiệp">${highlight(st.parentJob || "")}</td>
+        <td data-label="Gói">${st.package || ""}</td>
+        <td data-label="Đã học">${attended}</td>
+        <td data-label="Đã đóng">${paid}</td>
+        <td data-label="Hành động">
           <button onclick="editStudent('${id}')">Sửa</button>
           ${btnBuoiHoc}
           <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
