@@ -674,107 +674,44 @@ button[type="button"]:hover {
 /* styles.css */
 
 /* ====================================================== */
-/* === CSS TỐI ƯU CHO DI ĐỘNG (PHIÊN BẢN HOÀN CHỈNH) === */
+/* === CSS TỐI ƯU CHO DI ĐỘNG (GIAO DIỆN BẢNG NGANG) === */
 /* ====================================================== */
+
+/* Định nghĩa kiểu cho lớp bọc cuộn ngang */
+.table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Giúp cuộn mượt hơn trên iOS */
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
 
 /* Áp dụng cho màn hình có chiều rộng tối đa là 768px */
 @media screen and (max-width: 768px) {
 
-  /* --- Giao diện tổng thể --- */
+  /* Giảm lề các trang để có thêm không gian */
   .management-page, .auth-form {
     margin-left: 10px;
     margin-right: 10px;
     padding: 15px;
   }
 
-  /* --- Xử lý các bảng thông thường (TRỪ BẢNG ĐIỂM DANH) --- */
-  /* Dùng :not() để loại trừ bảng điểm danh ra khỏi quy tắc này */
-  table:not(#homework-table) thead {
-    display: none;
+  /* Thu nhỏ nội dung của TẤT CẢ các bảng */
+  table th, table td {
+    font-size: 13px; /* Giảm kích thước chữ */
+    padding: 10px 8px; /* Giảm khoảng cách bên trong ô */
+    white-space: nowrap; /* Ngăn chữ xuống dòng, giữ cho các cột thẳng hàng */
   }
 
-  table:not(#homework-table) tr {
-    display: block;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-
-  table:not(#homework-table) td {
-    display: block;
-    text-align: right;
-    padding-left: 50%;
-    position: relative;
-    border-bottom: 1px solid #eee;
-  }
-
-  table:not(#homework-table) td:last-child {
-    border-bottom: none;
-  }
-
-  table:not(#homework-table) td::before {
-    content: attr(data-label);
-    position: absolute;
-    left: 10px;
-    width: calc(50% - 20px);
-    text-align: left;
-    font-weight: bold;
-    color: #004a99;
-  }
-
-  /* --- Tối ưu Giao diện chọn lớp ở Quản lý bài tập --- */
-  #homework-management > div {
-    flex-direction: column; /* Chuyển thành cột dọc */
-  }
-
-  #homework-class-container {
-      display: none; /* Ẩn div rỗng không cần thiết */
-  }
-
-  #homework-class-list {
-      width: 100%; /* Chiếm toàn bộ chiều rộng */
-      border-right: none; /* Bỏ đường viền bên phải */
-  }
-
-  /* --- Tối ưu riêng cho Bảng điểm danh (KHÔI PHỤC CUỘN NGANG) --- */
-  #homework-modal-overlay .modal-content {
-    /* Cho phép modal rộng hơn trên điện thoại */
-    max-width: 95vw; 
+  /* Tối ưu riêng cho các nút trong bảng */
+  table td button {
+    padding: 4px 8px;
+    font-size: 12px;
   }
   
-  #homework-table {
-    display: table; /* Giữ nguyên là dạng bảng */
-  }
-
-  #homework-table thead {
-    display: table-header-group; /* HIỂN THỊ LẠI a ngày tháng */
-  }
-
-  #homework-table tr {
-    display: table-row; /* Giữ nguyên là hàng ngang */
-    border: none;
-    margin-bottom: 0;
-  }
-
+  /* Tối ưu riêng cho bảng điểm danh để gọn hơn nữa */
+  #homework-table th,
   #homework-table td {
-    display: table-cell; /* Giữ nguyên là ô trong cột */
-    text-align: center; /* Căn giữa lại cho đẹp */
-    position: static;
-    padding-left: 8px;
-    border-bottom: 1px solid #ccc;
-    font-size: 13px; /* Giảm kích thước chữ để vừa hơn */
-    padding: 6px 8px;
-  }
-  
-  #homework-table td:first-child {
-      min-width: 120px !important; /* Đặt lại chiều rộng cột tên */
-  }
-
-  /* Ẩn các label giả đi cho bảng điểm danh */
-  #homework-table td::before {
-    content: none;
+    padding: 8px 6px;
   }
 }
-
-
