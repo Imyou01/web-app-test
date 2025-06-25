@@ -29,6 +29,7 @@ let allClassesData = {};
 let currentClassStudents = [];
 let calendarWeekly = null;
 let calendarMini   = null;
+let personnelListInitialized = false;
 
 // Đường dẫn các node trong Realtime Database
 const DB_PATHS = {
@@ -322,6 +323,7 @@ function logout() {
     showForm("login");
     window.location.hash = "";
     hideAllManagementPages();
+    personnelListInitialized = false;
   }).catch(error => {
     alert("Lỗi đăng xuất: " + error.message);
   });
@@ -1862,11 +1864,21 @@ ${scheduleText}
 
 // Khởi tạo listener realtime cho lớp
 function initClassesListener() {
+  // Chỉ nên có MỘT listener cho CLASSES node.
+  // Gỡ bỏ listener cũ nếu có để tránh nhân đôi.
+  database.ref(DB_PATHS.CLASSES).off("value"); // THÊM DÒNG NÀY để gỡ bỏ listener cũ nếu hàm được gọi lại
   database.ref(DB_PATHS.CLASSES).on("value", snapshot => {
     const classes = snapshot.val() || {};
-    allClassesData = classes;
-    renderClassList(classes);
+    allClassesData = classes; // CẬP NHẬT BIẾN TOÀN CỤC Ở ĐÂY
+    renderClassList(classes); // Render cho Quản lý lớp học
     clearSchedulePreview();
+
+    // SAU KHI allClassesData ĐƯỢC CẬP NHẬT, MỚI THỬ RENDER CHO QUẢN LÝ NHÂN SỰ NẾU ĐANG Ở TRANG ĐÓ
+    if (window.location.hash.slice(1) === "personnel-management" && personnelListInitialized) {
+        // Chỉ gọi populatePersonnelClassList nếu trang QLNS đã được khởi tạo và đang hiển thị.
+        // Hơn nữa, chúng ta không cần truyền classes nữa vì nó sẽ dùng allClassesData toàn cục.
+        populatePersonnelClassList(allClassesData); // Gọi lại để cập nhật danh sách QLNS
+    }
   });
 }
 // MỚI: QUẢN LÝ NHÂN SỰ
@@ -1924,33 +1936,45 @@ function showPersonnelSection(section) {
 
 // MỚI: Hàm khởi tạo trang quản lý nhân sự
 async function initPersonnelManagement() {
+    // Nếu đã khởi tạo rồi thì thoát, tránh việc chạy lại nhiều lần khi hashchange
+    if (personnelListInitialized) {
+        showLoading(false);
+        return;
+    }
+
     const hasAccess = await checkPersonnelAccess();
     if (!hasAccess) {
         Swal.fire("Truy cập bị từ chối", "Bạn không có quyền truy cập chức năng này.", "warning");
-        window.location.hash = "dashboard"; // Chuyển về dashboard
+        window.location.hash = "dashboard";
         return;
     }
 
     showLoading(true);
-    await populatePersonnelClassList(); // Vẫn cần điền danh sách lớp
-    await renderStaffSalaryTable(); // Vẫn cần điền bảng nhân sự và lương
+    // KHÔNG CẦN await populatePersonnelClassList() ở đây nữa
+    // vì nó sẽ được gọi từ initClassesListener hoặc renderStaffSalaryTable nếu cần
+    await renderStaffSalaryTable();
 
     // Mặc định hiển thị phần danh sách lớp khi vào trang Quản lý Nhân sự
-    showPersonnelSection('classes'); // <--- SỬA TẠI ĐÂY: Gọi hàm mới
+    showPersonnelSection('classes');
     
     showLoading(false);
-}
+    personnelListInitialized = true; // Đặt cờ là true sau khi khởi tạo thành công
 
+    // Sau khi trang được khởi tạo, đảm bảo populatePersonnelClassList được gọi VỚI DỮ LIỆU MỚI NHẤT
+    // Trường hợp này, nó sẽ dùng dữ liệu từ allClassesData đã được listener cập nhật
+    populatePersonnelClassList(allClassesData); 
+}
 // MỚI: Điền danh sách lớp vào Ô 1 (giống quản lý bài tập)
-async function populatePersonnelClassList() {
+async function populatePersonnelClassList(classesToRender = allClassesData) { // THAY ĐỔI Ở ĐÂY
     const classListEl = document.getElementById("personnel-class-list");
     classListEl.innerHTML = ""; // Clear existing list
 
-    const snapshot = await database.ref(DB_PATHS.CLASSES).once("value");
-    const classes = snapshot.val() || {};
-    allClassesData = classes; // Cập nhật allClassesData nếu chưa có
+    // BỎ DÒNG NÀY: const snapshot = await database.ref(DB_PATHS.CLASSES).once("value");
+    // BỎ DÒNG NÀY: const classes = snapshot.val() || {};
+    // BỎ DÒNG NÀY: allClassesData = classes; // KHÔNG CẬP NHẬT Ở ĐÂY NỮA
 
-    Object.entries(classes).forEach(([classId, cls]) => {
+    // Duyệt qua dữ liệu đã có (từ tham số hoặc biến toàn cục)
+    Object.entries(classesToRender).forEach(([classId, cls]) => { // THAY ĐỔI Ở ĐÂY
         const li = document.createElement("li");
         li.textContent = cls.name || "Không tên";
         li.onclick = () => {
@@ -1960,13 +1984,13 @@ async function populatePersonnelClassList() {
         classListEl.appendChild(li);
     });
 }
-
 // MỚI: Lọc danh sách lớp trong Quản lý nhân sự
 function filterPersonnelClassesBySearch() {
     const query = document.getElementById("personnel-class-search").value.toLowerCase().trim();
     const classListEl = document.getElementById("personnel-class-list");
     classListEl.innerHTML = "";
 
+    // Đảm bảo lọc từ allClassesData (biến toàn cục)
     Object.entries(allClassesData).forEach(([classId, cls]) => {
         const name = (cls.name || "").toLowerCase();
         if (name.includes(query)) {
@@ -1981,12 +2005,11 @@ function filterPersonnelClassesBySearch() {
     });
 }
 
-
 // MỚI: Render bảng chấm công của lớp (Ô 1 - giống bảng điểm danh học viên nhưng cho nhân sự)
 async function renderPersonnelAttendanceTable(classId, className) {
     showLoading(true);
-   // document.getElementById("personnel-class-container").style.display = "none";
-   // document.getElementById("personnel-staff-container").style.display = "none";
+    // document.getElementById("personnel-class-container").style.display = "none";
+    // document.getElementById("personnel-staff-container").style.display = "none";
     document.getElementById("personnel-classes-section").style.display = "none"; 
     document.getElementById("personnel-staff-section").style.display = "none";   
 
@@ -1994,7 +2017,7 @@ async function renderPersonnelAttendanceTable(classId, className) {
     document.querySelector('.personnel-controls').style.display = 'none'; 
     document.getElementById("current-personnel-class-name").textContent = className;
 
-    const classSnap = await database.ref(`classes/${classId}`).once("value");
+    const classSnap = await database.ref(`classes/${classId}`).once("value"); // Vẫn cần đọc lại chi tiết lớp
     const cls = classSnap.val();
     if (!cls) {
         Swal.fire("Lỗi", "Lớp không tồn tại!", "error");
