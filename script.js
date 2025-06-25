@@ -972,7 +972,60 @@ function renderClassList(classes) {
     tbody.appendChild(tr);
   });
 }
+// Mảng chứa các role được phép làm giáo viên hoặc trợ giảng
+const TEACHER_ROLES = ["Giáo Viên", "Trợ Giảng"];
+const ASSISTANT_TEACHER_ROLES = ["Giáo Viên", "Trợ Giảng"];
 
+/**
+ * Điền vào ô lựa chọn giáo viên trong form lớp học
+ */
+async function populateTeacherDropdown() {
+  const teacherSelect = document.getElementById("class-teacher");
+  teacherSelect.innerHTML = '<option value="">-- Chọn giáo viên --</option>'; // Reset dropdown
+
+  try {
+    // Lấy dữ liệu tất cả người dùng từ node 'users'
+    const snapshot = await database.ref(DB_PATHS.USERS).once("value");
+    const users = snapshot.val() || {}; // Lấy giá trị hoặc object rỗng nếu không có dữ liệu
+
+    // Duyệt qua từng người dùng và thêm vào dropdown nếu họ có role phù hợp
+    Object.entries(users).forEach(([uid, userData]) => {
+      // Kiểm tra xem người dùng có role và role đó có trong danh sách TEACHER_ROLES hay không
+      if (userData.role && TEACHER_ROLES.includes(userData.role)) {
+        const option = document.createElement("option"); // Tạo một option mới
+        // Giá trị của option là tên người dùng, nếu không có tên thì dùng email
+        option.value = userData.name || userData.email;
+        // Text hiển thị trong dropdown sẽ là "Tên (Role)"
+        option.textContent = `${userData.name || userData.email} (${userData.role})`;
+        teacherSelect.appendChild(option); // Thêm option vào dropdown
+      }
+    });
+  } catch (error) {
+    console.error("Lỗi khi tải danh sách giáo viên:", error);
+    Swal.fire("Lỗi", "Không thể tải danh sách giáo viên. Vui lòng thử lại.", "error"); // Hiển thị lỗi dùng SweetAlert2
+  }
+}
+async function populateAssistantTeacherDropdown() {
+    const assistantTeacherSelect = document.getElementById("class-assistant-teacher");
+    assistantTeacherSelect.innerHTML = '<option value="">-- Không có trợ giảng --</option>'; // Reset dropdown
+
+    try {
+        const snapshot = await database.ref(DB_PATHS.USERS).once("value");
+        const users = snapshot.val() || {};
+
+        Object.entries(users).forEach(([uid, userData]) => {
+            if (userData.role && ASSISTANT_TEACHER_ROLES.includes(userData.role)) {
+                const option = document.createElement("option");
+                option.value = userData.name || userData.email;
+                option.textContent = `${userData.name || userData.email} (${userData.role})`;
+                assistantTeacherSelect.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error("Lỗi khi tải danh sách trợ giảng:", error);
+        Swal.fire("Lỗi", "Không thể tải danh sách trợ giảng. Vui lòng thử lại.", "error");
+    }
+}
 // Chỉnh sửa lớp (đổ dữ liệu vào form)
 async function editClass(id) {
    // 1. Mở overlay + container
@@ -993,7 +1046,10 @@ async function editClass(id) {
     // Điền thông tin chung
     document.getElementById("class-index").value = id;
     document.getElementById("class-name").value = cls.name || "";
+    await populateTeacherDropdown();
     document.getElementById("class-teacher").value = cls.teacher || "";
+    await populateAssistantTeacherDropdown();
+    document.getElementById("class-assistant-teacher").value = cls.assistantTeacher || "";
 
     // 3.2. Cập nhật dropdown chọn học viên (đảm bảo allStudentsData đã có giá trị)
     await updateStudentOptionsForClassForm();
@@ -1022,6 +1078,8 @@ async function showClassForm() {
 
   renderClassStudentList([]);
   await updateStudentOptionsForClassForm();
+  await populateTeacherDropdown();
+  await populateAssistantTeacherDropdown();
 
   fillFixedScheduleForm(null);
   renderFixedScheduleDisplay();
@@ -1131,8 +1189,6 @@ function renderClassStudentList(studentIds) {
 let isSavingClass = false;
 // script.js
 
-// HÃY THAY THẾ TOÀN BỘ HÀM saveClass() CŨ BẰNG HÀM MỚI NÀY
-
 async function saveClass() {
   if (isSavingClass) return;
   isSavingClass = true;
@@ -1148,6 +1204,7 @@ async function saveClass() {
   // Lấy dữ liệu từ form
   const name = document.getElementById("class-name").value.trim();
   const teacher = document.getElementById("class-teacher").value.trim();
+  const assistantTeacher = document.getElementById("class-assistant-teacher").value.trim();
   const startDate = document.getElementById("class-start-date").value;
   const fixedSchedule = getFixedScheduleFromForm();
   const id = document.getElementById("class-index").value;
@@ -1173,16 +1230,13 @@ async function saveClass() {
       const newClassData = {
         name,
         teacher,
+        assistantTeacher,
         students: {}, // Khởi tạo object students rỗng
         fixedSchedule,
         startDate,
         createdAt: nowTimestamp,
         updatedAt: nowTimestamp
       };
-
-      // =================================================================
-      // THAY ĐỔI Ở ĐÂY: Lấy thêm Tên và Gói đăng ký của học viên
-      // =================================================================
       currentClassStudents.forEach(studentId => {
         const studentInfo = allStudentsData[studentId]; // Tra cứu thông tin học viên
         if (studentInfo) {
@@ -1211,6 +1265,7 @@ async function saveClass() {
       const updatedClassData = {
         name,
         teacher,
+        assistantTeacher,
         students: {}, // Khởi tạo object students rỗng
         fixedSchedule,
         updatedAt: nowTimestamp
