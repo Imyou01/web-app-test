@@ -1152,7 +1152,10 @@ async function editClass(id) {
     renderFixedScheduleDisplay(); // Hàm này đã hiển thị lịch ở dưới form
 
     setupScheduleInputsListener(); // Đảm bảo listener hoạt động
-
+    const classAddWrapper = document.getElementById("class-add-wrapper");
+    if (classAddWrapper) {
+      classAddWrapper.style.display = "block"; // <-- THÊM DÒNG NÀY
+    }
   } catch (err) {
     console.error("Lỗi tải lớp học:", err);
     Swal.fire("Lỗi", "Lỗi tải lớp học: " + err.message, "error"); // Dùng Swal.fire
@@ -1180,6 +1183,11 @@ async function showClassForm() {
   fillFixedScheduleForm(null);
   renderFixedScheduleDisplay();
   setupScheduleInputsListener();
+
+  const classAddWrapper = document.getElementById("class-add-wrapper");
+  if (classAddWrapper) {
+    classAddWrapper.style.display = "block"; // <-- THÊM DÒNG NÀY
+  }
 
   document.getElementById("class-form-modal").style.display = "flex";
   document.getElementById("class-form-container").style.display = "block";
@@ -1636,64 +1644,72 @@ function updateHomeworkScore(classId, studentId, score) {
 //    – Mỗi lần mở modal, sinh numSessions ngày sắp tới, không cần lưu scheduleDates
 // ----------------------------------------------------------------------------
 async function viewStudentSessions(studentId, classId) {
-  // 3.1. Lấy info lớp (để có fixedSchedule, tên lớp)
-const listEl = document.getElementById("class-student-list");
-if (listEl) listEl.style.display = "none";
+  // Hiển thị chỉ báo tải
+  showLoading(true); // Giả sử bạn có hàm này
 
-const searchEl = document.getElementById("class-add-student-search");
-if (searchEl) searchEl.style.display = "none";
-
-const addBtnEl = document.getElementById("add-student-btn");
-if (addBtnEl) addBtnEl.style.display = "none";
+  // 1. Lấy thông tin lớp (để có fixedSchedule, tên lớp)
+  // Chỉ gọi database.ref() một lần
   const clsSnap = await database.ref(`classes/${classId}`).once("value");
   const clsData = clsSnap.val();
   if (!clsData) {
-    return alert("Lớp không tồn tại!");
+    Swal.fire("Lỗi", "Lớp không tồn tại!", "error"); // Sử dụng Swal.fire để nhất quán
+    showLoading(false);
+    return;
   }
 
-  // 3.2. Kiểm tra học sinh đã được add chưa
+  // Ẩn toàn bộ phần "Danh sách học viên thêm vào lớp"
+  const classAddWrapper = document.getElementById("class-add-wrapper");
+  if (classAddWrapper) {
+    classAddWrapper.style.display = "none"; // CHỈ ẨN ĐI, KHÔNG XÓA
+  }
+  
+  // 3.2. Kiểm tra học sinh đã được thêm chưa
   const enrolledObj = clsData.students && clsData.students[studentId];
   if (!enrolledObj || !enrolledObj.enrolledAt) {
-    return alert("Học sinh chưa được thêm vào lớp này!");
+    Swal.fire("Thông báo", "Học sinh chưa được thêm vào lớp này!", "info"); // Sử dụng Swal.fire
+    showLoading(false);
+    // Đảm bảo wrapper được hiển thị lại nếu thoát sớm
+    if (classAddWrapper) {
+        classAddWrapper.style.display = "block";
+    }
+    return;
   }
   const enrolledAt = enrolledObj.enrolledAt;
   const fixedSchedule = clsData.fixedSchedule || {};
 
   // 3.3. Sinh N buổi sắp tới (ví dụ 30 buổi)
   const NUM_FUTURE = 30;
+  // Đảm bảo generateFutureSessionDates tồn tại và được định nghĩa đúng ở nơi khác
   const sessionDates = generateFutureSessionDates(fixedSchedule, enrolledAt, NUM_FUTURE);
 
   // 3.4. Lấy attendance hiện có của học sinh
   const attSnap = await database.ref(`attendance/${classId}/${studentId}`).once("value");
   const attendanceData = attSnap.val() || {};
-  // attendanceData có dạng: { "2025-06-07": true, "2025-06-11": false, … }
 
   // 3.5. Xóa nội dung cũ trong slider
   const sliderEl = document.getElementById("sessions-slider");
   if (!sliderEl) {
     console.warn("Không tìm thấy #sessions-slider trong DOM!");
+    showLoading(false);
     return;
   }
   sliderEl.innerHTML = "";
+
   // 3.6. Tạo các thẻ session-item và checkbox
   sessionDates.forEach(dateStr => {
     const container = document.createElement("div");
     container.className = "session-item";
-    // Nếu attendanceData[dateStr] === true thì đã điểm danh → thêm class attended
     if (attendanceData[dateStr] === true) {
       container.classList.add("attended");
     }
 
-    // Format ngày sang "DD/MM/YYYY - HH:mm"
     const parts = dateStr.split("-");
-    // Tìm ra tên thứ (tiếng Anh) để lấy giờ từ fixedSchedule
     const dayName = new Date(dateStr).toLocaleDateString("en-US", { weekday: "long" });
     const timeStr = fixedSchedule[dayName] || ""; 
     const txtDate = document.createElement("p");
     txtDate.textContent = `${parts[2]}/${parts[1]}/${parts[0]} - ${timeStr}`;
     container.appendChild(txtDate);
 
-    // Checkbox: nếu attendanceData[dateStr] === true → checked
     const chk = document.createElement("input");
     chk.type = "checkbox";
     chk.checked = attendanceData[dateStr] === true;
@@ -1720,25 +1736,24 @@ if (addBtnEl) addBtnEl.style.display = "none";
   modal.style.display = "flex";
   const modalContent = document.querySelector("#student-sessions-modal .modal-content");
   modalContent.classList.remove("scale-up");
-  // Force reflow để animation scale-up chạy lại
-  void modalContent.offsetWidth;
+  void modalContent.offsetWidth; // Buộc reflow
   modalContent.classList.add("scale-up");
-  //wrap & remove
-  const addWrapper = document.getElementById("class-add-wrapper");
-if (addWrapper) {
-  addWrapper.remove(); // xoá luôn phần thêm học viên và danh sách
+  
+  showLoading(false);
 }
-
-}
-
 // ----------------------------------------------------------------------------
 // 4. Hàm đóng modal
 // ----------------------------------------------------------------------------
 function hideStudentSessions() {
   const modal = document.getElementById("student-sessions-modal");
   if (modal) modal.style.display = "none";
-}
 
+  // Hiển thị lại phần thêm học viên vào lớp khi đóng modal buổi học
+  const classAddWrapper = document.getElementById("class-add-wrapper");
+  if (classAddWrapper) {
+    classAddWrapper.style.display = "block"; // Hiển thị lại
+  }
+}
 // Vẽ preview lịch cố định (ô calendar nhỏ bên phải)
 function renderCalendarSchedule(fixedSchedule) {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
