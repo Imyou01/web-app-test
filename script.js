@@ -2126,17 +2126,19 @@ let allStaffData = {}; // Biến toàn cục để lưu trữ dữ liệu nhân 
 async function renderStaffSalaryTable() {
     const staffSalaryListEl = document.getElementById("staff-salary-list");
     staffSalaryListEl.innerHTML = ""; // Clear existing list
-    allStaffData = {}; // Reset
+    allStaffData = {}; // Reset allStaffData mỗi khi render lại
 
     showLoading(true);
     try {
         const snapshot = await database.ref(DB_PATHS.USERS).once("value");
         const users = snapshot.val() || {};
 
-        for (const uid in users) {
+        for (const uid in users) { // Duyệt qua từng UID duy nhất
             const userData = users[uid];
-            if (userData.role && PAYROLL_STAFF_ROLES.includes(userData.role)) {
-                allStaffData[uid] = userData; // Lưu trữ vào biến toàn cục
+            // Kiểm tra nếu người dùng có role phù hợp VÀ chưa được thêm vào allStaffData
+            // (Mặc dù allStaffData được reset, nhưng kiểm tra này đảm bảo logic chặt chẽ)
+            if (userData.role && PAYROLL_STAFF_ROLES.includes(userData.role) && !allStaffData[uid]) {
+                allStaffData[uid] = userData; // Lưu trữ vào biến toàn cục với UID làm key
 
                 const row = document.createElement("tr");
                 row.innerHTML = `
@@ -2167,7 +2169,6 @@ async function renderStaffSalaryTable() {
         });
     });
 }
-
 // MỚI: Lưu lương của nhân sự
 async function saveStaffSalary(inputElement) {
     const uid = inputElement.dataset.uid;
