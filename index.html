@@ -26,6 +26,7 @@
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
@@ -363,10 +364,6 @@
         <div class="icon lucide" data-lucide="school"></div>
         <div>Quản lý lớp học</div>
       </a>
-      <a class="card" onclick="alert('Chức năng quản lý nhân sự đang phát triển')">
-        <div class="icon lucide" data-lucide="user-check"></div>
-        <div>Quản lý nhân sự</div>
-      </a>
       <a class="card" href="#schedule-management">
         <div class="icon lucide" data-lucide="calendar-days"></div>
         <div>Lịch học</div>
@@ -375,6 +372,10 @@
         <div class="icon lucide" data-lucide="book-open"></div>
         <div>Quản lý bài tập</div>
       </a>
+       <a class="card" href="#personnel-management" id="personnel-management-card">
+            <div class="icon lucide" data-lucide="users-round"></div>
+            <div>Quản lý nhân sự</div>
+        </a>
     </main>
   </div>
 
@@ -523,7 +524,96 @@
     </div>
   </div>
 </div>
+<!-- Quản lí nhân sự -->
+<div id="personnel-management" class="management-page" style="display:none;">
+    <h2>Quản lý Nhân sự</h2>
+    <button onclick="backToDashboard()">
+        <i data-lucide="arrow-left"></i>
+    </button>
+    <div class="personnel-controls" style="margin-top: 20px; margin-bottom: 20px;">
+        <button onclick="showPersonnelSection('classes')" id="btn-show-personnel-classes" style="margin-right: 10px;">
+            <i data-lucide="book-open"></i> Danh sách lớp (Chấm công)
+        </button>
+        <button onclick="showPersonnelSection('staff')" id="btn-show-personnel-staff">
+            <i data-lucide="users-round"></i> Danh sách nhân sự (Lương)
+        </button>
+    </div>
 
+    <div id="personnel-classes-section" style="display:none;">
+        <h3>Chọn lớp để chấm công</h3>
+        <input type="text" id="personnel-class-search" placeholder="Tìm lớp..." oninput="filterPersonnelClassesBySearch()" style="width: 100%; padding: 8px; margin-bottom: 10px;"/>
+        <ul id="personnel-class-list" class="styled-list"></ul>
+    </div>
+
+    <div id="personnel-staff-section" style="display:none;">
+        <h3>Danh sách Nhân sự & Lương</h3>
+        <div class="table-scroll-wrapper">
+            <table id="staff-salary-table">
+                <thead>
+                    <tr>
+                        <th>Tên Nhân sự</th>
+                        <th>Email</th>
+                        <th>Lương Giáo viên (VNĐ/buổi)</th>
+                        <th>Lương Trợ giảng (VNĐ/buổi)</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="staff-salary-list">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="personnel-attendance-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 90vw; width: auto;">
+        <button class="modal-close" onclick="hidePersonnelAttendanceModal()">×</button>
+        <h3 id="personnel-attendance-modal-title">Chấm công lớp: <span id="current-personnel-class-name"></span></h3>
+
+        <div style="text-align: right; margin-bottom: 6px;">
+            <button onclick="scrollPersonnelAttendanceBySessions(-1)">←</button>
+            <button onclick="scrollPersonnelAttendanceBySessions(1)">→</button>
+        </div>
+
+        <div id="personnel-attendance-scroll-container" style="overflow-x: auto; max-height: 80vh;">
+            <table id="personnel-attendance-table" style="border-collapse: collapse; min-width: max-content;">
+                <thead>
+                    <tr id="personnel-attendance-table-head"></tr>
+                </thead>
+                <tbody id="personnel-attendance-table-body"></tbody>
+            </table>
+        </div>
+        <button onclick="hidePersonnelAttendanceModal()" style="margin-top: 20px;">Đóng</button>
+    </div>
+</div>
+
+<div id="salary-detail-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+        <button class="modal-close" onclick="hideSalaryDetailModal()">×</button>
+        <h3 id="salary-detail-name">Chi tiết lương và chấm công: <span></span></h3>
+        
+        <div class="salary-summary" style="margin-bottom: 20px;">
+            <p><strong>Tổng lương tháng <span id="summary-month-year"></span>:</strong> <span id="total-monthly-salary"></span> VNĐ</p>
+            <p><strong>Tổng số ca Giáo viên:</strong> <span id="total-teacher-shifts"></span> ca</p>
+            <p><strong>Tổng số ca Trợ giảng:</strong> <span id="total-assistant-shifts"></span> ca</p>
+        </div>
+
+        <label for="salary-month-select">Chọn tháng:</label>
+        <input type="month" id="salary-month-select" style="margin-bottom: 15px;" onchange="renderPersonnelSalaryChart()">
+
+        <div id="chart-container" style="height: 300px; width: 100%;">
+            <canvas id="personnel-daily-chart"></canvas>
+        </div>
+        
+        <div id="daily-shifts-details" style="margin-top: 20px;">
+            <h4>Chi tiết chấm công theo ngày:</h4>
+            <ul id="daily-shifts-list" style="list-style: none; padding: 0;">
+                </ul>
+        </div>
+
+        <button onclick="hideSalaryDetailModal()" style="margin-top: 20px;">Đóng</button>
+    </div>
+</div>
   <!-- Trang Cá nhân -->
   <div id="profile-page" class="management-page" style="display:none;">
     <h2>Trang cá nhân</h2>
