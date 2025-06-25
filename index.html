@@ -54,19 +54,19 @@
           </label><br />
 
           <label>Năm sinh:<br />
-            <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh" required />
+            <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh"  />
           </label><br />
 
           <label>Bố/Mẹ:<br />
-            <input type="text" id="student-parent" required />
+            <input type="text" id="student-parent" />
           </label><br />
 
           <label>Số điện thoại bố/mẹ:<br />
-            <input type="text" id="student-parent-phone" required />
+            <input type="text" id="student-parent-phone" />
           </label><br />
 
           <label>Nghề nghiệp bố mẹ:<br />
-            <select id="student-parent-job" onchange="parentJobChange(this.value)" required>
+            <select id="student-parent-job" onchange="parentJobChange(this.value)" >
               <option value="">-- Chọn nghề nghiệp --</option>
               <option value="Công nhân">Công nhân</option>
               <option value="Giáo viên">Giáo viên</option>
@@ -123,11 +123,11 @@
           </div>
           <br />
           <label>Số buổi đã học:<br />
-            <input type="number" id="student-sessions-attended" min="0" value="0" required />
+            <input type="number" id="student-sessions-attended" min="0" value="0"  />
           </label><br />
 
           <label>Số buổi đã đóng:<br />
-            <input type="number" id="student-sessions-paid" min="0" value="0" required />
+            <input type="number" id="student-sessions-paid" min="0" value="0" />
           </label><br />
 
           <button type="submit">Lưu</button>
