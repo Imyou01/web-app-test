@@ -715,3 +715,203 @@ button[type="button"]:hover {
     padding: 8px 6px;
   }
 }
+/* CSS cho các nút điều khiển trong Quản lý Nhân sự */
+.personnel-controls {
+    display: flex;
+    justify-content: flex-start; /* Canh lề trái các nút */
+    gap: 10px; /* Khoảng cách giữa các nút */
+    margin-bottom: 20px;
+}
+
+.personnel-controls button {
+    padding: 10px 15px;
+    border: 1px solid #0066cc;
+    background-color: #f4f7ff;
+    color: #004a99;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.personnel-controls button:hover {
+    background-color: #e6f0ff;
+    border-color: #004a99;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.personnel-controls button.active {
+    background-color: #0066cc;
+    color: white;
+    border-color: #004a99;
+    transform: translateY(0); /* Đảm bảo nút active không bị nhấc lên */
+    box-shadow: none; /* Hoặc đổ bóng khác nếu muốn */
+}
+
+.personnel-controls button.active:hover {
+    background-color: #004a99; /* Đậm hơn khi hover nút active */
+}
+
+/* Đảm bảo icon bên trong nút có kích thước đúng */
+.personnel-controls button i.lucide {
+    width: 20px;
+    height: 20px;
+}
+
+/* CSS cho list */
+.styled-list {
+    list-style: none;
+    padding: 0;
+}
+
+.styled-list li {
+    background: #f9faff;
+    border: 1px solid #dde4f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    font-weight: 500;
+    color: #333;
+}
+
+.styled-list li:hover {
+    background: #e6f0ff;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Điều chỉnh lại input trong bảng lương cho gọn */
+#staff-salary-table .salary-input {
+    width: 100px; /* Hoặc kích thước phù hợp hơn */
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* Modal tổng lương có thể có thêm scroll nếu nội dung dài */
+#salary-detail-modal .modal-content {
+    overflow-y: auto;
+}
+/* ====================================================== */
+/* === CSS TỐI ƯU CHO DI ĐỘNG (GIAO DIỆN BẢNG NGANG) === */
+/* ====================================================== */
+
+/* Định nghĩa kiểu cho lớp bọc cuộn ngang */
+.table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Giúp cuộn mượt hơn trên iOS */
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+/* Áp dụng cho màn hình có chiều rộng tối đa là 768px */
+@media screen and (max-width: 768px) {
+
+  /* Giảm lề các trang để có thêm không gian */
+  .management-page, .auth-form {
+    margin-left: 10px;
+    margin-right: 10px;
+    padding: 15px;
+  }
+
+  /* Thu nhỏ nội dung của TẤT CẢ các bảng */
+  table th, table td {
+    font-size: 13px; /* Giảm kích thước chữ */
+    padding: 10px 8px; /* Giảm khoảng cách bên trong ô */
+    white-space: nowrap; /* Ngăn chữ xuống dòng, giữ cho các cột thẳng hàng */
+  }
+
+  /* Tối ưu riêng cho các nút trong bảng */
+  table td button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  /* Tối ưu riêng cho bảng điểm danh để gọn hơn nữa */
+  #homework-table th,
+  #homework-table td {
+    padding: 8px 6px;
+  }
+
+  /* ============================================== */
+  /* === BỔ SUNG CHO TRANG QUẢN LÝ NHÂN SỰ MỚI === */
+  /* ============================================== */
+
+  /* Các nút điều khiển "Danh sách lớp" / "Danh sách nhân sự" */
+  .personnel-controls {
+    flex-direction: column; /* Xếp chồng các nút theo chiều dọc */
+    gap: 10px; /* Khoảng cách giữa các nút khi xếp dọc */
+  }
+
+  .personnel-controls button {
+    width: 100%; /* Cho các nút chiếm toàn bộ chiều rộng */
+    justify-content: center; /* Căn giữa nội dung nút */
+    padding: 12px 10px; /* Tăng padding để dễ chạm hơn */
+  }
+
+  /* Danh sách lớp và danh sách nhân sự (ul và table) */
+  #personnel-classes-section,
+  #personnel-staff-section {
+    padding: 0; /* Giảm padding để nội dung sát hơn ra viền */
+    margin-top: 15px; /* Điều chỉnh khoảng cách trên */
+  }
+
+  /* Input tìm kiếm trong quản lý nhân sự */
+  #personnel-class-search {
+    padding: 10px;
+    font-size: 15px;
+  }
+
+  /* Bảng lương nhân sự và bảng chấm công lớp */
+  #staff-salary-table th,
+  #staff-salary-table td,
+  #personnel-attendance-table th,
+  #personnel-attendance-table td {
+    font-size: 12px; /* Giảm cỡ chữ để vừa hơn */
+    padding: 8px 5px; /* Giảm padding */
+    white-space: nowrap; /* Đảm bảo không xuống dòng */
+  }
+
+  /* Input lương trong bảng nhân sự */
+  #staff-salary-table .salary-input {
+    width: 70px; /* Giảm chiều rộng input lương */
+    padding: 4px;
+    font-size: 12px;
+  }
+
+  /* Modal chấm công và chi tiết lương */
+  #personnel-attendance-modal .modal-content,
+  #salary-detail-modal .modal-content {
+    padding: 15px; /* Giảm padding tổng thể của modal */
+    max-width: 95vw; /* Chiếm gần hết chiều rộng màn hình */
+  }
+
+  /* Nút cuộn ngang trong modal chấm công */
+  #personnel-attendance-modal button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Biểu đồ lương trên di động */
+  #chart-container {
+    height: 250px; /* Giảm chiều cao biểu đồ */
+  }
+
+  /* Chi tiết chấm công theo ngày */
+  #daily-shifts-details ul {
+    max-height: 200px; /* Giới hạn chiều cao và cho phép cuộn */
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 10px;
+  }
+}
