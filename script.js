@@ -2772,6 +2772,9 @@ async function renderHomeworkAttendanceTable(classId) {
   const tableBody = document.getElementById("attendance-table-body");
   const scrollContainer = document.getElementById("homework-scroll-container");
 
+  // CLEAR THE TABLE BODY HERE BEFORE RENDERING NEW DATA
+  tableBody.innerHTML = ""; // Thêm dòng này để xóa các hàng hiện có
+
   let headerHTML = `<th style="min-width: 180px; position: sticky; left: 0; background-color: #f3f6fb; z-index: 1;">Họ tên học viên</th>`;
 sessions.forEach((s) => {
   const d = new Date(s.date);
@@ -2844,17 +2847,11 @@ tableHeadRow.innerHTML = headerHTML;
 
     // 3. Tính toán index của cột đầu tiên cần hiển thị (T-2)
     //    Dùng Math.max để đảm bảo không bị số âm nếu T là 1 trong 2 buổi đầu tiên
-    const visibleStartIndex = Math.max(0, closestIndex - 2);
-
-    // 4. Lấy chiều rộng của một cột ngày tháng (cột thứ 2 trong a)
-    //    (cột đầu tiên là tên học viên)
     const firstDateColumn = tableHeadRow.children[1];
     if (!firstDateColumn) return; // Thoát nếu không có cột nào
 
     const columnWidth = firstDateColumn.offsetWidth;
-
-    // 5. Tính toán vị trí cần cuộn đến và thực thi
-    const scrollPosition = visibleStartIndex * columnWidth;
+    const scrollPosition = closestIndex * columnWidth; // Changed from visibleStartIndex * columnWidth
     scrollContainer.scrollLeft = scrollPosition;
 
   }, 0); // Dùng setTimeout(..., 0) để đảm bảo trình duyệt đã render xong bảng
