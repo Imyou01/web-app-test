@@ -39,103 +39,154 @@
     <div class="spinner"></div>
     <p>Đang tải...</p>
   </div>
-
+<div id="approve-account-modal" class="modal-overlay">
+    <div class="modal-content">
+        <button class="modal-close" onclick="hideApproveAccountModal()">×</button>
+        <h3 id="approve-account-title">Duyệt tài khoản: <span id="approve-account-name"></span></h3>
+        <p>Chọn chức vụ cho tài khoản này:</p>
+        <select id="approve-account-role-select">
+            <option value="">-- Chọn chức vụ --</option>
+            <option value="Admin">Admin</option>
+            <option value="Hội Đồng">Hội Đồng</option>
+            <option value="Giáo Viên">Giáo Viên</option>
+            <option value="Gia Sư">Gia Sư</option>
+            <option value="Trợ Giảng">Trợ Giảng</option>
+            <option value="Học viên">Học viên</option> </select>
+        <button onclick="approveAccount()">Lưu chức vụ</button>
+        <button type="button" onclick="hideApproveAccountModal()">Hủy</button>
+    </div>
+</div>
   <!-- Popup Modal: Thêm/Sửa Học viên -->
   <div id="student-form-modal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="modal-close" onclick="hideStudentForm()">×</button>
-      <div id="student-form-container">
-        <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
-        <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
-          <input type="hidden" id="student-index" />
+  <div class="modal-content">
+    <button class="modal-close" onclick="hideStudentForm()">×</button>
+    <div id="student-form-container">
+      <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
+      <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
+        <input type="hidden" id="student-index" />
 
-          <label>Họ và Tên:<br />
-            <input type="text" id="student-name" required />
-          </label><br />
+        <div style="display: flex; gap: 20px;">
+          <div style="flex: 1;">
+            <label>Họ và Tên: <span style="color: red;">*</span><br />
+              <input type="text" id="student-name" required />
+            </label><br />
 
-          <label>Năm sinh:<br />
-            <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh"  />
-          </label><br />
+            <label>Năm sinh: <span style="color: red;">*</span><br />
+              <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh" required onchange="handleAgeChange()" />
+            </label><br />
 
-          <label>Bố/Mẹ:<br />
-            <input type="text" id="student-parent" />
-          </label><br />
+            <div id="contact-info-container">
+              </div>
 
-          <label>Số điện thoại bố/mẹ:<br />
-            <input type="text" id="student-parent-phone" />
-          </label><br />
+            <label>Địa chỉ:<br />
+              <input type="text" id="student-address" placeholder="Nhập địa chỉ" />
+            </label><br />
 
-          <label>Nghề nghiệp bố mẹ:<br />
-            <select id="student-parent-job" onchange="parentJobChange(this.value)" >
-              <option value="">-- Chọn nghề nghiệp --</option>
-              <option value="Công nhân">Công nhân</option>
-              <option value="Giáo viên">Giáo viên</option>
-              <option value="Kinh doanh">Kinh doanh</option>
-              <option value="Bác sĩ">Bác sĩ</option>
-              <option value="Nông dân">Nông dân</option>
-              <option value="Khác">Khác</option>
-            </select>
-            <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none;" />
-          </label><br />
-<label>Gói đăng ký: <span style="font-weight: normal; color: #555;">(Không bắt buộc)</span></label>
-          
-          <div style="margin-top: 8px;">
-            <select id="student-package-type" onchange="handlePackageTypeChange()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-              <option value="">-- Chọn loại gói --</option>
-              <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
-              <option value="Luyện thi chứng chỉ">Luyện thi chứng chỉ</option>
-            </select>
-          </div>
-          
-          <div id="package-options-container" style="margin-top: 10px;">
-            <div id="general-english-options-container" style="display: none;">
-                <label>Khóa học:</label>
-                <select id="general-english-course" onchange="updateStudentPackageName()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
-                  </select>
-            </div>
-
-            <div id="certificate-options-container" style="display: none; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background-color: #f9f9f9;">
-              <label>Loại chứng chỉ:</label>
-              <select id="student-certificate-type" onchange="populateCourseDropdown()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
-                <option value="">-- Chọn chứng chỉ --</option>
-                <option value="IELTS">IELTS</option>
-                <option value="TOEIC">TOEIC</option>
-                <option value="HSK">HSK</option>
-                <option value="YCT">YCT</option>
+            <label>Nghề nghiệp bố mẹ:<br />
+              <select id="student-parent-job" onchange="parentJobChange(this.value)">
+                <option value="">-- Chọn nghề nghiệp --</option>
+                <option value="Công nhân">Công nhân</option>
+                <option value="Giáo viên">Giáo viên</option>
+                <option value="Kinh doanh">Kinh doanh</option>
+                <option value="Bác sĩ">Bác sĩ</option>
+                <option value="Nông dân">Nông dân</option>
+                <option value="Kỹ sư">Kỹ sư</option>
+                <option value="Nhân viên văn phòng">Nhân viên văn phòng</option>
+                <option value="Tài xế">Tài xế</option>
+                <option value="Nội trợ">Nội trợ</option>
+                <option value="Cán bộ nhà nước">Cán bộ nhà nước</option>
+                <option value="Công an/Quân đội">Công an/Quân đội</option>
+                <option value="Freelancer">Freelancer</option>
+                <option value="Học sinh/Sinh viên">Học sinh/Sinh viên</option>
+                <option value="Đã nghỉ hưu">Đã nghỉ hưu</option>
+                <option value="Buôn bán nhỏ">Buôn bán nhỏ</option>
+                <option value="Dịch vụ">Dịch vụ</option>
+                <option value="Nghệ sĩ">Nghệ sĩ</option>
+                <option value="Công nghệ thông tin">Công nghệ thông tin</option>
+                <option value="Khác">Khác</option>
               </select>
+              <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none;" />
+            </label><br />
+          </div>
 
-              <div id="certificate-course-wrapper" style="display: none; margin-top: 10px;">
-                <label>Khóa học cụ thể:</label>
-                <select id="student-certificate-course" onchange="updateStudentPackageName()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
-                  </select>
-                 <div id="combo-selection-container" style="display: none; margin-top: 15px; padding: 10px; border: 1px dashed #0066cc; border-radius: 6px;">
-                  <p id="combo-selection-title" style="margin: 0 0 10px 0; font-weight: bold; color: #0066cc;"></p>
-                  <div id="combo-checkboxes-list" style="max-height: 150px; overflow-y: auto;">
-                    </div>
+          <div style="flex: 1;">
+            <label>Gói đăng ký: <span style="font-weight: normal; color: #555;">(Không bắt buộc)</span></label>
+            <div style="margin-top: 8px;">
+              <select id="student-package-type" onchange="handlePackageTypeChange()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                <option value="">-- Chọn loại gói --</option>
+                <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
+                <option value="Luyện thi chứng chỉ">Luyện thi chứng chỉ</option>
+              </select>
+            </div>
+
+            <div id="package-options-container" style="margin-top: 10px;">
+              <div id="general-english-options-container" style="display: none;">
+                <label>Khóa học:</label>
+                <select id="general-english-course" onchange="updateStudentPackageName()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;"></select>
               </div>
+
+              <div id="certificate-options-container" style="display: none; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background-color: #f9f9f9;">
+                <label>Loại chứng chỉ:</label>
+                <select id="student-certificate-type" onchange="populateCourseDropdown()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
+                  <option value="">-- Chọn chứng chỉ --</option>
+                  <option value="IELTS">IELTS</option>
+                  <option value="TOEIC">TOEIC</option>
+                  <option value="HSK">HSK</option>
+                  <option value="YCT">YCT</option>
+                </select>
+
+                <div id="certificate-course-wrapper" style="display: none; margin-top: 10px;">
+                  <label>Khóa học cụ thể:</label>
+                  <select id="student-certificate-course" onchange="handleCourseSelection()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;"></select>
+                  <div id="combo-selection-container" style="display: none; margin-top: 15px; padding: 10px; border: 1px dashed #0066cc; border-radius: 6px;">
+                    <p id="combo-selection-title" style="margin: 0 0 10px 0; font-weight: bold; color: #0066cc;"></p>
+                    <div id="combo-checkboxes-list" style="max-height: 150px; overflow-y: auto;"></div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        
-          <div style="margin-top: 15px;">
-            <label>Tên gói đầy đủ (Tự động):</label>
-            <input type="text" id="student-package" placeholder="Chọn khóa học để tạo tên gói..." readonly style="width: 100%; padding: 8px; background-color: #eee; margin-top: 5px;" />
-          </div>
-          <br />
-          <label>Số buổi đã học:<br />
-            <input type="number" id="student-sessions-attended" min="0" value="0"  />
-          </label><br />
 
-          <label>Số buổi đã đóng:<br />
-            <input type="number" id="student-sessions-paid" min="0" value="0" />
-          </label><br />
+            <div style="margin-top: 15px;">
+              <label>Tên gói đầy đủ (Tự động):</label>
+              <input type="text" id="student-package" placeholder="Chọn khóa học để tạo tên gói..." readonly style="width: 100%; padding: 8px; background-color: #eee; margin-top: 5px;" />
+            </div>
 
-          <button type="submit">Lưu</button>
-          <button type="button" onclick="hideStudentForm()">Hủy</button>
-        </form>
-      </div>
+            <label>Mã giảm giá (%):<br />
+              <select id="student-discount-percent" onchange="calculateFinalPrice()">
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="10">10%</option>
+                <option value="12">12%</option>
+                <option value="15">15%</option>
+                <option value="20">20%</option>
+              </select>
+            </label><br />
+
+            <label>Khuyến mại (%):<br />
+              <input type="number" id="student-promotion-percent" min="0" max="100" value="0" oninput="calculateFinalPrice()" />
+            </label><br />
+
+            <label>Tổng tiền gốc:<br />
+              <input type="number" id="student-original-price" readonly value="0" style="background-color: #eee;" />
+            </label><br />
+
+            <label>Tổng tiền phải đóng:<br />
+              <input type="number" id="student-total-due" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
+            </label><br />
+
+           <label>Số buổi còn lại (Đã đóng):<br />
+             <input type="number" id="student-remaining-sessions-display" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
+           </label><br />
+              <input type="hidden" id="student-new-package-sessions" value="0" />
+          </div>
+        </div>
+
+        <button type="submit" style="margin-top: 20px;">Lưu</button>
+        <button type="button" onclick="hideStudentForm()">Hủy</button>
+      </form>
     </div>
   </div>
+</div>
 
   <!-- Popup Modal: Thêm/Sửa Lớp học -->
   <div id="class-form-modal" class="modal-overlay">
@@ -225,7 +276,50 @@
       </div>
     </div>
   </div>
+<div id="class-attendance-modal-overlay" class="modal-overlay">
+  <div class="modal-content" style="max-width: 90vw; width: auto;">
+    <button class="modal-close" onclick="hideClassAttendanceModal()">×</button>
+    <h3 id="class-attendance-modal-title"> <span id="current-class-attendance-name"></span></h3>
 
+    <div style="text-align: right; margin-bottom: 6px;">
+      <button onclick="scrollClassAttendanceBySessions(-1)">←</button>
+      <button onclick="scrollClassAttendanceBySessions(1)">→</button>
+    </div>
+
+    <div id="class-attendance-scroll-container" style="overflow-x: auto; max-height: 80vh;">
+      <table id="class-attendance-table" style="border-collapse: collapse; min-width: max-content;">
+        <thead>
+          <tr id="class-attendance-table-head"></tr>
+        </thead>
+        <tbody id="class-attendance-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="staff-classes-salary-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 700px;">
+        <button class="modal-close" onclick="hideStaffClassesSalaryModal()">×</button>
+        <h3 id="staff-classes-salary-title">Quản lý lương lớp: <span id="staff-classes-salary-name"></span></h3>
+
+        <p>Chọn lớp để cập nhật mức lương cho nhân sự này:</p>
+        <div class="table-scroll-wrapper">
+            <table id="staff-individual-class-salary-table">
+                <thead>
+                    <tr>
+                        <th>Tên lớp</th>
+                        <th>Vai trò</th>
+                        <th>Mức lương (VNĐ/buổi)</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="staff-individual-class-salary-list">
+                    </tbody>
+            </table>
+        </div>
+
+        <button onclick="hideStaffClassesSalaryModal()" style="margin-top: 20px;">Đóng</button>
+    </div>
+</div>
   <!-- Lưu modal styles -->
   <style>
     .modal-overlay {
@@ -368,10 +462,7 @@
         <div class="icon lucide" data-lucide="calendar-days"></div>
         <div>Lịch học</div>
       </a>
-      <a class="card" href="#homework-management">
-        <div class="icon lucide" data-lucide="book-open"></div>
-        <div>Quản lý bài tập</div>
-      </a>
+    
        <a class="card" href="#personnel-management" id="personnel-management-card">
             <div class="icon lucide" data-lucide="users-round"></div>
             <div>Quản lý nhân sự</div>
@@ -403,37 +494,35 @@
 
   <!-- Trang Quản lý Học viên -->
   <div id="student-management" class="management-page" style="display:none;">
-    <h2>Quản lý học viên</h2>
+  <h2>Quản lý học viên</h2>
   <button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
-    <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
-    <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
-    <div class="table-scroll-wrapper">
+    <i data-lucide="arrow-left"></i>
+  </button>
+  <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
+  <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
+  <div class="table-scroll-wrapper">
     <table>
       <thead>
         <tr>
           <th>Họ và tên</th>
           <th>Năm sinh</th>
-          <th>Bố/Mẹ</th>
           <th>Số điện thoại</th>
-          <th>Nghề nghiệp</th>
-          <th>Gói</th>
-          <th>Buổi đã học</th>
-          <th>Buổi đã đóng</th>
+          <th>Gói đăng ký</th>
+          <th>Mã giảm giá</th>
+          <th>Tổng tiền phải đóng</th>
+          <th>Số buổi còn lại</th>
           <th>Hành động</th>
         </tr>
       </thead>
       <tbody id="student-list"></tbody>
     </table>
-    </div>
-    <div id="student-pagination">
-      <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
-      <span id="page-info">Trang 1 / 1</span>
-      <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Trang sau</button>
-    </div>
   </div>
-
+  <div id="student-pagination">
+    <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
+    <span id="page-info">Trang 1 / 1</span>
+    <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Trang sau</button>
+  </div>
+</div>
   <!-- Trang Quản lý Lớp học -->
   <div id="class-management" class="management-page" style="display:none;">
     <h2>Quản lý lớp học</h2>
@@ -490,40 +579,6 @@
     </div>
   </div>
 
- <!-- Quản lý bài tập -->
-<div id="homework-management" class="management-page" style="display:none;">
-  <h2>Quản lý bài tập & Điểm danh</h2>
-  <button onclick="backToDashboard()" style="margin-top: 9px;">← Quay lại Dashboard</button>
-  <div style="display: flex; gap: 32px;">
-    <!-- Danh sách lớp -->
-    <div id="homework-class-container" style="min-width:220px;"></div>
-    <ul id="homework-class-list" style="min-width:220px; border-right:1px solid #ccc;"></ul>
-  </div>
-</div>
-
-<!-- ✅ Modal hiển thị BẢNG -->
-<div id="homework-modal-overlay" class="modal-overlay">
-  <div class="modal-content" style="max-width: 90vw; width: auto;">
-    <button class="modal-close" onclick="hideHomeworkModal()">×</button>
-    <h3 id="homework-modal-title">Bảng điểm danh & Bài tập</h3>
-
-    <!-- Nút cuộn trái/phải -->
-    <div style="text-align: right; margin-bottom: 6px;">
-      <button onclick="scrollBySessions(-1)">←</button>
-      <button onclick="scrollBySessions(1)">→</button>
-    </div>
-
-    <!-- Vùng scroll ngang -->
-    <div id="homework-scroll-container" style="overflow-x: auto; max-height: 80vh;">
-      <table id="homework-table" style="border-collapse: collapse; min-width: max-content;">
-        <thead>
-          <tr id="homework-table-head"></tr>
-        </thead>
-        <tbody id="attendance-table-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
 <!-- Quản lí nhân sự -->
 <div id="personnel-management" class="management-page" style="display:none;">
     <h2>Quản lý Nhân sự</h2>
