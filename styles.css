@@ -915,3 +915,41 @@ button[type="button"]:hover {
     padding: 10px;
   }
 }
+/* Student Form Two-Column Layout */
+#student-form-container form > div {
+  display: flex;
+  gap: 20px;
+}
+
+#student-form-container form > div > div {
+  flex: 1;
+}
+
+#student-form-container label {
+  display: block;
+  margin-bottom: 5px; /* Adjust as needed */
+  font-weight: 600;
+}
+
+#student-form-container input[type="text"],
+#student-form-container input[type="number"],
+#student-form-container select {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px; /* Adjust as needed */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: border-color 0.3s;
+}
+
+#student-form-container input[type="text"]:focus,
+#student-form-container input[type="number"]:focus,
+#student-form-container select:focus {
+  border-color: #0066cc;
+  outline: none;
+}
+
+.form-field-hidden {
+    display: none !important;
+}
