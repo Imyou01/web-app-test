@@ -1176,8 +1176,6 @@ function updateStudentPackageName() {
   calculateFinalPrice();
 }
 // Render danh sách học viên (phân trang)
-// Render danh sách học viên (phân trang)
-// Render danh sách học viên (phân trang)
 function renderStudentList(dataset) {
   const studentEntries = Object.entries(dataset);
   totalStudentPages = Math.ceil(studentEntries.length / studentsPerPage);
@@ -1233,11 +1231,16 @@ function renderStudentList(dataset) {
 
     const sessionsAttended = st.sessionsAttended || 0;
     const totalSessionsPaid = st.totalSessionsPaid || 0; // LẤY TỪ TRƯỜNG MỚI
-
     const remainingSessions = totalSessionsPaid - sessionsAttended;
-    const isWarning = totalSessionsPaid > 0 && remainingSessions <= 0; // Cảnh báo khi buổi còn lại <= 0
-    const warningClass = isWarning ? 'student-warning' : '';
-
+     // --- LOGIC CẢNH BÁO MỚI ---
+    let warningClass = '';
+    if (remainingSessions <= 0) {
+        warningClass = 'student-warning-critical'; // Mức đỏ
+    } else if (remainingSessions <= 3) {
+        warningClass = 'student-warning-low'; // Mức vàng
+    }
+    // --- KẾT THÚC LOGIC ---
+    console.log(`Học viên: ${st.name}, Buổi còn lại: ${remainingSessions}, Class được gán: ${warningClass}`);
     const discount = st.discountPercent ? `${st.discountPercent}%` : '0%';
     const promotion = st.promotionPercent ? `${st.promotionPercent}%` : '0%';
     const totalDiscountPromo = (st.discountPercent || 0) + (st.promotionPercent || 0);
@@ -1733,7 +1736,7 @@ function renderClassList(classes) {
       <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
       <td>${cls.teacher || ""}</td>
       <td>
-        <button onclick="showClassAttendanceAndHomeworkTable('${id}')">Xem & Điểm danh</button>
+        <button onclick="showClassAttendanceAndHomeworkTable('${id}')">Điểm Danh</button>
         <button onclick="editClass('${id}')">Sửa</button>
         <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
       </td>
@@ -3773,14 +3776,14 @@ function scrollClassAttendanceBySessions(direction) {
   scrollContainer.scrollLeft += direction * step;
 }
 // script.js
-// MỚI: Hiển thị bảng điểm danh & bài tập khi click "Xem & Điểm danh"
+// MỚI: Hiển thị bảng điểm danh & bài tập khi click "Điểm Danh"
 async function showClassAttendanceAndHomeworkTable(classId) {
   showLoading(true); // Hiển thị loading ở đây
   await renderClassAttendanceTable(classId);
   showLoading(false); // Ẩn loading sau khi render xong
 }
 
-// MỚI: Hiển thị bảng điểm danh & bài tập khi click "Xem & Điểm danh"
+// MỚI: Hiển thị bảng điểm danh & bài tập khi click "Điểm Danh"
 async function showClassAttendanceAndHomeworkTable(classId) {
   showLoading(true); // Hiển thị loading ở đây
   await renderClassAttendanceTable(classId);
@@ -3848,11 +3851,18 @@ async function renderClassAttendanceTable(classId) {
       const sessionsAttended = student.sessionsAttended || 0;
       const totalSessionsPaid = student.totalSessionsPaid || 0;
       const remainingSessions = totalSessionsPaid - sessionsAttended;
-      const isWarning = totalSessionsPaid > 0 && remainingSessions <= 0;
+       // --- LOGIC CẢNH BÁO MỚI ---
+       let attendanceWarningClass = '';
+      if (remainingSessions <= 0) {
+          attendanceWarningClass = 'student-warning-critical'; // Mức đỏ
+      } else if (remainingSessions <= 3) {
+          attendanceWarningClass = 'student-warning-low'; // Mức vàng
+      }
+      // --- KẾT THÚC LOGIC ---
       const row = document.createElement("tr");
       const nameCell = document.createElement("td");
-      nameCell.className = isWarning ? 'student-warning' : '';
-      nameCell.textContent = student.name || "(Không rõ tên)";
+      nameCell.className = attendanceWarningClass; // Áp dụng lớp cảnh báo mới
+      nameCell.textContent = `${student.name || "(Không rõ tên)"} (${student.dob || "N/A"})`;
       nameCell.style.position = "sticky";
       nameCell.style.left = "0";
       nameCell.style.backgroundColor = "#fff";
