@@ -661,18 +661,6 @@ button[type="button"]:hover {
 }
 /* styles.css */
 
-/* Thêm vào cuối tệp */
-.student-warning {
-  color: #d9534f; /* Màu đỏ cảnh báo */
-  font-weight: bold;
-}
-
-.student-warning::before {
-  content: '⚠️ '; /* Biểu tượng chấm than */
-  margin-right: 4px;
-}
-/* styles.css */
-
 /* ====================================================== */
 /* === CSS TỐI ƯU CHO DI ĐỘNG (GIAO DIỆN BẢNG NGANG) === */
 /* ====================================================== */
@@ -952,4 +940,32 @@ button[type="button"]:hover {
 
 .form-field-hidden {
     display: none !important;
+}
+/* Keyframes cho hiệu ứng nhấp nháy */
+@keyframes blink-yellow {
+  50% { color: #8a6d3b; } /* Màu vàng đậm hơn */
+}
+@keyframes blink-red {
+  50% { color: #a94442; } /* Màu đỏ đậm hơn */
+}
+
+/* Lớp cảnh báo MỨC VÀNG (sắp hết buổi) */
+.student-warning-low {
+  color: #e69500; /* Màu vàng */
+  font-weight: bold;
+  animation: blink-yellow 1.5s linear infinite;
+}
+.student-warning-low::before {
+  content: '⚠️ ';
+}
+
+/* Lớp cảnh báo MỨC ĐỎ (đã hết buổi) */
+.student-warning-critical {
+  color: #d9534f; /* Màu đỏ */
+  font-weight: bold;
+  animation: blink-red 1.2s linear infinite;
+}
+.student-warning-critical::before {
+  content: '❗ ';
+  color: #d9534f;
 }
