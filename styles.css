@@ -1184,3 +1184,155 @@ button:hover, .auth-form button:hover {
     height: 40px;
   }
 }
+.clickable-student-name {
+    cursor: pointer;
+    color: #0056b3;
+    text-decoration: underline;
+    font-weight: 600;
+  }
+  .clickable-student-name:hover {
+    color: #003d80;
+  }
+  /* Fix: Đảm bảo popup sửa học viên luôn nổi lên trên */
+#student-form-modal {
+  z-index: 1001;
+}
+/* Định dạng cho nút "+ Thêm mới" trong form lớp học */
+.small-add-button {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: #e7efff; /* Màu xanh dương nhạt */
+  color: #004a99;
+  border: 1px solid #aac0db;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap; /* Tránh nút bị xuống dòng */
+  transition: background-color 0.2s;
+}
+
+.small-add-button:hover {
+  background-color: #d8e5ff;
+}
+/* ========================================================= */
+/* === GIAO DIỆN MỚI CHO TRANG LỊCH HỌC / THỜI KHÓA BIỂU === */
+/* ========================================================= */
+
+/* Bố cục chính cho trang lịch học */
+.schedule-container {
+    position: relative; /* Cần thiết cho việc định vị popup lịch tháng */
+    margin-top: 20px;
+}
+
+/* --- Hiệu ứng Hover cho Lịch Tháng Mini --- */
+#mini-calendar-hover-container {
+    position: absolute;
+    top: -5px;
+    left: -15px;
+    z-index: 1050; /* Nổi lên trên lịch tuần */
+}
+
+#mini-calendar-icon {
+    width: 40px;
+    height: 40px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#mini-calendar-icon i {
+    width: 24px;
+    height: 24px;
+    color: #0066cc;
+}
+
+#fullcalendar-mini-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 300px; /* Độ rộng của popup lịch tháng */
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    padding: 10px;
+    /* Ẩn mặc định và tạo hiệu ứng */
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.95) translateY(-10px);
+    transition: all 0.2s ease-in-out;
+}
+
+#mini-calendar-hover-container:hover #fullcalendar-mini-wrapper {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1) translateY(0);
+}
+
+/* --- TÙY CHỈNH THỜI KHÓA BIỂU (FULLCALENDAR-WEEKLY) --- */
+
+/* Bỏ viền và đổ bóng mặc định của FullCalendar */
+#fullcalendar-weekly {
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    overflow: hidden; /* Giúp bo góc hoạt động đúng */
+}
+
+/* Header (Thứ 2, Thứ 3...) */
+#fullcalendar-weekly .fc-col-header-cell {
+    background-color: #f3f6fb !important;
+    color: #004a99;
+    font-weight: 700;
+    font-size: 1em;
+    border: 1px solid #e9edf5;
+    border-bottom-width: 2px;
+}
+
+/* Các ô sự kiện (lớp học) */
+#fullcalendar-weekly .fc-timegrid-event .fc-event-main {
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#fullcalendar-weekly .fc-v-event {
+    border-width: 0 0 0 5px !important; /* Chỉ giữ viền trái để tạo điểm nhấn màu */
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Nội dung bên trong sự kiện (lớp học) */
+.fc-event-main-content {
+    line-height: 1.4;
+    color: #fff;
+}
+
+.fc-event-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.fc-event-teacher, .fc-event-assistant {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+/* Các dòng giờ (8:00, 9:00...) */
+#fullcalendar-weekly .fc-timegrid-slot-label {
+    border-color: #e9edf5 !important;
+    font-weight: bold;
+    color: #555;
+    padding: 0 10px;
+}
+
+/* Các dòng kẻ ngang */
+#fullcalendar-weekly .fc-timegrid-slot-lane {
+    border-color: #e9edf5 !important;
+}
