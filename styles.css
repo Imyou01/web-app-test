@@ -659,11 +659,6 @@ button[type="button"]:hover {
   background-color: #f3f6fb;
   font-weight: bold;
 }
-/* styles.css */
-
-/* ====================================================== */
-/* === CSS TỐI ƯU CHO DI ĐỘNG (GIAO DIỆN BẢNG NGANG) === */
-/* ====================================================== */
 
 /* Định nghĩa kiểu cho lớp bọc cuộn ngang */
 .table-scroll-wrapper {
@@ -674,35 +669,6 @@ button[type="button"]:hover {
   border-radius: 8px;
 }
 
-/* Áp dụng cho màn hình có chiều rộng tối đa là 768px */
-@media screen and (max-width: 768px) {
-
-  /* Giảm lề các trang để có thêm không gian */
-  .management-page, .auth-form {
-    margin-left: 10px;
-    margin-right: 10px;
-    padding: 15px;
-  }
-
-  /* Thu nhỏ nội dung của TẤT CẢ các bảng */
-  table th, table td {
-    font-size: 13px; /* Giảm kích thước chữ */
-    padding: 10px 8px; /* Giảm khoảng cách bên trong ô */
-    white-space: nowrap; /* Ngăn chữ xuống dòng, giữ cho các cột thẳng hàng */
-  }
-
-  /* Tối ưu riêng cho các nút trong bảng */
-  table td button {
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-  
-  /* Tối ưu riêng cho bảng điểm danh để gọn hơn nữa */
-  #homework-table th,
-  #homework-table td {
-    padding: 8px 6px;
-  }
-}
 /* CSS cho các nút điều khiển trong Quản lý Nhân sự */
 .personnel-controls {
     display: flex;
@@ -788,47 +754,6 @@ button[type="button"]:hover {
 #salary-detail-modal .modal-content {
     overflow-y: auto;
 }
-/* ====================================================== */
-/* === CSS TỐI ƯU CHO DI ĐỘNG (GIAO DIỆN BẢNG NGANG) === */
-/* ====================================================== */
-
-/* Định nghĩa kiểu cho lớp bọc cuộn ngang */
-.table-scroll-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch; /* Giúp cuộn mượt hơn trên iOS */
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-/* Áp dụng cho màn hình có chiều rộng tối đa là 768px */
-@media screen and (max-width: 768px) {
-
-  /* Giảm lề các trang để có thêm không gian */
-  .management-page, .auth-form {
-    margin-left: 10px;
-    margin-right: 10px;
-    padding: 15px;
-  }
-
-  /* Thu nhỏ nội dung của TẤT CẢ các bảng */
-  table th, table td {
-    font-size: 13px; /* Giảm kích thước chữ */
-    padding: 10px 8px; /* Giảm khoảng cách bên trong ô */
-    white-space: nowrap; /* Ngăn chữ xuống dòng, giữ cho các cột thẳng hàng */
-  }
-
-  /* Tối ưu riêng cho các nút trong bảng */
-  table td button {
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-  
-  /* Tối ưu riêng cho bảng điểm danh để gọn hơn nữa */
-  #homework-table th,
-  #homework-table td {
-    padding: 8px 6px;
-  }
 
   /* ============================================== */
   /* === BỔ SUNG CHO TRANG QUẢN LÝ NHÂN SỰ MỚI === */
@@ -902,7 +827,7 @@ button[type="button"]:hover {
     border-radius: 8px;
     padding: 10px;
   }
-}
+
 /* Student Form Two-Column Layout */
 #student-form-container form > div {
   display: flex;
@@ -968,4 +893,294 @@ button[type="button"]:hover {
 .student-warning-critical::before {
   content: '❗ ';
   color: #d9534f;
+}
+/* styles.css */
+
+/* ========================================================= */
+/* === TỐI ƯU TOÀN DIỆN CHO DI ĐỘNG (MAX-WIDTH: 768px) === */
+/* ========================================================= */
+@media screen and (max-width: 768px) {
+
+  /* ---- 1. BỐ CỤC CHUNG & KHOẢNG CÁCH ---- */
+  body {
+    -webkit-text-size-adjust: 100%; /* Chống tự động phóng to chữ trên iOS */
+  }
+
+  .management-page, .auth-form {
+    margin: 20px 10px; /* Giảm lề trên/dưới và hai bên */
+    padding: 20px 15px;
+  }
+
+  h2 {
+    font-size: 20px; /* Giảm cỡ chữ tiêu đề */
+  }
+
+  /* ---- 2. DASHBOARD ---- */
+  .grid-container {
+    grid-template-columns: 1fr; /* Chuyển các card thành 1 cột duy nhất */
+    gap: 15px;
+    padding: 0 15px;
+  }
+
+  #dashboard header {
+    flex-direction: column; /* Xếp avatar và text theo chiều dọc */
+    text-align: center;
+    padding: 15px;
+  }
+
+  /* ---- 3. BẢNG BIỂU ---- */
+  .table-scroll-wrapper {
+    width: 100%;
+    overflow-x: auto; /* Bật cuộn ngang cho các bảng */
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+
+  table {
+    width: 100%;
+  }
+
+  table th, table td {
+    font-size: 13px;
+    padding: 10px 8px;
+    white-space: nowrap; /* Giữ cho nội dung không bị xuống dòng lung tung */
+  }
+  
+  table td button {
+    padding: 5px 10px; /* Tăng vùng nhấn cho nút */
+    font-size: 12px;
+  }
+  
+  /* ---- 4. FORM (QUAN TRỌNG) ---- */
+  /* Chuyển form 2 cột thành 1 cột */
+  #student-form-container form > div {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ---- 5. THANH ĐIỀU HƯỚNG (NAVBAR) ---- */
+  #main-nav {
+    flex-direction: column; /* Chuyển thành menu dọc */
+    padding: 10px;
+  }
+  
+  #nav-links {
+    display: none; /* Ẩn các link đi, sẽ hiện ra bằng JavaScript */
+    flex-direction: column;
+    width: 100%;
+    gap: 5px;
+  }
+
+  #nav-links.show {
+    display: flex; /* Hiện các link khi có class .show */
+  }
+  
+  #hamburger-btn {
+    display: block; /* Hiện nút hamburger */
+    align-self: flex-end; /* Đẩy nút về bên phải */
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  /* ---- 6. QUẢN LÝ NHÂN SỰ ---- */
+  .personnel-controls {
+    flex-direction: column;
+  }
+
+  .personnel-controls button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Ẩn nút hamburger trên màn hình lớn */
+@media screen and (min-width: 769px) {
+  #hamburger-btn {
+    display: none;
+  }
+}
+/* styles.css */
+
+/* ========================================================= */
+/* === GIAO DIỆN MỚI - CHỦ ĐỀ "BACK TO SCHOOL" === */
+/* ========================================================= */
+
+/* 1. Nền và Font chữ toàn trang */
+body {
+  /* Thay "path/to/your/background-pattern.png" bằng đường dẫn ảnh của bạn */
+  /* Gợi ý: tìm ảnh "school supplies pattern seamless" trên mạng */
+  background-image: url("https://www.transparenttextures.com/patterns/notebook.png");
+  background-color: #FFF8E1; /* Màu vàng kem ấm áp */
+  font-family: 'Baloo 2', cursive; /* Font chữ tròn, thân thiện (cần import) */
+}
+
+/* === CSS NÂNG CẤP CHO BANNER BACK TO SCHOOL === */
+.back-to-school-banner {
+  max-width: 900px;
+  margin: 0 auto 30px;
+  background: linear-gradient(135deg, #FFB74D, #FF9800);
+  border-radius: 20px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  position: relative; /* Rất quan trọng để định vị các vector con */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 220px; /* Đặt chiều cao tối thiểu */
+  overflow: hidden; /* Ẩn các phần thừa của vector */
+  padding: 20px;
+}
+
+.banner-main-content {
+  color: white;
+  text-align: center;
+  z-index: 2; /* Nằm trên các hình ảnh trang trí */
+  position: relative;
+}
+
+.banner-main-content h1 {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.banner-main-content p {
+  font-size: 18px;
+  opacity: 0.9;
+  margin-top: 5px;
+}
+
+/* Vector các bạn học sinh ở dưới */
+.banner-students {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  max-width: 450px;
+  z-index: 1;
+}
+
+/* Các vector trang trí */
+.banner-deco {
+  position: absolute;
+  opacity: 0.15;
+  z-index: 0;
+}
+.deco-1 { /* Sổ tay */
+  width: 150px;
+  top: 10%;
+  left: 5%;
+  transform: rotate(-25deg);
+}
+.deco-2 { /* Bút chì */
+  width: 120px;
+  top: 20%;
+  right: 8%;
+  transform: rotate(15deg);
+}
+
+/* Ẩn bớt chi tiết trên di động để đỡ rối */
+@media screen and (max-width: 768px) {
+  .banner-deco {
+    display: none;
+  }
+  .banner-students {
+    width: 80%;
+  }
+  .banner-main-content h1 {
+    font-size: 32px;
+  }
+}
+
+/* 3. Header và Navbar */
+#dashboard header {
+  background-color: #42A5F5; /* Màu xanh da trời */
+}
+
+#dashboard nav#main-nav {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+#dashboard nav#main-nav a {
+  color: #1E88E5; /* Màu xanh dương đậm hơn */
+}
+
+#dashboard nav#main-nav a:hover,
+#dashboard nav#main-nav a.active {
+  background-color: #1E88E5;
+  color: white;
+}
+
+/* 4. Các thẻ chức năng (Card) */
+.card {
+  background: #ffffff;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: #FFB74D; /* Viền cam khi di chuột */
+  transform: translateY(-8px);
+}
+
+.icon.lucide {
+  color: #42A5F5; /* Icon màu xanh */
+}
+
+/* 5. Nút bấm chung */
+button, .auth-form button {
+  background: #4CAF50; /* Màu xanh lá cây */
+  transition: background-color 0.3s;
+}
+
+button:hover, .auth-form button:hover {
+  background: #388E3C; /* Xanh lá đậm hơn */
+}
+
+.delete-btn {
+  background-color: #F44336; /* Màu đỏ */
+}
+.delete-btn:hover {
+  background-color: #D32F2F;
+}
+
+/* 6. Form đăng nhập/đăng ký */
+.auth-form {
+  background: #fff;
+  border-top: 5px solid #42A5F5; /* Viền xanh trang trí */
+}
+/* styles.css */
+
+/* === THU GỌN HEADER CHÀO MỪNG === */
+#dashboard header {
+  padding: 12px 20px; /* Giảm padding */
+  gap: 15px;
+}
+
+#profile-avatar,
+#avatar-img {
+  width: 50px; /* Giảm kích thước avatar */
+  height: 50px;
+  border-width: 2px;
+  margin-bottom: 0; /* Bỏ margin dưới của avatar */
+}
+
+#dashboard header p {
+  font-size: 14px; /* Giảm cỡ chữ dòng chào */
+}
+
+/* Trên di động, làm cho nó gọn hơn nữa */
+@media screen and (max-width: 768px) {
+  #dashboard header {
+    padding: 10px 15px;
+  }
+  #profile-avatar, #avatar-img {
+    width: 40px;
+    height: 40px;
+  }
 }
