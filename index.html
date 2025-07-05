@@ -154,14 +154,7 @@
             </div>
 
             <label>Mã giảm giá (%):<br />
-              <select id="student-discount-percent" onchange="calculateFinalPrice()">
-                <option value="0">0%</option>
-                <option value="5">5%</option>
-                <option value="10">10%</option>
-                <option value="12">12%</option>
-                <option value="15">15%</option>
-                <option value="20">20%</option>
-              </select>
+               <input type="number" id="student-discount-percent" min="0" max="100" value="0" oninput="calculateFinalPrice()" />
             </label><br />
 
             <label>Khuyến mại (%):<br />
@@ -258,19 +251,26 @@
   <input type="date" id="class-start-date" required />
 </label><br />
 <div id="class-add-wrapper">
-          <label>Danh sách học viên thêm vào lớp:<br />
-            <input
-              type="text"
-              id="class-add-student-search"
-              placeholder="Tìm học viên..."
-               list="class-add-student-datalist"
-              oninput="filterClassStudentOptions()"
-              style="width: 100%; padding: 6px; margin-bottom: 6px; box-sizing: border-box;"  />
-             <datalist id="class-add-student-datalist">             
-             </datalist>
-            <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm học viên</button>
-          </label>
-          <ul id="class-student-list"></ul>
+    <label>Danh sách học viên thêm vào lớp:</label>
+    
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; margin-bottom: 8px;">
+        <input
+            type="text"
+            id="class-add-student-search"
+            placeholder="Tìm học viên..."
+            list="class-add-student-datalist"
+            oninput="filterClassStudentOptions()"
+            style="flex-grow: 1; padding: 8px;" />
+        <datalist id="class-add-student-datalist"></datalist>
+        
+        <button type="button" class="small-add-button" onclick="showStudentForm()">
+            + Thêm mới
+        </button>
+    </div>
+
+    <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm vào lớp</button>
+    
+    <ul id="class-student-list" style="margin-top: 15px;"></ul>
 </div>
           <button type="submit">Lưu lớp học</button>
           <button type="button" onclick="hideClassForm()">Hủy</button>
@@ -512,6 +512,9 @@
     <i data-lucide="arrow-left"></i>
   </button>
   <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
+  <!-- <button onclick="recalculateAllStudentTuition()" style="background-color: #d9534f; color: white; font-weight: bold;">
+      ⚠️ Cập nhật lại toàn bộ học phí 
+  </button> -->
   <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
   <div class="table-scroll-wrapper">
     <table>
@@ -579,18 +582,25 @@
   </div>
 
   <!-- Trang Lịch học (Schedule Management) -->
-  <div id="schedule-management" class="management-page" style="display:none;">
-    <h2>Lịch học</h2>
-  <button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
-    <div id="fc-mini-calendar-container">
-      <div id="fullcalendar-mini"></div>
+ <div id="schedule-management" class="management-page" style="display:none;">
+    <button onclick="backToDashboard()">
+        <i data-lucide="arrow-left"></i>
+    </button>
+    <h2>Thời khóa biểu</h2>
+
+    <div class="schedule-container">
+        <div id="mini-calendar-hover-container">
+            <div id="mini-calendar-icon">
+                <i data-lucide="calendar-days"></i>
+            </div>
+            <div id="fullcalendar-mini-wrapper">
+                <div id="fullcalendar-mini"></div>
+            </div>
+        </div>
+
+        <div id="fullcalendar-weekly"></div>
     </div>
-    <div id="fc-weekly-container">
-      <div id="fullcalendar-weekly"></div>
-    </div>
-  </div>
+</div>
 
 <!-- Quản lí nhân sự -->
 <div id="personnel-management" class="management-page" style="display:none;">
