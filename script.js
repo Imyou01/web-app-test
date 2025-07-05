@@ -4265,6 +4265,26 @@ function filterClassesBySearch() {
 
   renderHomeworkClassList(filtered);
 } */
+document.addEventListener("DOMContentLoaded", () => {
+    const hamburgerBtn = document.getElementById("hamburger-btn");
+    const navLinks = document.getElementById("nav-links");
+
+    if (hamburgerBtn && navLinks) {
+        hamburgerBtn.addEventListener("click", () => {
+            // Thêm hoặc xóa class 'show' để hiện/ẩn menu
+            navLinks.classList.toggle("show");
+        });
+    }
+    
+    // Tự động ẩn menu khi người dùng nhấn vào một link
+    navLinks.addEventListener('click', (event) => {
+        if (event.target.tagName === 'A') {
+            if (window.innerWidth <= 768) { // Chỉ ẩn trên di động
+                 navLinks.classList.remove('show');
+            }
+        }
+    });
+});
 
 // ===================== Loading =====================
 function showLoading(show) {
