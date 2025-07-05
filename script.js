@@ -283,9 +283,9 @@ database.ref(DB_PATHS.USERS).on("value", (snapshot) => {
     // populatePersonnelClassList(allClassesData); 
 });
       // Khởi tạo FullCalendar sau khi đã có dữ liệu lớp
-      database.ref(DB_PATHS.CLASSES).once("value").then(() => {
-        initFullCalendar();
-      });
+     // database.ref(DB_PATHS.CLASSES).once("value").then(() => {
+     //   initFullCalendar();
+    //  });
     }
   } else {
     hideAllManagementPages();
@@ -541,7 +541,22 @@ if (hash === "account-management") {
 }
   if (hash === "class-management")    initClassesListener();
   if (hash === "homework-management") await showHomeworkManagement();
-  if (hash === "schedule-management") initFullCalendar();
+ if (hash === "schedule-management") {
+    // KIỂM TRA BẰNG CỜ TRÊN THẺ BODY
+    // Nếu cờ 'calendarInitialized' chưa được đặt là 'true', thì tiến hành khởi tạo
+    if (document.body.dataset.calendarInitialized !== 'true') {
+        initFullCalendar();
+    } 
+    // Nếu cờ đã được đặt, chỉ cần làm mới
+    else {
+        if (calendarWeekly) {
+            calendarWeekly.refetchEvents();
+        }
+        if (calendarMini) {
+            calendarMini.refetchEvents();
+        }
+    }
+}
   if (hash === "personnel-management") {
     await initPersonnelManagement(); // Hàm này sẽ chịu trách nhiệm render
 }
@@ -867,92 +882,85 @@ function calculateFinalPrice() {
   const generalCourseSelect = document.getElementById('general-english-course');
   const certificateTypeSelect = document.getElementById('student-certificate-type');
   const certificateCourseSelect = document.getElementById('student-certificate-course');
-  const discountPercentSelect = document.getElementById('student-discount-percent');
+  
+  // THAY ĐỔI: Lấy giá trị từ input thay vì select
+  const discountPercentInput = document.getElementById('student-discount-percent'); 
   const promotionPercentInput = document.getElementById('student-promotion-percent');
   const originalPriceInput = document.getElementById('student-original-price');
   const totalDueInput = document.getElementById('student-total-due');
 
-  let basePrice = 0; // Đây sẽ là giá GỐC theo coursePrices
+  let basePrice = 0;
   let selectedCourseName = '';
 
   // 1. Xác định giá GỐC (basePrice)
   if (packageType === 'Lớp tiếng Anh phổ thông') {
     selectedCourseName = generalCourseSelect.value;
-    const courseData = generalEnglishCourses.find(c => c.name === selectedCourseName);
-    if (courseData) {
-      basePrice = coursePrices[selectedCourseName] || 0; // Giá gốc của combo hoặc khóa lẻ
-    }
+    basePrice = coursePrices[selectedCourseName] || 0;
   } else if (packageType === 'Luyện thi chứng chỉ') {
     selectedCourseName = certificateCourseSelect.value;
     const certType = certificateTypeSelect.value;
     const courseData = certificateCourses[certType]?.find(c => c.name === selectedCourseName);
 
-    if (courseData && courseData.selectionLimit > 0) { // Đây là combo (HSK/YCT combo hoặc IELTS combo)
+    if (courseData && courseData.selectionLimit > 0) {
       const checkedBoxes = document.querySelectorAll('#combo-checkboxes-list input:checked');
       checkedBoxes.forEach(box => {
-        basePrice += parseFloat(box.dataset.originalPrice || 0); // Cộng dồn giá GỐC của các khóa con
+        basePrice += parseFloat(box.dataset.originalPrice || 0);
       });
-    } else { // Đây là khóa lẻ trong chứng chỉ (IELTS, TOEIC, HSK lẻ, YCT lẻ)
-      basePrice = coursePrices[selectedCourseName] || 0; // Giá gốc ban đầu
+    } else {
+      basePrice = coursePrices[selectedCourseName] || 0;
     }
   }
 
-  originalPriceInput.value = Math.round(basePrice); // HIỂN THỊ GIÁ GỐC ĐÚNG TỪ coursePrices
+  originalPriceInput.value = Math.round(basePrice);
 
-  // 2. Tính TỔNG PHẦN TRĂM GIẢM GIÁ
-  let totalDiscountPercentage = 0;
+  // ======================= LOGIC TÍNH TOÁN MỚI =======================
+  // Bắt đầu với giá gốc
+  let finalPrice = basePrice;
 
-  // Áp dụng giảm giá cố định (chỉ cho các combo cụ thể, không có giảm giá mặc định cho khóa lẻ)
+  // 2. Áp dụng chiết khấu cố định của gói (nếu có)
+  let packageDiscountPercent = 0;
   if (packageType === 'Lớp tiếng Anh phổ thông') {
-    if (selectedCourseName.includes("Combo")) {
-        // Lấy % giảm giá của Combo (3X: 5%, 6X: 11%, 12X: 25%)
-        if (selectedCourseName.includes("3X")) totalDiscountPercentage += 5;
-        else if (selectedCourseName.includes("6X")) totalDiscountPercentage += 11;
-        else if (selectedCourseName.includes("12X")) totalDiscountPercentage += 25;
-    }
+    if (selectedCourseName.includes("3X")) packageDiscountPercent = 5;
+    else if (selectedCourseName.includes("6X")) packageDiscountPercent = 11;
+    else if (selectedCourseName.includes("12X")) packageDiscountPercent = 25;
   } else if (packageType === 'Luyện thi chứng chỉ') {
-    const certType = certificateTypeSelect.value;
-    const courseData = certificateCourses[certType]?.find(c => c.name === selectedCourseName);
-
-    // Kiểm tra xem có phải là combo hay không để áp dụng giảm giá combo
-    if (courseData && courseData.selectionLimit > 0) { // Combo IELTS, HSK, YCT
-        if (certType === 'IELTS') {
-            if (selectedCourseName.includes('Combo 2 khóa')) totalDiscountPercentage += 20; // 20%
-            else if (selectedCourseName.includes('Combo 3 khóa')) totalDiscountPercentage += 22; // 22%
-            else if (selectedCourseName.includes('Combo 4 khóa')) totalDiscountPercentage += 25; // 25%
-            else if (selectedCourseName.includes('Combo 5 khóa')) totalDiscountPercentage += 28; // 28%
-        } else if (certType === 'HSK' || certType === 'YCT') {
-            const discountLookup = {
-                "Combo HSK + HSKK: 2 khoá bất kì": 5, "Combo YCT + YCTK: 2 khoá bất kì": 5,
-                "Combo HSK + HSKK: 3 khoá bất kì": 8, "Combo YCT + YCTK: 3 khoá bất kì": 8,
-                "Combo HSK + HSKK: 4 khoá bất kì": 12, "Combo YCT + YCTK: 4 khoá bất kì": 12,
-                "Combo HSK + HSKK: 5 khoá bất kì": 15, "Combo YCT + YCTK: 5 khoá bất kì": 15,
-                "Combo Giao Tiếp: 2 khoá bất kì": 10, "Combo Giao Tiếp YCT: 2 khoá bất kì": 10,
-                "Combo Giao Tiếp: 3 khoá bất kì": 15, "Combo Giao Tiếp YCT: 3 khoá bất kì": 15,
-            };
-            totalDiscountPercentage += (discountLookup[selectedCourseName] || 0);
-        }
-    }
-    
-    // Thêm giảm giá 10% cho YCT riêng biệt (áp dụng cho cả khóa lẻ và combo YCT)
-    if (certType === 'YCT') {
-        totalDiscountPercentage += 10;
-    }
+      const certType = certificateTypeSelect.value;
+      if (certType === 'IELTS') {
+          if (selectedCourseName.includes('Combo 2 khóa')) packageDiscountPercent = 20;
+          else if (selectedCourseName.includes('Combo 3 khóa')) packageDiscountPercent = 22;
+          else if (selectedCourseName.includes('Combo 4 khóa')) packageDiscountPercent = 25;
+          else if (selectedCourseName.includes('Combo 5 khóa')) packageDiscountPercent = 28;
+      } else if (certType === 'HSK' || certType === 'YCT') {
+          const discountLookup = {
+              "Combo HSK + HSKK: 2 khoá bất kì": 5, "Combo YCT + YCTK: 2 khoá bất kì": 5,
+              "Combo HSK + HSKK: 3 khoá bất kì": 8, "Combo YCT + YCTK: 3 khoá bất kì": 8,
+              "Combo HSK + HSKK: 4 khoá bất kì": 12, "Combo YCT + YCTK: 4 khoá bất kì": 12,
+              "Combo HSK + HSKK: 5 khoá bất kì": 15, "Combo YCT + YCTK: 5 khoá bất kì": 15,
+              "Combo Giao Tiếp: 2 khoá bất kì": 10, "Combo Giao Tiếp YCT: 2 khoá bất kì": 10,
+              "Combo Giao Tiếp: 3 khoá bất kì": 15, "Combo Giao Tiếp YCT: 3 khoá bất kì": 15,
+          };
+          packageDiscountPercent = (discountLookup[selectedCourseName] || 0);
+      }
+      if (certType === 'YCT') {
+          // Áp dụng chiết khấu 10% tuần tự cho YCT
+          finalPrice *= (1 - 10 / 100);
+      }
   }
 
-  // Cộng thêm mã giảm giá (5-100%)
-  totalDiscountPercentage += parseFloat(discountPercentSelect.value) || 0;
+  // Áp dụng chiết khấu gói vào giá
+  finalPrice *= (1 - packageDiscountPercent / 100);
 
-  // Cộng thêm khuyến mại từ input (1-100%)
-  totalDiscountPercentage += parseFloat(promotionPercentInput.value) || 0;
+  // 3. Áp dụng "Mã giảm giá" (từ người dùng nhập)
+  const discountCodePercent = parseFloat(discountPercentInput.value) || 0;
+  finalPrice *= (1 - discountCodePercent / 100);
 
-  // Giới hạn tổng phần trăm giảm giá không vượt quá 100%
-  totalDiscountPercentage = Math.min(totalDiscountPercentage, 100);
+  // 4. Áp dụng "Khuyến mại" (từ người dùng nhập)
+  const promotionPercent = parseFloat(promotionPercentInput.value) || 0;
+  finalPrice *= (1 - promotionPercent / 100);
+  // ====================================================================
 
-  // 3. Tính Tổng tiền phải đóng
-  let finalPrice = basePrice * (1 - totalDiscountPercentage / 100);
-
-  totalDueInput.value = Math.round(finalPrice); // Hiển thị tổng tiền phải đóng (làm tròn)
+  // 5. Hiển thị tổng tiền cuối cùng
+  totalDueInput.value = Math.round(finalPrice);
 }
 /**
  * HÀM MỚI
@@ -3494,141 +3502,161 @@ async function showSalaryDetailModal(staffUid) {
 // ===================== Quản lý Lịch học (FullCalendar) =====================
 
 // Xây dựng mảng sự kiện hàng tháng cho FullCalendar :contentReference[oaicite:2]{index=2}
+// Dán toàn bộ hàm này để THAY THẾ cho hàm buildEventsArray cũ trong script.js
 function buildEventsArray(year, month) {
-  const events = [];
-  const monthIndex = month - 1;
-  const lastDayOfMonth = new Date(year, monthIndex + 1, 0);
+    // THÊM DÒNG NÀY ĐỂ DEBUG
+    console.log("Bắt đầu buildEventsArray cho " + Object.keys(allClassesData).length + " lớp học.");
 
-  // Dùng để so sánh ngày theo yyyy-mm-dd
-  function toDateString(date) {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-  Object.values(allClassesData).forEach(cls => {
-    const teacherName = cls.teacher || "(Chưa có tên GV)";
-    const fixed = cls.fixedSchedule || {};
-    const startDateStr = cls.startDate;
-    const startDate = startDateStr ? new Date(startDateStr) : null;
+    const events = [];
+    const monthIndex = month - 1; // Tháng trong JS bắt đầu từ 0 (0-11)
+    const weekdayMap = { "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6 };
 
-    Object.entries(fixed).forEach(([weekdayEng, timeStr]) => {
-      const weekdayMap = {
-        Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
-        Thursday: 4, Friday: 5, Saturday: 6
-      };
-      const targetWeekday = weekdayMap[weekdayEng];
-      if (targetWeekday === undefined) return;
+    function toISOStringNoTZ(date) {
+        const yyyy = date.getFullYear();
+        const mm2 = (date.getMonth() + 1).toString().padStart(2, "0");
+        const dd2 = date.getDate().toString().padStart(2, "0");
+        const hh2 = date.getHours().toString().padStart(2, "0");
+        const min2 = date.getMinutes().toString().padStart(2, "0");
+        return `${yyyy}-${mm2}-${dd2}T${hh2}:${min2}:00`;
+    }
 
-      for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
-        const dt = new Date(year, monthIndex, d);
-        dt.setHours(0, 0, 0, 0);
-
-        // ✅ Sửa TẠI ĐÂY: so sánh ngày theo chuỗi yyyy-mm-dd
-        if (startDate && toDateString(dt) < toDateString(startDate)) {
-          continue;
+    Object.values(allClassesData).forEach(cls => {
+        if (!cls.fixedSchedule || Object.keys(cls.fixedSchedule).length === 0) {
+            return;
+        }
+        const classStartDate = cls.startDate ? new Date(cls.startDate) : null;
+        if (classStartDate) {
+            classStartDate.setHours(0, 0, 0, 0);
         }
 
-        if (dt.getDay() === targetWeekday) {
-          const [hh, mm] = timeStr.split(":").map(Number);
-          const startDateTime = new Date(year, monthIndex, d, hh, mm);
-          const endDateTime = new Date(startDateTime.getTime() + 90 * 60 * 1000);
+        Object.entries(cls.fixedSchedule).forEach(([weekdayEng, timeStr]) => {
+            const targetWeekday = weekdayMap[weekdayEng];
+            if (targetWeekday === undefined) return;
+            const [hh, mm] = timeStr.split(":").map(Number);
 
-          function toISOStringNoTZ(date) {
-            const yyyy = date.getFullYear();
-            const mm2 = (date.getMonth() + 1).toString().padStart(2, "0");
-            const dd2 = date.getDate().toString().padStart(2, "0");
-            const hh2 = date.getHours().toString().padStart(2, "0");
-            const min2 = date.getMinutes().toString().padStart(2, "0");
-            return `${yyyy}-${mm2}-${dd2}T${hh2}:${min2}:00`;
-          }
+            let currentDate = new Date(year, monthIndex, 1);
+            let dayOfMonth = currentDate.getDay();
+            let dateOffset = (targetWeekday - dayOfMonth + 7) % 7;
+            currentDate.setDate(currentDate.getDate() + dateOffset);
 
-          events.push({
-            title: teacherName,
-            start: toISOStringNoTZ(startDateTime),
-            end: toISOStringNoTZ(endDateTime),
-            allDay: false,
-            backgroundColor: "#0066cc",
-            borderColor: "#0066cc",
-            textColor: "#fff"
-          });
-        }
-      }
+            while (currentDate.getMonth() === monthIndex) {
+                if (!classStartDate || currentDate >= classStartDate) {
+                    const startDateTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hh, mm);
+                    const endDateTime = new Date(startDateTime.getTime() + 90 * 60 * 1000);
+
+                    events.push({
+                        title: cls.name,
+                        start: toISOStringNoTZ(startDateTime),
+                        end: toISOStringNoTZ(endDateTime),
+                        allDay: false,
+                        backgroundColor: getClassColor(cls.name),
+                        borderColor: getClassColor(cls.name),
+                        textColor: "#fff",
+                        extendedProps: {
+                            teacher: 'GV: ' + (cls.teacher || 'Chưa có'),
+                            assistant: 'TG: ' + (cls.assistantTeacher || 'Không có')
+                        }
+                    });
+                }
+                currentDate.setDate(currentDate.getDate() + 7);
+            }
+        });
     });
-  });
-
-  console.log(`>>> buildEventsArray(${year},${month}) =>`, events);
-  return events;
+    console.log("Build xong, tạo được " + events.length + " sự kiện.");
+    return events;
+}
+// Hàm tạo màu sắc ngẫu nhiên nhưng nhất quán cho tên lớp
+function getClassColor(className) {
+    const colors = [
+        '#2980b9', '#27ae60', '#8e44ad', '#f39c12', '#d35400', 
+        '#c0392b', '#16a085', '#0097e6', '#8c7ae6', '#e17055'
+    ];
+    let hash = 0;
+    for (let i = 0; i < className.length; i++) {
+        hash = className.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash % colors.length);
+    return colors[index];
 }
 // Khởi tạo FullCalendar cho trang Lịch học :contentReference[oaicite:3]{index=3}
+// Hàm này giờ chỉ chạy 1 lần duy nhất để tạo lịch
 function initFullCalendar() {
-  const today = new Date();
+    // Mini Calendar (month view)
+    debugger;
+    console.log("Hàm initFullCalendar được gọi!");
+    const miniEl = document.getElementById("fullcalendar-mini");
+    calendarMini = new FullCalendar.Calendar(miniEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+        height: 'auto',
+        selectable: true,
+        editable: false,
+        dateClick: function(info) {
+            if (calendarWeekly) {
+                calendarWeekly.gotoDate(info.date);
+            }
+        },
+        fixedWeekCount: false,
+        locale: 'vi',
+        dayCellDidMount: function(info) {
+            if (info.isToday) {
+                info.el.style.backgroundColor = 'rgba(255, 224, 102, 0.4)';
+            }
+        }
+    });
+    calendarMini.render();
 
-  // Mini Calendar (month view)
-  const miniEl = document.getElementById("fullcalendar-mini");
-  calendarMini = new FullCalendar.Calendar(miniEl, {
-    initialView: 'dayGridMonth',
-    headerToolbar: { left: 'prev', center: 'title', right: 'next' },
-    height: 500,
-    selectable: false,
-    editable: false,
-    dateClick: function(info) {
-      const dt = info.date;
-      calendarWeekly.gotoDate(dt);
-      calendarWeekly.changeView('timeGridWeek');
-    },
-    fixedWeekCount: false,
-    locale: 'vi'
-  });
-  calendarMini.render();
+    // Weekly Calendar (timeGridWeek)
+    const weeklyEl = document.getElementById("fullcalendar-weekly");
+    calendarWeekly = new FullCalendar.Calendar(weeklyEl, {
+        initialView: 'timeGridWeek',
+        headerToolbar: false,
+        allDaySlot: false,
+        slotMinTime: "07:00:00",
+        slotMaxTime: "22:00:00",
+        nowIndicator: true,
+        weekNumbers: false,
+        height: 'auto',
+        expandRows: true,
+        firstDay: 1,
+        locale: 'vi',
+        
+        eventContent: function(arg) {
+            const props = arg.event.extendedProps;
+            const html = `
+                <div class="fc-event-main-content">
+                    <div class="fc-event-title">${arg.event.title}</div>
+                    <div class="fc-event-teacher">${props.teacher || ''}</div>
+                    <div class="fc-event-assistant">${props.assistant || ''}</div>
+                </div>
+            `;
+            return { html: html };
+        },
 
-  // Weekly Calendar (timeGridWeek)
-  const weeklyEl = document.getElementById("fullcalendar-weekly");
-  calendarWeekly = new FullCalendar.Calendar(weeklyEl, {
-    initialView: 'timeGridWeek',
-    headerToolbar: { left: '', center: 'title', right: '' },
-    allDaySlot: false,
-    slotMinTime: "06:00:00",
-    slotMaxTime: "22:00:00",
-    slotDuration: "01:00:00",
-    nowIndicator: true,
-    weekNumbers: false,
-    height: 600,
-    expandRows: true,
-    firstDay: 1,
-    locale: 'vi',
-    views: {
-      timeGridWeek: {
-        titleFormat: { year: 'numeric', month: 'long', day: 'numeric' },
-        dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'numeric' },
-        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
-      }
-    },
-    events: function(fetchInfo, successCallback) {
-      const year = fetchInfo.start.getFullYear();
-      const month = fetchInfo.start.getMonth() + 1;
-      const evts = buildEventsArray(year, month);
-      successCallback(evts);
-    },
-    eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
-    dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'numeric' }
-  });
-  calendarWeekly.render();
+        events: function(fetchInfo, successCallback) {
+            const year = fetchInfo.start.getFullYear();
+            const month = fetchInfo.start.getMonth() + 1;
+            const evts = buildEventsArray(year, month); 
+            successCallback(evts);
+        },
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        dayHeaderFormat: { weekday: 'long' }
+    });
+    calendarWeekly.render();
+    document.body.dataset.calendarInitialized = 'true';
 }
-
 // Khi chuyển hash sang #schedule-management, render lại calendar :contentReference[oaicite:4]{index=4}
 window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
-  if (window.location.hash.slice(1) === "schedule-management" && calendarWeekly) {
-    calendarWeekly.render();
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const evts = buildEventsArray(year, month);
-    calendarWeekly.removeAllEvents();
-    calendarWeekly.addEventSource(evts);
-    calendarMini?.refetchEvents?.();
+
+  if (window.location.hash.slice(1) === "schedule-management") {
+    if (calendarWeekly) {
+      calendarWeekly.refetchEvents();
+    }
+    if (calendarMini) {
+      calendarMini.refetchEvents();
+    }
   }
 });
 //              QUẢN LÝ BÀI TẬP VỀ NHÀ          //
@@ -3862,7 +3890,12 @@ async function renderClassAttendanceTable(classId) {
       const row = document.createElement("tr");
       const nameCell = document.createElement("td");
       nameCell.className = attendanceWarningClass; // Áp dụng lớp cảnh báo mới
-      nameCell.textContent = `${student.name || "(Không rõ tên)"} (${student.dob || "N/A"})`;
+      
+      // ======================= THAY ĐỔI TẠI ĐÂY =======================
+      // Bọc tên học viên trong thẻ <a> để gọi hàm editStudent
+      nameCell.innerHTML = `<a href="#" onclick="event.preventDefault(); editStudent('${studentId}')" class="clickable-student-name">${student.name || "(Không rõ tên)"} (${student.dob || "N/A"})</a>`;
+      // ===============================================================
+
       nameCell.style.position = "sticky";
       nameCell.style.left = "0";
       nameCell.style.backgroundColor = "#fff";
@@ -4289,4 +4322,98 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===================== Loading =====================
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
+}
+async function recalculateAllStudentTuition() {
+    // Bước 1: Xác nhận trước khi chạy
+    if (!confirm("⚠️ BẠN CÓ CHẮC CHẮN MUỐN TÍNH LẠI TOÀN BỘ HỌC PHÍ CHO TẤT CẢ HỌC VIÊN KHÔNG?\n\nHành động này sẽ ghi đè dữ liệu cũ và KHÔNG THỂ HOÀN TÁC. Hãy chắc chắn rằng bạn đã sao lưu dữ liệu nếu cần thiết.")) {
+        console.log("Hành động đã được hủy bỏ.");
+        return;
+    }
+
+    console.log("Bắt đầu quá trình tính lại học phí...");
+    showLoading(true);
+
+    try {
+        // Bước 2: Lấy toàn bộ dữ liệu học viên
+        const snapshot = await database.ref('students').once('value');
+        const allStudents = snapshot.val();
+
+        if (!allStudents) {
+            Swal.fire("Không có dữ liệu", "Không tìm thấy học viên nào.", "info");
+            return;
+        }
+
+        const updates = {};
+        let updatedCount = 0;
+
+        // Bước 3: Lặp qua từng học viên để tính toán lại
+        for (const studentId in allStudents) {
+            const st = allStudents[studentId];
+
+            // Cần có thông tin gói và giá gốc để tính
+            if (!st.package || st.originalPrice === undefined) {
+                console.warn(`Bỏ qua học viên ${st.name || studentId} vì thiếu thông tin gói hoặc giá gốc.`);
+                continue;
+            }
+
+            let basePrice = parseFloat(st.originalPrice);
+            let finalPrice = basePrice;
+
+            // Trích xuất tên khóa học sạch từ chuỗi package
+            // Ví dụ: từ "Combo 3X: Tiếng Anh cho trẻ em (Mầm non) (24 buổi)" -> "Combo 3X: Tiếng Anh cho trẻ em (Mầm non)"
+            const courseName = st.package.replace(/\s*\(\d+\s+buổi\)$/, '').trim();
+
+            // Áp dụng lại logic chiết khấu tuần tự y hệt hàm calculateFinalPrice
+            // 2.1. Áp dụng chiết khấu cố định của gói
+            let packageDiscountPercent = 0;
+            // Lớp tiếng Anh phổ thông
+            if (courseName.includes("Combo 3X")) packageDiscountPercent = 5;
+            else if (courseName.includes("Combo 6X")) packageDiscountPercent = 11;
+            else if (courseName.includes("Combo 12X")) packageDiscountPercent = 25;
+            // IELTS
+            else if (courseName.includes('Combo 2 khóa')) packageDiscountPercent = 20;
+            else if (courseName.includes('Combo 3 khóa')) packageDiscountPercent = 22;
+            else if (courseName.includes('Combo 4 khóa')) packageDiscountPercent = 25;
+            else if (courseName.includes('Combo 5 khóa')) packageDiscountPercent = 28;
+            
+            finalPrice *= (1 - packageDiscountPercent / 100);
+
+            // 2.2. Áp dụng chiết khấu YCT
+            if (st.package.toLowerCase().includes('yct')) {
+                finalPrice *= (1 - 10 / 100);
+            }
+
+            // 2.3. Áp dụng "Mã giảm giá" đã lưu của học viên
+            const discountCodePercent = parseFloat(st.discountPercent) || 0;
+            finalPrice *= (1 - discountCodePercent / 100);
+
+            // 2.4. Áp dụng "Khuyến mại" đã lưu của học viên
+            const promotionPercent = parseFloat(st.promotionPercent) || 0;
+            finalPrice *= (1 - promotionPercent / 100);
+
+            const newTotalDue = Math.round(finalPrice);
+            
+            // Chỉ cập nhật nếu giá trị mới khác giá trị cũ
+            if (newTotalDue !== st.totalDue) {
+                updates[`/students/${studentId}/totalDue`] = newTotalDue;
+                updatedCount++;
+            }
+        }
+
+        // Bước 4: Gửi một lần cập nhật duy nhất lên Firebase
+        if (Object.keys(updates).length > 0) {
+            await database.ref().update(updates);
+            Swal.fire("Hoàn tất!", `Đã tính lại và cập nhật học phí cho ${updatedCount} học viên.`, "success");
+            console.log(`Đã cập nhật thành công ${updatedCount} học viên.`);
+        } else {
+            Swal.fire("Hoàn tất!", "Không có học viên nào cần cập nhật học phí.", "info");
+            console.log("Không có học viên nào cần cập nhật.");
+        }
+
+    } catch (error) {
+        console.error("Lỗi nghiêm trọng trong quá trình tính lại học phí:", error);
+        Swal.fire("Lỗi!", "Đã xảy ra lỗi: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
 }
