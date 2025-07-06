@@ -512,24 +512,37 @@
     <i data-lucide="arrow-left"></i>
   </button>
   <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
-  <!-- <button onclick="recalculateAllStudentTuition()" style="background-color: #d9534f; color: white; font-weight: bold;">
+  <!--<button onclick="backfillCreatedAtTimestamp()" style="background-color: #f0ad4e; color: white;">Cập nhật 'Ngày tạo' cho dữ liệu cũ</button>
+ <button onclick="recalculateAllStudentTuition()" style="background-color: #d9534f; color: white; font-weight: bold;">
       ⚠️ Cập nhật lại toàn bộ học phí 
   </button> -->
   <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
+  <select id="student-filter-class" onchange="applyStudentFilters()">
+    <option value="">-- Lọc theo lớp --</option>
+  </select>
+  <button onclick="resetStudentFilters()">Xóa bộ lọc & sắp xếp</button>
+
   <div class="table-scroll-wrapper">
     <table>
-      <thead>
-        <tr>
-          <th>Họ và tên</th>
-          <th>Năm sinh</th>
-          <th>Số điện thoại</th>
-          <th>Gói đăng ký</th>
-          <th>Mã giảm giá</th>
-          <th>Tổng tiền phải đóng</th>
-          <th>Số buổi còn lại</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
+  <thead>
+  <tr>
+    <th>Họ và tên</th>
+    <th>Năm sinh</th>
+    <th>Số điện thoại</th>
+    <th>Gói đăng ký</th>
+    <th class="sortable" onclick="sortStudentsBy('createdAt')">
+      Ngày tạo <i id="sort-icon-createdAt"></i>
+    </th>
+    <th class="sortable" onclick="sortStudentsBy('updatedAt')">
+      Ngày sửa đổi <i id="sort-icon-updatedAt"></i>
+    </th>
+    
+    <th>Học phí</th>
+    
+    <th>Số buổi còn lại</th>
+    <th>Hành động</th>
+  </tr>
+</thead>
       <tbody id="student-list"></tbody>
     </table>
   </div>
