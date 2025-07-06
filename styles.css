@@ -1336,3 +1336,124 @@ button:hover, .auth-form button:hover {
 #fullcalendar-weekly .fc-timegrid-slot-lane {
     border-color: #e9edf5 !important;
 }
+/* styles.css */
+
+/* --- Thêm vào cuối file styles.css --- */
+
+/* CSS cho các nút thêm/xóa buổi học trong header của bảng điểm danh */
+.add-session-btn, .delete-session-btn {
+  background-color: #e0e0e0;
+  border: 1px solid #ccc;
+  border-radius: 50%;
+  color: #333;
+  cursor: pointer;
+  font-weight: bold;
+  width: 22px;
+  height: 22px;
+  line-height: 20px;
+  text-align: center;
+  margin: 0 5px;
+  transition: background-color 0.2s, color 0.2s;
+  font-size: 16px;
+}
+
+.add-session-btn {
+  background-color: #d4edda; /* Màu xanh lá cây nhạt */
+  border-color: #c3e6cb;
+  color: #155724;
+}
+
+.delete-session-btn {
+  background-color: #f8d7da; /* Màu đỏ nhạt */
+  border-color: #f5c6cb;
+  color: #721c24;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+}
+
+.add-session-btn:hover {
+  background-color: #28a745;
+  color: white;
+}
+
+.delete-session-btn:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+#class-attendance-table-head th {
+  padding-top: 25px; /* Thêm khoảng trống ở trên để nút xóa không che mất chữ */
+}
+
+.clickable-student-name {
+    color: #0056b3;
+    text-decoration: none;
+    font-weight: bold;
+}
+.clickable-student-name:hover {
+    text-decoration: underline;
+}
+/* styles.css */
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.filter-controls label {
+  font-weight: 600;
+  color: #333;
+}
+
+.filter-controls select,
+.filter-controls input[type="date"] {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: 'Baloo 2', cursive;
+}
+
+.filter-controls button {
+  background-color: #6c757d;
+  color: white;
+  padding: 8px 12px;
+}
+.filter-controls button:hover {
+  background-color: #5a6268;
+}
+/* styles.css */
+
+th.sortable {
+  cursor: pointer;
+  position: relative;
+  user-select: none; /* Tránh bôi đen chữ khi click nhanh */
+}
+
+th.sortable:hover {
+  background-color: #e9ecef;
+}
+
+/* Base style for the sort icon */
+[id^="sort-icon-"] {
+  display: inline-block;
+  margin-left: 5px;
+  color: #6c757d;
+  font-style: normal;
+}
+
+[id^="sort-icon-"].sort-asc::after {
+  content: '↑'; /* Mũi tên lên */
+  font-weight: bold;
+}
+
+[id^="sort-icon-"].sort-desc::after {
+  content: '↓'; /* Mũi tên xuống */
+  font-weight: bold;
+}
