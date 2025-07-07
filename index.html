@@ -112,8 +112,11 @@
           </div>
 
           <div style="flex: 1;">
-            <label>Gói đăng ký: <span style="font-weight: normal; color: #555;">(Không bắt buộc)</span></label>
-            <div style="margin-top: 8px;">
+            <label>
+              Gói đăng ký: <span style="font-weight: normal; color: #555;">(Không bắt buộc)</span>
+             <button type="button" id="btn-reset-package" class="reset-button" onclick="promptResetPackage()">Reset Gói Đăng Ký</button>
+            </label>
+           <div style="margin-top: 8px;">
               <select id="student-package-type" onchange="handlePackageTypeChange()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                 <option value="">-- Chọn loại gói --</option>
                 <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
@@ -188,94 +191,109 @@
     <div class="modal-content">
       <button class="modal-close" onclick="hideClassForm()">×</button>
       <div id="class-form-container">
-        <h3 id="class-form-title">Tạo lớp học mới</h3>
-        <form id="class-form">
-          <input type="hidden" id="class-index" />
-          <label>Tên lớp học:<br />
-            <input type="text" id="class-name" required />
-          </label><br />
+  <h3 id="class-form-title">Tạo lớp học mới</h3>
+  <form id="class-form">
+    <input type="hidden" id="class-index" />
 
-          <div class="form-group">
-            <label for="class-teacher">Giáo viên đứng lớp:</label>
-            <select id="class-teacher" class="form-control" required>
-            <option value="">-- Chọn giáo viên --</option>
-            </select>
-          </div>
+    <label>Chọn loại lớp học:</label>
+    <select id="class-type-select" onchange="handleClassTypeChange()">
+        <option value="">-- Vui lòng chọn --</option>
+        <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
+        <option value="Lớp chứng chỉ">Lớp chứng chỉ</option>
+    </select>
 
-          <div class="form-group">
-            <label for="class-assistant-teacher">Trợ Giảng đứng lớp:</label>
-            <select id="class-assistant-teacher" class="form-control">
-            <option value="">-- Không có trợ giảng --</option>
-            </select>
-          </div>
+    <div id="class-certificate-options-container" class="form-field-hidden">
+        <label>Loại chứng chỉ:</label>
+        <select id="class-certificate-type-select" onchange="populateClassCertificateCourseDropdown()"></select>
 
-          <label>Lịch học cố định (tuần):</label>
-          <div id="class-fixed-schedule">
-            <div>
-              <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
-              <label for="schedule-mon">Thứ 2</label>
-              <input type="time" id="time-mon" class="required-time" />
-            </div>
-            <div>
-              <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
-              <label for="schedule-tue">Thứ 3</label>
-              <input type="time" id="time-tue" class="required-time" />
-            </div>
-            <div>
-              <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
-              <label for="schedule-wed">Thứ 4</label>
-              <input type="time" id="time-wed" class="required-time" />
-            </div>
-            <div>
-              <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
-              <label for="schedule-thu">Thứ 5</label>
-              <input type="time" id="time-thu" class="required-time" />
-            </div>
-            <div>
-              <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
-              <label for="schedule-fri">Thứ 6</label>
-              <input type="time" id="time-fri" class="required-time" />
-            </div>
-            <div>
-              <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
-              <label for="schedule-sat">Thứ 7</label>
-              <input type="time" id="time-sat" class="required-time" />
-            </div>
-            <div>
-              <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
-              <label for="schedule-sun">Chủ Nhật</label>
-              <input type="time" id="time-sun" class="required-time" />
-            </div>
-          </div>
-  <label>Ngày bắt đầu lớp học:<br />
-  <input type="date" id="class-start-date" required />
-</label><br />
-<div id="class-add-wrapper">
-    <label>Danh sách học viên thêm vào lớp:</label>
-    
-    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; margin-bottom: 8px;">
-        <input
-            type="text"
-            id="class-add-student-search"
-            placeholder="Tìm học viên..."
-            list="class-add-student-datalist"
-            oninput="filterClassStudentOptions()"
-            style="flex-grow: 1; padding: 8px;" />
-        <datalist id="class-add-student-datalist"></datalist>
-        
-        <button type="button" class="small-add-button" onclick="showStudentForm()">
-            + Thêm mới
-        </button>
+        <label>Khóa học đơn (không combo):</label>
+        <select id="class-course-select"></select>
+    </div>
+    <label>Tên lớp học:<br />
+      <input type="text" id="class-name" required />
+    </label><br />
+
+    <div class="form-group">
+      <label for="class-teacher">Giáo viên đứng lớp:</label>
+      <select id="class-teacher" class="form-control" required>
+      <option value="">-- Chọn giáo viên --</option>
+      </select>
     </div>
 
-    <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm vào lớp</button>
-    
-    <ul id="class-student-list" style="margin-top: 15px;"></ul>
-</div>
-          <button type="submit">Lưu lớp học</button>
-          <button type="button" onclick="hideClassForm()">Hủy</button>
-        </form>
+    <div class="form-group">
+      <label for="class-assistant-teacher">Trợ Giảng đứng lớp:</label>
+      <select id="class-assistant-teacher" class="form-control">
+      <option value="">-- Không có trợ giảng --</option>
+      </select>
+    </div>
+
+    <label>Lịch học cố định (tuần):</label>
+    <div id="class-fixed-schedule">
+      <div>
+        <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
+        <label for="schedule-mon">Thứ 2</label>
+        <input type="time" id="time-mon" class="required-time" />
       </div>
+      <div>
+        <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
+        <label for="schedule-tue">Thứ 3</label>
+        <input type="time" id="time-tue" class="required-time" />
+      </div>
+      <div>
+        <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
+        <label for="schedule-wed">Thứ 4</label>
+        <input type="time" id="time-wed" class="required-time" />
+      </div>
+      <div>
+        <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
+        <label for="schedule-thu">Thứ 5</label>
+        <input type="time" id="time-thu" class="required-time" />
+      </div>
+      <div>
+        <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
+        <label for="schedule-fri">Thứ 6</label>
+        <input type="time" id="time-fri" class="required-time" />
+      </div>
+      <div>
+        <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
+        <label for="schedule-sat">Thứ 7</label>
+        <input type="time" id="time-sat" class="required-time" />
+      </div>
+      <div>
+        <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
+        <label for="schedule-sun">Chủ Nhật</label>
+        <input type="time" id="time-sun" class="required-time" />
+      </div>
+    </div>
+    <label>Ngày bắt đầu lớp học:<br />
+    <input type="date" id="class-start-date" required />
+    </label><br />
+    <div id="class-add-wrapper">
+      <label>Danh sách học viên thêm vào lớp:</label>
+
+      <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; margin-bottom: 8px;">
+          <input
+              type="text"
+              id="class-add-student-search"
+              placeholder="Tìm học viên..."
+              list="class-add-student-datalist"
+              oninput="filterClassStudentOptions()"
+              style="flex-grow: 1; padding: 8px;" />
+          <datalist id="class-add-student-datalist"></datalist>
+
+          <button type="button" class="small-add-button" onclick="showStudentForm()">
+              + Thêm mới
+          </button>
+      </div>
+
+      <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm vào lớp</button>
+
+      <ul id="class-student-list" style="margin-top: 15px;"></ul>
+    </div>
+    <button type="submit">Lưu lớp học</button>
+    <button type="button" onclick="hideClassForm()">Hủy</button>
+  </form>
+</div>
     </div>
   </div>
 <div id="class-attendance-modal-overlay" class="modal-overlay">
