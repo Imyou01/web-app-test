@@ -1457,3 +1457,19 @@ th.sortable:hover {
   content: '↓'; /* Mũi tên xuống */
   font-weight: bold;
 }
+/* CSS cho nút Reset gói đăng ký */
+.reset-button {
+  float: right;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #f0ad4e; /* Màu vàng cảnh báo */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.reset-button:hover {
+  background-color: #ec971f;
+}
