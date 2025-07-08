@@ -29,9 +29,11 @@ let allClassesData = {};
 let allUsersData = {};
 let currentUserData = null;
 let currentClassStudents = [];
-let calendarWeekly = null;
-let calendarMini   = null;
+
 let personnelListInitialized = false;
+let scheduleEventListenersInitialized = false;
+let tempClassesData = {};
+let selectedTempStudents = {};
 
 // Đường dẫn các node trong Realtime Database
 const DB_PATHS = {
@@ -47,7 +49,8 @@ const pages = [
   "account-management",
   "student-management",
   "class-management",
-  "schedule-management",
+  "new-schedule-page",
+ //schedule-management",
   //"homework-management",
   "personnel-management",
   "profile-page"
@@ -546,23 +549,12 @@ if (hash === "account-management") {
     populateClassFilterDropdown();   // <-- THÊM DÒNG NÀY VÀO
   }
   if (hash === "class-management")    initClassesListener();
-  if (hash === "homework-management") await showHomeworkManagement();
-  if (hash === "schedule-management") {
-    // KIỂM TRA BẰNG CỜ TRÊN THẺ BODY
-    // Nếu cờ 'calendarInitialized' chưa được đặt là 'true', thì tiến hành khởi tạo
-    if (document.body.dataset.calendarInitialized !== 'true') {
-        initFullCalendar();
-    } 
-    // Nếu cờ đã được đặt, chỉ cần làm mới
-    else {
-        if (calendarWeekly) {
-            calendarWeekly.refetchEvents();
-        }
-        if (calendarMini) {
-            calendarMini.refetchEvents();
-        }
-    }
+  if (hash === "new-schedule-page") {
+    initScheduleEventListeners(); // Gọi hàm khởi tạo sự kiện
+    currentWeekOffset = 0;
+    renderNewSchedulePage();
 }
+  if (hash === "homework-management") await showHomeworkManagement();
   if (hash === "personnel-management") {
     await initPersonnelManagement(); // Hàm này sẽ chịu trách nhiệm render
 }
@@ -579,6 +571,7 @@ document.getElementById("class-form").addEventListener("submit", function (e) {
 
 // Khi load lần đầu nếu có hash và user đã xác thực
 document.addEventListener("DOMContentLoaded", () => {
+  populateTimeDropdowns();
   const monthsSelect = document.getElementById('student-package-months');
   if (monthsSelect) {
     for (let i = 1; i <= 30; i++) {
@@ -833,29 +826,22 @@ async function showRenewPackageForm(studentId) {
       return;
     }
 
-    // 1. Reset toàn bộ form trước để xóa dữ liệu cũ
     document.getElementById("student-form").reset();
-    document.getElementById("student-index").value = studentId; // Giữ ID học viên
-
-    // 2. *** SỬA LỖI: Điền dữ liệu vào các trường bắt buộc TRƯỚC KHI ẩn chúng đi ***
-    //    Hành động này để thỏa mãn thuộc tính 'required' của form khi bấm lưu.
+    document.getElementById("student-index").value = studentId; 
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
 
-    // 3. Đặt tiêu đề cho biết đây là form gia hạn
     document.getElementById("student-form-title").textContent = "Gia hạn";
 
-    // 4. Bây giờ mới ẩn các trường không liên quan
     const fieldsToHide = [
         "student-name", "student-dob", "contact-info-container",
         "student-address", "student-parent-job"
     ];
     fieldsToHide.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.parentElement.classList.add('form-field-hidden'); // Ẩn cả label và input
+        if (el) el.parentElement.classList.add('form-field-hidden');
     });
 
-    // 5. Reset các trường liên quan đến gói và hiển thị số buổi còn lại
     document.getElementById("student-package-type").value = "";
     document.getElementById("general-english-options-container").style.display = "none";
     document.getElementById("certificate-options-container").style.display = "none";
@@ -869,9 +855,12 @@ async function showRenewPackageForm(studentId) {
     const sessionsAttended = st.sessionsAttended || 0;
     const totalSessionsPaid = st.totalSessionsPaid || 0;
     document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
+    document.getElementById("student-total-attended-sessions").value = sessionsAttended;
 
-    // 6. Hiển thị modal
     document.getElementById("student-form-modal").style.display = "flex";
+    const canSaveChanges = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+    setStudentFormReadonly(!canSaveChanges);
+
     document.getElementById("student-form-container").style.display = "block";
     const modalContent = document.querySelector("#student-form-modal .modal-content");
     modalContent.classList.remove("scale-up");
@@ -1203,6 +1192,13 @@ function formatTimestamp(ts) {
 // Render danh sách học viên (phân trang)
 function renderStudentList(dataset) {
   const studentEntries = Object.entries(dataset);
+  
+  const totalStudents = studentEntries.length;
+  const paidStudents = studentEntries.filter(([, st]) => st.package && st.package.trim() !== '').length;
+
+  document.getElementById("total-students-display").innerHTML = `Tổng số: <strong>${totalStudents}</strong>`;
+  document.getElementById("paid-students-display").innerHTML = `Đã đóng tiền: <strong>${paidStudents}</strong>`;
+
   totalStudentPages = Math.ceil(studentEntries.length / studentsPerPage);
   if (currentStudentPage > totalStudentPages) currentStudentPage = totalStudentPages;
   if (currentStudentPage < 1) currentStudentPage = 1;
@@ -1214,13 +1210,37 @@ function renderStudentList(dataset) {
   const tbody = document.getElementById("student-list");
   tbody.innerHTML = "";
 
+  // *** LOGIC PHÂN QUYỀN BẮT ĐẦU TỪ ĐÂY ***
+  const canEditStudents = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
+
   currentPageStudents.forEach(([id, st]) => {
+    let actionButtonsHTML = '';
+
+    if (canEditStudents) {
+      // Nếu là Admin/Hội đồng, hiển thị các nút với đầy đủ chức năng
+      actionButtonsHTML = `
+        <button onclick="editStudent('${id}')">Sửa</button>
+        <button onclick="viewStudentSessions('${id}', '${st.classes ? Object.keys(st.classes)[0] : ''}')" ${!st.classes ? 'disabled' : ''}>Buổi học</button>
+        <button onclick="showRenewPackageForm('${id}')">Gia hạn</button>
+        <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
+      `;
+    } else {
+      // Nếu là vai trò khác, các nút sẽ hiển thị thông báo "không đủ thẩm quyền"
+      const permissionAlert = "Swal.fire('Thẩm quyền', 'Bạn không có quyền thực hiện hành động này.', 'warning')";
+      actionButtonsHTML = `
+        <button onclick="${permissionAlert}">Sửa</button>
+        <button onclick="${permissionAlert}">Buổi học</button>
+        <button onclick="${permissionAlert}">Gia hạn</button>
+        <button class="delete-btn" onclick="${permissionAlert}">Xóa</button>
+      `;
+    }
+
     const classIds = st.classes ? Object.keys(st.classes) : [];
     const firstClassId = classIds.length > 0 ? classIds[0] : "";
     const query = document.getElementById("student-search")?.value.toLowerCase() || "";
 
     function highlight(text) {
-      if (!query) return text;
+      if (!query || !text) return text;
       const regex = new RegExp(`(${query})`, "gi");
       return text.replace(regex, '<mark>$1</mark>');
     }
@@ -1241,17 +1261,8 @@ function renderStudentList(dataset) {
       displayPhone = st.phone;
     } else if (age !== null && age < 18 && st.parentPhone) {
       displayPhone = st.parentPhone;
-    } else if (age !== null && age >= 18 && st.phone === undefined) {
-      displayPhone = '';
     } else {
       displayPhone = st.parentPhone || "";
-    }
-
-    let btnBuoiHoc;
-    if (!firstClassId) {
-      btnBuoiHoc = `<button disabled>Buổi học</button>`;
-    } else {
-      btnBuoiHoc = `<button onclick="viewStudentSessions('${id}', '${firstClassId}')">Buổi học</button>`;
     }
 
     const sessionsAttended = st.sessionsAttended || 0;
@@ -1265,10 +1276,8 @@ function renderStudentList(dataset) {
         warningClass = 'student-warning-low';
     }
 
-    // Định dạng lại học phí để dễ đọc
     const totalDueFormatted = (st.totalDue || 0).toLocaleString('vi-VN');
 
-    // Cập nhật lại chuỗi row để thêm cột học phí
     const row = `
       <tr class="${isHighlight ? 'highlight-row' : ''}">
         <td data-label="Họ và tên" class="${warningClass}">${highlight(st.name || "")}</td>
@@ -1279,12 +1288,7 @@ function renderStudentList(dataset) {
         <td data-label="Ngày sửa đổi">${formatTimestamp(st.updatedAt)}</td>
         <td data-label="Học phí">${totalDueFormatted} VNĐ</td>
         <td data-label="Số buổi còn lại">${remainingSessions}</td>
-        <td data-label="Hành động">
-          <button onclick="editStudent('${id}')">Sửa</button>
-          ${btnBuoiHoc}
-          <button onclick="showRenewPackageForm('${id}')">Gia hạn</button>
-          <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
-        </td>
+        <td data-label="Hành động">${actionButtonsHTML}</td>
       </tr>`;
     tbody.insertAdjacentHTML("beforeend", row);
   });
@@ -1628,9 +1632,20 @@ async function deleteStudent(id) {
     alert("Lỗi xóa học viên: " + error.message);
   }
 }
+// Hàm mới để khóa hoặc mở khóa form sửa học viên
+function setStudentFormReadonly(isReadonly) {
+  const form = document.getElementById("student-form");
+  const elements = form.querySelectorAll("input, select, button");
 
-// Chỉnh sửa học viên (đổ dữ liệu vào form)
-// Chỉnh sửa học viên (đổ dữ liệu vào form)
+  elements.forEach(el => {
+    // Không khóa nút "Hủy" hoặc nút đóng modal
+    if (el.type === 'button' && el.textContent.toLowerCase() === 'hủy') {
+      el.disabled = false;
+    } else {
+      el.disabled = isReadonly;
+    }
+  });
+}
 // Chỉnh sửa học viên (đổ dữ liệu vào form)
 async function editStudent(id) {
   showLoading(true);
@@ -1639,23 +1654,12 @@ async function editStudent(id) {
     const st = snapshot.val();
     if (!st) {
       Swal.fire("Lỗi", "Học viên không tồn tại!", "error");
-      showLoading(false); // Thêm dòng này
       return;
     }
 
-    // Bước 1: Reset các phần cần thiết của form một cách có kiểm soát
-    // KHÔNG dùng document.getElementById("student-form").reset(); nữa
-    document.getElementById('student-package-type').value = '';
-    document.getElementById('general-english-course').innerHTML = '<option value="">-- Chọn khóa học --</option>';
-    document.getElementById('student-certificate-type').value = '';
-    document.getElementById('student-certificate-course').innerHTML = '<option value="">-- Chọn khóa học --</option>';
-    document.getElementById('general-english-options-container').style.display = 'none';
-    document.getElementById('certificate-options-container').style.display = 'none';
-    document.getElementById('combo-selection-container').style.display = 'none';
+    document.getElementById("student-form").reset();
     document.getElementById("student-new-package-sessions").value = "0";
 
-    // Bước 2: Luôn tải và hiển thị dữ liệu GỐC đã lưu của học viên lên form.
-    // Đây là "nguồn chân lý" cho những gì người dùng thấy.
     document.getElementById("student-index").value = id;
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
@@ -1669,19 +1673,34 @@ async function editStudent(id) {
     const sessionsAttended = st.sessionsAttended || 0;
     const totalSessionsPaid = st.totalSessionsPaid || 0;
     document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
+    document.getElementById("student-total-attended-sessions").value = sessionsAttended;
 
     handleAgeChange();
     setTimeout(() => {
-        if (st.phone) document.getElementById("student-phone")?.setAttribute('value', st.phone);
-        if (st.parent) document.getElementById("student-parent")?.setAttribute('value', st.parent);
-        if (st.parentPhone) document.getElementById("student-parent-phone")?.setAttribute('value', st.parentPhone);
-    }, 10);
+      if (st.dob) {
+        const birthYear = parseInt(st.dob);
+        const currentYear = new Date().getFullYear();
+        const age = currentYear - birthYear;
+        const studentPhoneInput = document.getElementById("student-phone");
+        const studentParentInput = document.getElementById("student-parent");
+        const studentParentPhoneInput = document.getElementById("student-parent-phone");
+
+        if (age >= 18) {
+          if (studentPhoneInput) studentPhoneInput.value = st.phone || "";
+        } else {
+          if (studentPhoneInput) studentPhoneInput.value = st.phone || "";
+          if (studentParentInput) studentParentInput.value = st.parent || "";
+          if (studentParentPhoneInput) studentParentPhoneInput.value = st.parentPhone || "";
+        }
+      }
+    }, 0);
 
     const parentJobSelect = document.getElementById("student-parent-job");
     const parentJobOtherInput = document.getElementById("student-parent-job-other");
     if (st.parentJob && Array.from(parentJobSelect.options).some(option => option.value === st.parentJob)) {
       parentJobSelect.value = st.parentJob;
       parentJobOtherInput.style.display = "none";
+      parentJobOtherInput.value = "";
     } else if (st.parentJob) {
       parentJobSelect.value = "Khác";
       parentJobOtherInput.style.display = "inline-block";
@@ -1689,67 +1708,92 @@ async function editStudent(id) {
     } else {
       parentJobSelect.value = "";
       parentJobOtherInput.style.display = "none";
+      parentJobOtherInput.value = "";
     }
+    parentJobChange(parentJobSelect.value);
 
-    // Bước 3: (Nâng cao) Cố gắng tự động chọn các dropdown để tiện cho việc chỉnh sửa.
-    // Phần logic này được giữ lại nhưng sẽ không ảnh hưởng đến dữ liệu đã hiển thị ở Bước 2.
-    // --- (Toàn bộ khối logic `let foundPackage = false;` ... của bạn được giữ nguyên ở đây) ---
     const packageTypeSelect = document.getElementById('student-package-type');
     const generalEnglishCourseSelect = document.getElementById('general-english-course');
     const certificateTypeSelect = document.getElementById('student-certificate-type');
     const certificateCourseSelect = document.getElementById('student-certificate-course');
+    const comboSelectionContainer = document.getElementById('combo-selection-container');
+
+    packageTypeSelect.value = '';
+    generalEnglishCourseSelect.value = '';
+    certificateTypeSelect.value = '';
+    certificateCourseSelect.innerHTML = '';
+    comboSelectionContainer.style.display = 'none';
+    document.getElementById('combo-checkboxes-list').innerHTML = '';
+
     let foundPackage = false;
-    for (const course of generalEnglishCourses) {
-        if (st.package && st.package.includes(course.name)) {
-            packageTypeSelect.value = 'Lớp tiếng Anh phổ thông';
-            handlePackageTypeChange();
-            generalEnglishCourseSelect.value = course.name;
-            foundPackage = true;
-            break;
+    let selectedComboCoursesFromDB = st.selectedComboCourses;
+
+    if (Array.isArray(selectedComboCoursesFromDB) && selectedComboCoursesFromDB.length > 0) {
+      let detectedCertType = null;
+      for (const key of ['HSK', 'YCT']) {
+        if (certificateCourses[`${key}_BASE`]?.some(c => c.name === selectedComboCoursesFromDB[0])) {
+          detectedCertType = key;
+          break;
         }
+      }
+      if (detectedCertType) {
+        packageTypeSelect.value = 'Luyện thi chứng chỉ';
+        handlePackageTypeChange();
+        certificateTypeSelect.value = detectedCertType;
+        populateCourseDropdown();
+      }
     }
     if (!foundPackage) {
-        for (const certTypeKey in certificateCourses) {
-            if (certTypeKey.includes('_BASE')) continue;
-            if (certificateCourses.hasOwnProperty(certTypeKey)) {
-                for (const course of certificateCourses[certTypeKey]) {
-                    if (st.package && st.package.includes(course.name)) {
-                        packageTypeSelect.value = 'Luyện thi chứng chỉ';
-                        handlePackageTypeChange();
-                        certificateTypeSelect.value = certTypeKey;
-                        populateCourseDropdown();
-                        certificateCourseSelect.value = course.name;
-                        if (course.selectionLimit > 0) handleCourseSelection();
-                        foundPackage = true;
-                        break;
-                    }
-                }
-            }
-            if (foundPackage) break;
+      for (const course of generalEnglishCourses) {
+        if (st.package && st.package.includes(course.name)) {
+          packageTypeSelect.value = 'Lớp tiếng Anh phổ thông';
+          handlePackageTypeChange();
+          generalEnglishCourseSelect.value = course.name;
+          foundPackage = true;
+          break;
         }
+      }
+      if (!foundPackage) {
+        for (const certTypeKey in certificateCourses) {
+          if (certTypeKey.includes('_BASE')) continue;
+          if (certificateCourses.hasOwnProperty(certTypeKey)) {
+            for (const course of certificateCourses[certTypeKey]) {
+              if (st.package && st.package.includes(course.name)) {
+                packageTypeSelect.value = 'Luyện thi chứng chỉ';
+                handlePackageTypeChange();
+                certificateTypeSelect.value = certTypeKey;
+                populateCourseDropdown();
+                certificateCourseSelect.value = course.name;
+                if (course.selectionLimit > 0) handleCourseSelection();
+                foundPackage = true;
+                break;
+              }
+            }
+          }
+          if (foundPackage) break;
+        }
+      }
+    }
+
+    if (!foundPackage) {
+      console.log("Không tìm thấy gói học phù hợp trong dropdowns, giữ nguyên giá trị đã lưu.");
     }
     
-    // Bước 4: **QUAN TRỌNG** - Sau khi khối logic "thông minh" ở trên chạy xong,
-    // ta một lần nữa khẳng định lại các giá trị tài chính đã lưu để đảm bảo chúng không bị ghi đè.
-    document.getElementById("student-original-price").value = st.originalPrice || 0;
-    document.getElementById("student-total-due").value = st.totalDue || 0;
-    document.getElementById("student-discount-percent").value = st.discountPercent || 0;
-    document.getElementById("student-promotion-percent").value = st.promotionPercent || 0;
-
-    // Bước 5: Hiển thị form
     document.getElementById("student-form-title").textContent = "Chỉnh sửa học viên";
     document.getElementById("student-form-modal").style.display = "flex";
     document.getElementById("student-form-container").style.display = "block";
-    const modalContent = document.querySelector("#student-form-modal .modal-content");
-    modalContent.classList.remove("scale-up");
-    modalContent.offsetHeight;
-    modalContent.classList.add("scale-up");
-
+    const canSaveChanges = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+    setStudentFormReadonly(!canSaveChanges);
+    
   } catch (err) {
     console.error("Lỗi tải học viên:", err);
     Swal.fire("Lỗi", "Lỗi tải học viên: " + err.message, "error");
   } finally {
     showLoading(false);
+    const modalContent = document.querySelector("#student-form-modal .modal-content");
+    modalContent.classList.remove("scale-up");
+    modalContent.offsetHeight;
+    modalContent.classList.add("scale-up");
   }
 }
 // Hiển thị hoặc ẩn ô “Nhập nghề nghiệp khác”
@@ -1767,27 +1811,86 @@ function renderClassList(classes) {
     return;
   }
   tbody.innerHTML = "";
-  Object.entries(classes).forEach(([id, cls]) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${cls.name || ""}</td>
-      <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
-      <td>${cls.teacher || ""}</td>
-      <td>
-        <button onclick="showClassAttendanceAndHomeworkTable('${id}')">Điểm Danh</button>
-        <button onclick="editClass('${id}')">Sửa</button>
-        <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
-      </td>
-    `;
 
-    tr.addEventListener("mouseenter", () => {
-      showSchedulePreview(cls.fixedSchedule);
-    });
-    tr.addEventListener("mouseleave", () => {
-      clearSchedulePreview();
-    });
+  // *** LOGIC SẮP XẾP MỚI BẮT ĐẦU TẠI ĐÂY ***
 
-    tbody.appendChild(tr);
+  // 1. Chuyển đổi đối tượng 'classes' thành một mảng để có thể sắp xếp
+  const classArray = Object.entries(classes);
+
+  // 2. Hàm so sánh "Natural Sort" để xử lý cả chữ và số
+  const naturalSort = (a, b) => {
+    // a và b là các mảng con, ví dụ: ['classId1', { name: 'Tiếng Anh Lớp 10' }]
+    // chúng ta cần so sánh a[1].name và b[1].name
+    const nameA = a[1].name || '';
+    const nameB = b[1].name || '';
+
+    // Regex để tìm và tách các chuỗi số
+    const re = /(\d+)/g;
+    const partsA = nameA.split(re);
+    const partsB = nameB.split(re);
+
+    // Lặp qua các phần đã tách để so sánh
+    for (let i = 0; i < Math.min(partsA.length, partsB.length); i++) {
+      const partA = partsA[i];
+      const partB = partsB[i];
+
+      // Nếu 2 phần giống hệt nhau, xét phần tiếp theo
+      if (partA === partB) {
+        continue;
+      }
+
+      // Kiểm tra xem 2 phần có phải là số không
+      const isNumberA = !isNaN(partA);
+      const isNumberB = !isNaN(partB);
+
+      if (isNumberA && isNumberB) {
+        // Nếu cả 2 là số, so sánh theo giá trị số
+        return parseInt(partA, 10) - parseInt(partB, 10);
+      } else {
+        // Nếu là chữ, so sánh theo thứ tự alphabet
+        return partA.localeCompare(partB);
+      }
+    }
+
+    // Nếu mọi thứ đều giống nhau, tên ngắn hơn sẽ đứng trước
+    return partsA.length - partsB.length;
+  };
+
+  // 3. Sắp xếp mảng lớp học bằng hàm vừa tạo
+  classArray.sort(naturalSort);
+
+  // *** LOGIC SẮP XẾP KẾT THÚC ***
+
+
+  // Lấy vai trò và UID của người dùng hiện tại
+  const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
+  const currentUid = currentUserData.uid;
+
+  // 4. Lặp qua mảng ĐÃ ĐƯỢC SẮP XẾP để hiển thị
+  classArray.forEach(([id, cls]) => {
+    // Logic phân quyền xem lớp vẫn được giữ nguyên
+    if (isAdminOrHoiDong || cls.teacherUid === currentUid || cls.assistantTeacherUid === currentUid) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${cls.name || ""}</td>
+        <td>${cls.students ? Object.keys(cls.students).length : 0}</td>
+        <td>${cls.teacher || ""}</td>
+        <td>
+          <button onclick="showClassAttendanceAndHomeworkTable('${id}')">Điểm Danh</button>
+          <button onclick="editClass('${id}')">Sửa</button>
+          <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
+        </td>
+      `;
+
+      tr.addEventListener("mouseenter", () => {
+        showSchedulePreview(cls.fixedSchedule);
+      });
+      tr.addEventListener("mouseleave", () => {
+        clearSchedulePreview();
+      });
+
+      tbody.appendChild(tr);
+    }
   });
 }
 // Mảng chứa các role được phép làm giáo viên hoặc trợ giảng
@@ -1861,6 +1964,7 @@ async function editClass(id) {
     document.getElementById("class-index").value = id;
     document.getElementById("class-name").value = cls.name || "";
     document.getElementById("class-start-date").value = cls.startDate || "";
+    document.getElementById("class-room").value = cls.room || "Phòng 301";
 
     await populateTeacherDropdown();
     document.getElementById("class-teacher").value = cls.teacher || "";
@@ -2112,6 +2216,7 @@ async function saveClass() {
   const teacher = selectedTeacherOption.value;
   const teacherUid = selectedTeacherOption.dataset.uid || '';
   const assistantTeacherSelect = document.getElementById("class-assistant-teacher");
+  const room = document.getElementById("class-room").value; //đổ dữ liệu phòng học
   const selectedAssistantTeacherOption = assistantTeacherSelect.options[assistantTeacherSelect.selectedIndex];
   const assistantTeacher = selectedAssistantTeacherOption.value;
   const assistantTeacherUid = selectedAssistantTeacherOption.dataset.uid || '';
@@ -2158,6 +2263,7 @@ async function saveClass() {
     teacherUid,
     assistantTeacher,
     assistantTeacherUid,
+    room,
     students: {},
     fixedSchedule,
     startDate,
@@ -2295,13 +2401,14 @@ function getFixedScheduleFromForm() {
   const dayCheckboxes = document.querySelectorAll("input[name='schedule-day']:checked");
 
   dayCheckboxes.forEach(checkbox => {
-    const day = checkbox.value; // ví dụ: "Tuesday"
+    const day = checkbox.value; // ví dụ: "Monday"
     const dayKey = checkbox.id.split("-")[1]; // "mon", "tue", ...
-    const timeInput = document.getElementById(`time-${dayKey}`);
-    const time = timeInput?.value;
+    
+    const hour = document.getElementById(`hour-${dayKey}`).value;
+    const minute = document.getElementById(`minute-${dayKey}`).value;
 
-    if (time) {
-      schedule[day] = time; // ví dụ: { Tuesday: "16:00" }
+    if (hour && minute) {
+      schedule[day] = `${hour}:${minute}`;
     }
   });
 
@@ -2309,19 +2416,24 @@ function getFixedScheduleFromForm() {
 }
 // Điền form với lịch cố định có sẵn
 function fillFixedScheduleForm(fixedSchedule) {
-  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
   days.forEach(day => {
     const checkbox = document.getElementById(`schedule-${day}`);
-    const timeInput = document.getElementById(`time-${day}`);
-    if (fixedSchedule && fixedSchedule[checkbox.value]) {
+    const hourSelect = document.getElementById(`hour-${day}`);
+    const minuteSelect = document.getElementById(`minute-${day}`);
+
+    const dayName = checkbox.value; // "Sunday", "Monday", ...
+    if (fixedSchedule && fixedSchedule[dayName]) {
       checkbox.checked = true;
-      timeInput.value = fixedSchedule[checkbox.value];
+      const [hour, minute] = fixedSchedule[dayName].split(":");
+      hourSelect.value = hour;
+      minuteSelect.value = minute;
     } else {
       checkbox.checked = false;
-      timeInput.value = "";
+      hourSelect.value = "08"; // Giờ mặc định
+      minuteSelect.value = "00"; // Phút mặc định
     }
   });
-  renderFixedScheduleDisplay();
 }
 // Thiết lập sự kiện change cho các ô checkbox/time trong form lớp
 function setupScheduleInputsListener() {
@@ -2612,18 +2724,19 @@ function validateFixedSchedule() {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   for (const day of days) {
     const checkbox = document.getElementById(`schedule-${day}`);
-    const timeInput = document.getElementById(`time-${day}`);
-    if (checkbox.checked && !timeInput.value) {
-      alert(`Vui lòng chọn giờ học cho ${checkbox.value}!`);
-      timeInput.focus();
-      return false;
-    }
-    if (!checkbox.checked && timeInput.value) {
-      alert(`Vui lòng tick lịch học cho ngày ${checkbox.value} hoặc xóa giờ!`);
-      timeInput.focus();
-      return false;
+    
+    // Lấy giá trị từ các dropdown mới
+    const hourSelect = document.getElementById(`hour-${day.substring(0, 3)}`);
+    const minuteSelect = document.getElementById(`minute-${day.substring(0, 3)}`);
+
+    // Kiểm tra nếu checkbox được chọn nhưng có thể select không tồn tại (để phòng lỗi)
+    if (checkbox && checkbox.checked && (!hourSelect || !minuteSelect)) {
+        alert(`Đã xảy ra lỗi với phần chọn giờ của ${checkbox.value}. Vui lòng tải lại trang.`);
+        return false;
     }
   }
+  // Với cấu trúc dropdown mới, giờ luôn có giá trị, nên việc kiểm tra giờ trống không còn cần thiết.
+  // Hàm getFixedScheduleFromForm sẽ tự động chỉ lấy giờ của những ngày được tick.
   return true;
 }
 
@@ -3615,163 +3728,349 @@ async function showSalaryDetailModal(staffUid) {
     showLoading(false);
 }
 // ===================== Quản lý Lịch học (FullCalendar) =====================
-
-// Xây dựng mảng sự kiện hàng tháng cho FullCalendar :contentReference[oaicite:2]{index=2}
-// Dán toàn bộ hàm này để THAY THẾ cho hàm buildEventsArray cũ trong script.js
-function buildEventsArray(year, month) {
-    // THÊM DÒNG NÀY ĐỂ DEBUG
-    console.log("Bắt đầu buildEventsArray cho " + Object.keys(allClassesData).length + " lớp học.");
-
-    const events = [];
-    const monthIndex = month - 1; // Tháng trong JS bắt đầu từ 0 (0-11)
-    const weekdayMap = { "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6 };
-
-    function toISOStringNoTZ(date) {
-        const yyyy = date.getFullYear();
-        const mm2 = (date.getMonth() + 1).toString().padStart(2, "0");
-        const dd2 = date.getDate().toString().padStart(2, "0");
-        const hh2 = date.getHours().toString().padStart(2, "0");
-        const min2 = date.getMinutes().toString().padStart(2, "0");
-        return `${yyyy}-${mm2}-${dd2}T${hh2}:${min2}:00`;
+function getSubjectClass(className) {
+    if (!className) return 'subject-default';
+    const lowerCaseName = className.toLowerCase();
+    
+    if (lowerCaseName.includes('ielts')) {
+        return 'subject-ielts';
     }
+    if (lowerCaseName.includes('tiếng trung') || lowerCaseName.includes('hsk') || lowerCaseName.includes('yct')) {
+        return 'subject-chinese';
+    }
+    if (lowerCaseName.includes('tiếng anh') || lowerCaseName.includes('thcs') || lowerCaseName.includes('tiểu học') || lowerCaseName.includes('mầm non')) {
+        return 'subject-english';
+    }
+    
+    return 'subject-default';
+}
 
+let currentWeekOffset = 0; // 0 là tuần hiện tại, -1 là tuần trước, 1 là tuần sau
+function renderNewSchedulePage() {
+    const container = document.getElementById('schedule-grid-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // --- 1. TÍNH TOÁN TUẦN HIỂN THỊ ---
+    const today = new Date();
+    // Đặt giờ về 0 để tránh lỗi timezone
+    today.setHours(0, 0, 0, 0);
+    today.setDate(today.getDate() + (currentWeekOffset * 7));
+    
+    // Ngày đầu tuần (Chủ Nhật)
+    const firstDayOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+    
+    // Ngày cuối tuần (Thứ Bảy)
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(lastDayOfWeek.getDate() + 6);
+    lastDayOfWeek.setHours(23, 59, 59, 999);
+    
+    document.getElementById('schedule-week-title').textContent = 
+        `Tuần từ ${firstDayOfWeek.toLocaleDateString('vi-VN')} - ${lastDayOfWeek.toLocaleDateString('vi-VN')}`;
+
+    // --- 2. TÌM CÁC GIỜ CÓ LỊCH TRONG TUẦN ĐỂ TỐI ƯU HIỂN THỊ ---
+    const activeHours = new Set();
+    const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // Quét qua các lớp chính thức (lặp lại hàng tuần)
     Object.values(allClassesData).forEach(cls => {
-        if (!cls.fixedSchedule || Object.keys(cls.fixedSchedule).length === 0) {
-            return;
-        }
-        const classStartDate = cls.startDate ? new Date(cls.startDate) : null;
-        if (classStartDate) {
-            classStartDate.setHours(0, 0, 0, 0);
-        }
-
-        Object.entries(cls.fixedSchedule).forEach(([weekdayEng, timeStr]) => {
-            const targetWeekday = weekdayMap[weekdayEng];
-            if (targetWeekday === undefined) return;
-            const [hh, mm] = timeStr.split(":").map(Number);
-
-            let currentDate = new Date(year, monthIndex, 1);
-            let dayOfMonth = currentDate.getDay();
-            let dateOffset = (targetWeekday - dayOfMonth + 7) % 7;
-            currentDate.setDate(currentDate.getDate() + dateOffset);
-
-            while (currentDate.getMonth() === monthIndex) {
-                if (!classStartDate || currentDate >= classStartDate) {
-                    const startDateTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hh, mm);
-                    const endDateTime = new Date(startDateTime.getTime() + 90 * 60 * 1000);
-
-                    events.push({
-                        title: cls.name,
-                        start: toISOStringNoTZ(startDateTime),
-                        end: toISOStringNoTZ(endDateTime),
-                        allDay: false,
-                        backgroundColor: getClassColor(cls.name),
-                        borderColor: getClassColor(cls.name),
-                        textColor: "#fff",
-                        extendedProps: {
-                            teacher: 'GV: ' + (cls.teacher || 'Chưa có'),
-                            assistant: 'TG: ' + (cls.assistantTeacher || 'Không có')
-                        }
-                    });
-                }
-                currentDate.setDate(currentDate.getDate() + 7);
-            }
+        if (!cls.fixedSchedule) return;
+        Object.keys(cls.fixedSchedule).forEach(dayName => {
+            const [hour] = cls.fixedSchedule[dayName].split(':').map(Number);
+            activeHours.add(hour);
+            // Nếu lớp kéo dài hơn 1h (vd: 90 phút), thêm cả giờ tiếp theo
+            if (90 > 60) activeHours.add(hour + 1);
         });
     });
-    console.log("Build xong, tạo được " + events.length + " sự kiện.");
-    return events;
-}
-// Hàm tạo màu sắc ngẫu nhiên nhưng nhất quán cho tên lớp
-function getClassColor(className) {
-    const colors = [
-        '#2980b9', '#27ae60', '#8e44ad', '#f39c12', '#d35400', 
-        '#c0392b', '#16a085', '#0097e6', '#8c7ae6', '#e17055'
-    ];
-    let hash = 0;
-    for (let i = 0; i < className.length; i++) {
-        hash = className.charCodeAt(i) + ((hash << 5) - hash);
+
+    // Quét qua các lớp tạm thời (chỉ trong tuần này)
+    Object.values(tempClassesData).forEach(tempClass => {
+        const classDate = new Date(tempClass.date + "T00:00:00");
+        if (classDate >= firstDayOfWeek && classDate <= lastDayOfWeek) {
+            const [hour] = tempClass.time.split(':').map(Number);
+            activeHours.add(hour);
+            if (90 > 60) activeHours.add(hour + 1);
+        }
+    });
+
+    const sortedActiveHours = Array.from(activeHours).sort((a, b) => a - b);
+    
+    // Tạo bản đồ để ánh xạ từ giờ sang vị trí hàng trên grid (để ẩn hàng trống)
+    const hourToRowMap = new Map();
+    sortedActiveHours.forEach((hour, index) => {
+        // Mỗi giờ chiếm 2 hàng (cho :00 và :30), +3 vì có 2 hàng header
+        hourToRowMap.set(hour, index * 2 + 3);
+    });
+
+    // --- 3. DỰNG CẤU TRÚC LƯỚI ---
+    const headers = ['Giờ', 'Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    container.innerHTML += `<div class="grid-header time-label">Giờ</div>`;
+    headers.slice(1).forEach(day => container.innerHTML += `<div class="grid-header day">${day}</div>`);
+    for (let i = 0; i < 7; i++) {
+        container.innerHTML += `<div class="grid-header room" style="grid-column: ${i * 2 + 2};">P.301</div>`;
+        container.innerHTML += `<div class="grid-header room" style="grid-column: ${i * 2 + 3};">P.302</div>`;
     }
-    const index = Math.abs(hash % colors.length);
-    return colors[index];
+
+    const totalRows = sortedActiveHours.length * 2;
+    if (totalRows > 0) {
+        container.style.gridTemplateRows = `auto auto repeat(${totalRows}, 30px)`;
+        sortedActiveHours.forEach(hour => {
+            const gridRowStart = hourToRowMap.get(hour);
+            container.innerHTML += `<div class="time-slot" style="grid-row: ${gridRowStart} / span 2;">${hour}:00</div>`;
+        });
+    } else { 
+        container.style.gridTemplateRows = `auto auto 100px`;
+        container.innerHTML += `<div style="grid-column: 2 / -1; text-align:center; padding-top: 30px; color: #999;">Không có lớp học nào trong tuần này.</div>`;
+    }
+
+    // --- 4. HÀM PHỤ ĐỂ VẼ MỘT KHỐI LỊCH (TRÁNH LẶP CODE) ---
+    const renderBlock = (item) => {
+        const [hour, minute] = item.time.split(':').map(Number);
+        
+        if (hourToRowMap.has(hour)) {
+            const baseRowIndex = hourToRowMap.get(hour);
+            const rowStart = baseRowIndex + (minute >= 30 ? 1 : 0);
+            const rowSpan = Math.ceil(90 / 30); // Giả sử lớp dài 90 phút (chiếm 3 hàng)
+            
+            const dayIndex = dayNamesList.indexOf(item.dayName);
+            let colStart = (dayIndex * 2) + (item.room === "Phòng 301" ? 2 : 3);
+
+            const studentCount = item.students ? Object.keys(item.students).length : 0;
+            const classBlock = document.createElement('div');
+            classBlock.className = `class-block ${item.subjectClass}`;
+            classBlock.style.gridColumn = `${colStart}`;
+            classBlock.style.gridRow = `${rowStart} / span ${rowSpan}`;
+            classBlock.dataset.tooltip = `Tên: ${item.name}\nPhòng: ${item.room}\nGV: ${item.teacher}\nSĩ số: ${studentCount}`;
+            classBlock.innerHTML = `<div class="class-name">${item.name}</div><div class="teacher-name">${item.teacher || ''}</div>`;
+            container.appendChild(classBlock);
+        }
+    };
+
+    // --- 5. ĐIỀN CÁC LỚP HỌC VÀO LỊCH ---
+    // Render lớp chính thức (lặp lại hàng tuần)
+    Object.values(allClassesData).forEach(cls => {
+        if (!cls.fixedSchedule) return;
+        Object.entries(cls.fixedSchedule).forEach(([dayName, time]) => {
+            renderBlock({ ...cls, dayName, time, subjectClass: getSubjectClass(cls.name) });
+        });
+    });
+
+    // Render lớp tạm thời
+    Object.values(tempClassesData).forEach(tempClass => {
+        const classDate = new Date(tempClass.date + "T00:00:00");
+        if (classDate >= firstDayOfWeek && classDate <= lastDayOfWeek) {
+            const dayName = dayNamesList[classDate.getDay()];
+            // Lớp tạm thời dùng màu mặc định
+            renderBlock({ ...tempClass, dayName, subjectClass: 'subject-default' });
+        }
+    });
 }
-// Khởi tạo FullCalendar cho trang Lịch học :contentReference[oaicite:3]{index=3}
-// Hàm này giờ chỉ chạy 1 lần duy nhất để tạo lịch
-function initFullCalendar() {
-    // ĐẶT CỜ NGAY LẬP TỨC KHI VÀO HÀM, TRƯỚC KHI LÀM BẤT CỨ VIỆC GÌ KHÁC
-    // Đây là bước chẩn đoán quan trọng
-    document.body.dataset.calendarInitialized = 'true';
-    console.log("FLAG ĐÃ ĐƯỢC ĐẶT NGAY LẬP TỨC!");
+function initScheduleEventListeners() {
+    if (scheduleEventListenersInitialized) return;
 
-    // Toàn bộ code cũ của hàm giữ nguyên
-    const miniEl = document.getElementById("fullcalendar-mini");
-    calendarMini = new FullCalendar.Calendar(miniEl, {
-      initialView: 'dayGridMonth',
-      headerToolbar: { left: 'prev', center: 'title', right: 'next' },
-      height: 'auto',
-      selectable: true,
-      editable: false,
-      dateClick: function(info) {
-          if (calendarWeekly) {
-              calendarWeekly.gotoDate(info.date);
-          }
-      },
-      fixedWeekCount: false,
-      locale: 'vi',
-      dayCellDidMount: function(info) {
-          if (info.isToday) {
-              info.el.style.backgroundColor = 'rgba(255, 224, 102, 0.4)';
-          }
-      }
-    });
-    calendarMini.render();
+    const scheduleContainer = document.getElementById('schedule-grid-container');
+    const tooltip = document.getElementById('schedule-tooltip');
+    const contextMenu = document.getElementById('schedule-context-menu');
+    let currentHoveredBlock = null;
 
-    const weeklyEl = document.getElementById("fullcalendar-weekly");
-    calendarWeekly = new FullCalendar.Calendar(weeklyEl, {
-      initialView: 'timeGridWeek',
-      headerToolbar: false,
-      allDaySlot: false,
-      slotMinTime: "07:00:00",
-      slotMaxTime: "22:00:00",
-      nowIndicator: true,
-      weekNumbers: false,
-      height: 'auto',
-      expandRows: true,
-      firstDay: 1,
-      locale: 'vi',
-      eventContent: function(arg) {
-          const props = arg.event.extendedProps;
-          const html = `
-              <div class="fc-event-main-content">
-                  <div class="fc-event-title">${arg.event.title}</div>
-                  <div class="fc-event-teacher">${props.teacher || ''}</div>
-                  <div class="fc-event-assistant">${props.assistant || ''}</div>
-              </div>
-          `;
-          return { html: html };
-      },
-      events: function(fetchInfo, successCallback) {
-          const year = fetchInfo.start.getFullYear();
-          const month = fetchInfo.start.getMonth() + 1;
-          const evts = buildEventsArray(year, month);
-          successCallback(evts);
-      },
-      eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
-      dayHeaderFormat: { weekday: 'long' }
+    if (scheduleContainer && tooltip && contextMenu) {
+        // Xử lý di chuột để hiện tooltip
+        scheduleContainer.addEventListener('mousemove', (e) => {
+            const targetBlock = e.target.closest('.class-block');
+            if (targetBlock) {
+                if (targetBlock !== currentHoveredBlock) {
+                    currentHoveredBlock = targetBlock;
+                    tooltip.textContent = currentHoveredBlock.dataset.tooltip;
+                    tooltip.style.display = 'block';
+                }
+                tooltip.style.left = `${e.pageX + 15}px`;
+                tooltip.style.top = `${e.pageY + 15}px`;
+            } else {
+                currentHoveredBlock = null;
+                tooltip.style.display = 'none';
+            }
+        });
+
+        // Xử lý nhấp chuột phải để hiện menu
+        scheduleContainer.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); // Ngăn menu mặc định của trình duyệt
+            
+            // Tính toán vị trí của ô được nhấp
+            const rect = scheduleContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const colWidth = (rect.width - 60) / 14;
+            const colIndex = Math.floor((x - 60) / colWidth);
+            
+            const dayIndex = Math.floor(colIndex / 2);
+            const room = colIndex % 2 === 0 ? 'Phòng 301' : 'Phòng 302';
+            
+            const rowHeight = 30;
+            const headerHeight = 60; // Chiều cao ước tính của 2 hàng header
+            const rowIndex = Math.floor((y - headerHeight) / rowHeight);
+            
+            const hour = Math.floor(rowIndex / 2) + 7; // Giả sử lịch bắt đầu từ 7h
+            const minute = (rowIndex % 2) * 30;
+            const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            
+            const firstDayOfWeek = new Date(); // Cần logic lấy ngày đầu tuần chính xác
+            firstDayOfWeek.setDate(firstDayOfWeek.getDate() - firstDayOfWeek.getDay() + dayIndex);
+            const date = firstDayOfWeek.toISOString().split('T')[0];
+
+            // Gán sự kiện cho các nút trong menu
+            document.getElementById('menu-add-class').onclick = () => showAddClassFormFromSchedule(date, time, room);
+            document.getElementById('menu-add-temp-class').onclick = () => showAddTempClassForm(date, time, room);
+
+            // Hiển thị menu tại vị trí chuột
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${e.pageX}px`;
+            contextMenu.style.top = `${e.pageY}px`;
+        });
+
+        // Đóng menu khi nhấp chuột trái ở bất kỳ đâu
+        document.addEventListener('click', () => {
+            contextMenu.style.display = 'none';
+        });
+    }
+    
+    scheduleEventListenersInitialized = true;
+}
+// Hàm mở form tạo lớp chính thức (tái sử dụng)
+function showAddClassFormFromSchedule(date, time, room) {
+    showAddClassForm(); // Hàm này đã có sẵn
+    // Tự động điền thông tin từ lịch
+    document.getElementById("class-start-date").value = date;
+    document.getElementById("class-room").value = room;
+    
+    // Tự động tick và điền giờ
+    const dayOfWeek = new Date(date).toLocaleString('en-US', { weekday: 'long' });
+    const dayKey = dayOfWeek.toLowerCase().substring(0, 3);
+    const [hour, minute] = time.split(':');
+
+    document.getElementById(`schedule-${dayKey}`).checked = true;
+    document.getElementById(`hour-${dayKey}`).value = hour;
+    document.getElementById(`minute-${dayKey}`).value = minute;
+}
+
+// Hàm mở form tạo lớp tạm thời
+function showAddTempClassForm(date, time, room) {
+    const modal = document.getElementById('temp-class-form-modal');
+    document.getElementById('temp-class-form').reset();
+    selectedTempStudents = {}; // Reset danh sách học viên đã chọn
+    updateSelectedTempStudentsUI();
+
+    // Lưu lại thông tin ẩn
+    document.getElementById('temp-class-date').value = date;
+    document.getElementById('temp-class-time').value = time;
+    document.getElementById('temp-class-room').value = room;
+
+    // Điền danh sách giáo viên, trợ giảng
+    populatePersonnelDropdown(document.getElementById('temp-class-teacher'));
+    populatePersonnelDropdown(document.getElementById('temp-class-assistant'));
+    
+    modal.style.display = 'flex';
+}
+
+// Hàm lưu lớp tạm thời
+async function saveTempClass(event) {
+    event.preventDefault();
+    const id = `temp_${Date.now()}`;
+    const tempClass = {
+        id: id,
+        name: document.getElementById('temp-class-name').value,
+        teacher: document.getElementById('temp-class-teacher').value,
+        assistantTeacher: document.getElementById('temp-class-assistant').value,
+        date: document.getElementById('temp-class-date').value,
+        time: document.getElementById('temp-class-time').value,
+        room: document.getElementById('temp-class-room').value,
+        students: { ...selectedTempStudents },
+        isTemp: true // Đánh dấu đây là lớp tạm thời
+    };
+
+    // Lưu vào biến tạm thời (hoặc có thể lưu vào Firebase nếu muốn)
+    tempClassesData[id] = tempClass;
+    closeModal('temp-class-form-modal');
+    renderNewSchedulePage(); // Vẽ lại lịch để hiển thị lớp mới
+}
+
+// Cập nhật giao diện các học viên đã chọn cho lớp tạm thời
+function updateSelectedTempStudentsUI() {
+    const container = document.getElementById('temp-class-selected-students');
+    container.innerHTML = '';
+    Object.entries(selectedTempStudents).forEach(([id, name]) => {
+        container.innerHTML += `
+            <div class="selected-item-tag" data-id="${id}">
+                ${name}
+                <span class="remove-tag" onclick="removeTempStudent('${id}')">&times;</span>
+            </div>
+        `;
     });
-    calendarWeekly.render();
+}
+
+// Xóa một học viên khỏi danh sách chọn
+function removeTempStudent(studentId) {
+    delete selectedTempStudents[studentId];
+    updateSelectedTempStudentsUI();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const scheduleContainer = document.getElementById('schedule-grid-container');
+    const tooltip = document.getElementById('schedule-tooltip');
+
+    if (scheduleContainer && tooltip) {
+        scheduleContainer.addEventListener('mouseover', (e) => {
+            const classBlock = e.target.closest('.class-block');
+            if (classBlock) {
+                tooltip.textContent = classBlock.dataset.tooltip;
+                tooltip.style.display = 'block';
+            }
+        });
+
+        scheduleContainer.addEventListener('mouseout', () => {
+            tooltip.style.display = 'none';
+        });
+
+        scheduleContainer.addEventListener('mousemove', (e) => {
+            // Hiển thị tooltip bên cạnh con trỏ chuột
+            tooltip.style.left = `${e.pageX + 15}px`;
+            tooltip.style.top = `${e.pageY + 15}px`;
+        });
+    }
+});
+// Gắn sự kiện cho các nút chuyển tuần
+document.getElementById('schedule-prev-week').addEventListener('click', () => {
+    currentWeekOffset--;
+    renderNewSchedulePage();
+});
+
+document.getElementById('schedule-next-week').addEventListener('click', () => {
+    currentWeekOffset++;
+    renderNewSchedulePage();
+});
+function populateTimeDropdowns() {
+    const hourSelects = document.querySelectorAll('.hour-select');
+    const minuteSelects = document.querySelectorAll('.minute-select');
+    const minutes = ['00', '15', '30', '45'];
+
+    hourSelects.forEach(select => {
+        select.innerHTML = '';
+        for (let i = 0; i < 24; i++) {
+            const hour = String(i).padStart(2, '0');
+            select.innerHTML += `<option value="${hour}">${hour}</option>`;
+        }
+    });
+
+    minuteSelects.forEach(select => {
+        select.innerHTML = '';
+        minutes.forEach(minute => {
+            select.innerHTML += `<option value="${minute}">${minute}</option>`;
+        });
+    });
 }
 // Khi chuyển hash sang #schedule-management, render lại calendar :contentReference[oaicite:4]{index=4}
 window.addEventListener("hashchange", () => {
   if (!isAuthReady) return;
   showPageFromHash();
-
-  if (window.location.hash.slice(1) === "schedule-management") {
-    if (calendarWeekly) {
-      calendarWeekly.refetchEvents();
-    }
-    if (calendarMini) {
-      calendarMini.refetchEvents();
-    }
-  }
 });
 //              QUẢN LÝ BÀI TẬP VỀ NHÀ          //
 /**
@@ -3986,20 +4285,16 @@ async function renderClassAttendanceTable(classId) {
     const className = cls.name || "Không rõ tên lớp";
     document.getElementById("current-class-attendance-name").textContent = className;
     
-    // *** PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ***
     const sessionsData = cls.sessions || {};
     let sessions = Object.keys(sessionsData).sort().map(date => ({
         date: date,
         time: sessionsData[date].time || 'N/A'
     }));
     
-    // NẾU KHÔNG CÓ DỮ LIỆU BUỔI HỌC, TẠO LỊCH TẠM THỜI ĐỂ TƯƠNG THÍCH NGƯỢC
-    // Điều này đảm bảo các lớp cũ không có node "sessions" vẫn hoạt động
     if (sessions.length === 0 && cls.fixedSchedule && cls.startDate) {
         console.warn(`Lớp '${className}' không có dữ liệu buổi học (sessions). Đang tạo lịch tạm thời từ lịch cố định.`);
-        sessions = generateRollingSessions(cls.fixedSchedule, cls.startDate, 3); // Tạo lịch cho 3 tháng tới
+        sessions = generateRollingSessions(cls.fixedSchedule, cls.startDate, 3);
     }
-    // *** KẾT THÚC PHẦN SỬA LỖI ***
 
     const studentSnap = await database.ref("students").once("value");
     const allStudents = studentSnap.val() || {};
@@ -4014,7 +4309,6 @@ async function renderClassAttendanceTable(classId) {
 
     tableBody.innerHTML = "";
 
-    // Tạo header cho bảng điểm danh
     let headerHTML = `<th style="min-width: 180px; position: sticky; left: 0; background-color: #f3f6fb; z-index: 1;">
                         Họ tên
                         <button class="add-session-btn" onclick="promptAddSession('${classId}', null)" title="Thêm buổi học mới">+</button>
@@ -4032,7 +4326,6 @@ async function renderClassAttendanceTable(classId) {
     });
     tableHeadRow.innerHTML = headerHTML;
 
-    // Tạo các dòng cho từng học viên
     Object.keys(cls.students || {}).forEach(studentId => {
       const student = allStudents[studentId];
       if (!student) return;
@@ -4079,7 +4372,6 @@ async function renderClassAttendanceTable(classId) {
     document.getElementById("class-management").style.display = "none";
     document.getElementById("class-attendance-modal-overlay").style.display = "flex";
     
-    // Tự động cuộn đến buổi gần nhất
     setTimeout(() => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -4243,33 +4535,26 @@ async function deleteSession(classId, dateToDelete) {
  */
 async function toggleAttendance(classId, studentId, dateStr, isChecked) {
   try {
-    // Bước 1: Vẫn cập nhật trạng thái điểm danh cho ngày cụ thể
     await database.ref(`attendance/${classId}/${studentId}/${dateStr}`).set(isChecked);
 
-    // Bước 2: Đếm lại tổng số buổi đã học của học viên trên TẤT CẢ các lớp
     let totalAttendedCount = 0;
     
-    // Lấy danh sách tất cả các lớp mà học viên này đang tham gia
     const studentClassesSnap = await database.ref(`students/${studentId}/classes`).once("value");
     const studentClasses = studentClassesSnap.val() || {};
 
-    // Duyệt qua từng lớp để đếm
     for (const enrolledClassId in studentClasses) {
       const attendanceSnap = await database.ref(`attendance/${enrolledClassId}/${studentId}`).once("value");
       const attendanceData = attendanceSnap.val() || {};
       
-      // Đếm số lượng giá trị "true" (đã điểm danh) trong dữ liệu của lớp đó
       const attendedInThisClass = Object.values(attendanceData).filter(val => val === true).length;
       totalAttendedCount += attendedInThisClass;
     }
 
-    // Bước 3: Cập nhật lại con số "sessionsAttended" trong hồ sơ học viên bằng tổng số vừa đếm được
     await database.ref(`students/${studentId}/sessionsAttended`).set(totalAttendedCount);
     
-    // Sau khi cập nhật, tải lại dữ liệu để giao diện hiển thị con số chính xác
     const snapshot = await database.ref(DB_PATHS.STUDENTS).once("value");
     allStudentsData = snapshot.val() || {};
-    // Render lại cả bảng học viên chính và bảng điểm danh nếu đang mở
+
     if (window.location.hash.includes('student-management')) {
       renderStudentList(allStudentsData);
     }
@@ -4277,7 +4562,6 @@ async function toggleAttendance(classId, studentId, dateStr, isChecked) {
     if (currentClassId) {
         renderClassAttendanceTable(currentClassId);
     }
-
 
   } catch (error) {
     console.error("Lỗi khi cập nhật điểm danh và đồng bộ số buổi:", error);
