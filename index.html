@@ -36,6 +36,7 @@
   </script>
 </head>
 <body>
+  <div id="schedule-tooltip"></div>
   <!-- Loading Overlay -->
   <div id="loading">
   <div class="running-bear"></div>
@@ -175,6 +176,9 @@
            <label>Số buổi còn lại (Đã đóng):<br />
              <input type="number" id="student-remaining-sessions-display" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
            </label><br />
+           <label>Tổng số buổi đã học:<br />
+             <input type="number" id="student-total-attended-sessions" readonly value="0" style="background-color: #eee;" />
+           </label><br />
               <input type="hidden" id="student-new-package-sessions" value="0" />
           </div>
         </div>
@@ -228,41 +232,49 @@
     </div>
 
     <label>Lịch học cố định (tuần):</label>
+   <label>Phòng học:</label>
+    <select id="class-room">
+        <option value="Phòng 301">Phòng 301</option>
+        <option value="Phòng 302">Phòng 302</option>
+    </select>
+    <br/>
+
+    <label>Lịch học cố định (tuần):</label>
     <div id="class-fixed-schedule">
+      <div>
+        <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
+        <label for="schedule-sun">Chủ Nhật</label>
+        <select class="hour-select" id="hour-sun"></select> : <select class="minute-select" id="minute-sun"></select>
+      </div>
       <div>
         <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
         <label for="schedule-mon">Thứ 2</label>
-        <input type="time" id="time-mon" class="required-time" />
+        <select class="hour-select" id="hour-mon"></select> : <select class="minute-select" id="minute-mon"></select>
       </div>
       <div>
         <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
         <label for="schedule-tue">Thứ 3</label>
-        <input type="time" id="time-tue" class="required-time" />
+        <select class="hour-select" id="hour-tue"></select> : <select class="minute-select" id="minute-tue"></select>
       </div>
       <div>
         <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
         <label for="schedule-wed">Thứ 4</label>
-        <input type="time" id="time-wed" class="required-time" />
+        <select class="hour-select" id="hour-wed"></select> : <select class="minute-select" id="minute-wed"></select>
       </div>
       <div>
         <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
         <label for="schedule-thu">Thứ 5</label>
-        <input type="time" id="time-thu" class="required-time" />
+        <select class="hour-select" id="hour-thu"></select> : <select class="minute-select" id="minute-thu"></select>
       </div>
       <div>
         <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
         <label for="schedule-fri">Thứ 6</label>
-        <input type="time" id="time-fri" class="required-time" />
+        <select class="hour-select" id="hour-fri"></select> : <select class="minute-select" id="minute-fri"></select>
       </div>
       <div>
         <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
         <label for="schedule-sat">Thứ 7</label>
-        <input type="time" id="time-sat" class="required-time" />
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
-        <label for="schedule-sun">Chủ Nhật</label>
-        <input type="time" id="time-sun" class="required-time" />
+        <select class="hour-select" id="hour-sat"></select> : <select class="minute-select" id="minute-sat"></select>
       </div>
     </div>
     <label>Ngày bắt đầu lớp học:<br />
@@ -445,8 +457,7 @@
         <a href="#account-management">Quản lý tài khoản</a>
         <a href="#student-management">Quản lý học viên</a>
         <a href="#class-management">Quản lý lớp học</a>
-        <a href="#schedule-management">Lịch học</a>
-       <a href="#homework-management">Quản lý bài tập</a>
+        <a href="#new-schedule-page">Lịch học mới</a>
         <a href="#profile-page">Trang cá nhân</a>
         <a href="#" onclick="logout(); return false;" style="color:#cc0000;">Đăng xuất</a>
       </div>
@@ -490,12 +501,11 @@
         <div class="icon lucide" data-lucide="school"></div>
         <div>Quản lý lớp học</div>
       </a>
-      <a class="card" href="#schedule-management">
-        <div class="icon lucide" data-lucide="calendar-days"></div>
-        <div>Lịch học</div>
+      <a class="card" href="#new-schedule-page">
+      <div class="icon lucide" data-lucide="calendar-check"></div>
+     <div>Lịch học mới</div>
       </a>
-    
-       <a class="card" href="#personnel-management" id="personnel-management-card">
+     <a class="card" href="#personnel-management" id="personnel-management-card">
             <div class="icon lucide" data-lucide="users-round"></div>
             <div>Quản lý nhân sự</div>
         </a>
@@ -535,11 +545,19 @@
  <button onclick="recalculateAllStudentTuition()" style="background-color: #d9534f; color: white; font-weight: bold;">
       ⚠️ Cập nhật lại toàn bộ học phí 
   </button> -->
-  <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
-  <select id="student-filter-class" onchange="applyStudentFilters()">
-    <option value="">-- Lọc theo lớp --</option>
-  </select>
-  <button onclick="resetStudentFilters()">Xóa bộ lọc & sắp xếp</button>
+  <div class="student-page-controls">
+    <div class="student-stats">
+      <span id="total-students-display">Tổng số: <strong>0</strong></span>
+      <span id="paid-students-display">Đã đóng tiền: <strong>0</strong></span>
+    </div>
+    <div class="filter-controls-group">
+      <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
+      <select id="student-filter-class" onchange="applyStudentFilters()">
+        <option value="">-- Lọc theo lớp --</option>
+      </select>
+      <button onclick="resetStudentFilters()">Xóa bộ lọc & sắp xếp</button>
+    </div>
+  </div>
 
   <div class="table-scroll-wrapper">
     <table>
@@ -612,28 +630,56 @@
       <ul id="schedule-list"></ul>
     </div>
   </div>
-
-  <!-- Trang Lịch học (Schedule Management) -->
- <div id="schedule-management" class="management-page" style="display:none;">
-    <button onclick="backToDashboard()">
-        <i data-lucide="arrow-left"></i>
+<!-- Lịch học mới -->
+ <div id="new-schedule-page" class="management-page" style="display:none; max-width: 1200px;">
+    <div class="schedule-header">
+        <button id="schedule-prev-week">Tuần trước</button>
+        <h2 id="schedule-week-title"></h2>
+        <button id="schedule-next-week">Tuần sau</button>
+    </div>
+    <button onclick="backToDashboard()" class="back-btn" style="margin-bottom: 15px;">
+        <i data-lucide="arrow-left"></i> Quay lại Dashboard
     </button>
-    <h2>Thời khóa biểu</h2>
-
-    <div class="schedule-container">
-        <div id="mini-calendar-hover-container">
-            <div id="mini-calendar-icon">
-                <i data-lucide="calendar-days"></i>
-            </div>
-            <div id="fullcalendar-mini-wrapper">
-                <div id="fullcalendar-mini"></div>
-            </div>
+    <div id="schedule-grid-container">
+      <div id="schedule-context-menu" class="context-menu">
+    <ul>
+        <li id="menu-add-class"><i data-lucide="book-plus"></i> Thêm lớp chính thức</li>
+        <li id="menu-add-temp-class"><i data-lucide="clipboard-plus"></i> Thêm lớp tạm thời</li>
+    </ul>
+</div>
         </div>
+        <div id="temp-class-form-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+        <button class="close-modal-btn" onclick="closeModal('temp-class-form-modal')">&times;</button>
+        <h2 id="temp-class-form-title">Tạo lớp học tạm thời</h2>
+        
+        <form id="temp-class-form" onsubmit="saveTempClass(event)">
+            <input type="hidden" id="temp-class-date">
+            <input type="hidden" id="temp-class-time">
+            <input type="hidden" id="temp-class-room">
 
-        <div id="fullcalendar-weekly"></div>
+            <label for="temp-class-name">Tên sự kiện/lớp học:</label>
+            <input type="text" id="temp-class-name" required>
+            
+            <label for="temp-class-teacher">Giáo viên:</label>
+            <select id="temp-class-teacher"></select>
+
+            <label for="temp-class-assistant">Trợ giảng:</label>
+            <select id="temp-class-assistant"></select>
+            
+            <label>Thêm học viên (tùy chọn):</label>
+            <div class="search-student-container">
+                <input type="text" id="temp-class-student-search" placeholder="Tìm và thêm học viên...">
+                <div id="temp-class-student-results" class="search-results"></div>
+            </div>
+            <div id="temp-class-selected-students" class="selected-items"></div>
+
+            <button type="submit">Lưu sự kiện</button>
+            <button type="button" onclick="closeModal('temp-class-form-modal')">Hủy</button>
+        </form>
     </div>
 </div>
-
+</div>
 <!-- Quản lí nhân sự -->
 <div id="personnel-management" class="management-page" style="display:none;">
     <h2>Quản lý Nhân sự</h2>
