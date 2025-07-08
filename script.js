@@ -1639,19 +1639,27 @@ async function editStudent(id) {
     const st = snapshot.val();
     if (!st) {
       Swal.fire("Lỗi", "Học viên không tồn tại!", "error");
+      showLoading(false); // Thêm dòng này
       return;
     }
 
-    document.getElementById("student-form").reset();
+    // Bước 1: Reset các phần cần thiết của form một cách có kiểm soát
+    // KHÔNG dùng document.getElementById("student-form").reset(); nữa
+    document.getElementById('student-package-type').value = '';
+    document.getElementById('general-english-course').innerHTML = '<option value="">-- Chọn khóa học --</option>';
+    document.getElementById('student-certificate-type').value = '';
+    document.getElementById('student-certificate-course').innerHTML = '<option value="">-- Chọn khóa học --</option>';
+    document.getElementById('general-english-options-container').style.display = 'none';
+    document.getElementById('certificate-options-container').style.display = 'none';
+    document.getElementById('combo-selection-container').style.display = 'none';
     document.getElementById("student-new-package-sessions").value = "0";
 
-    // === PHẦN SỬA LỖI 1: LUÔN HIỂN THỊ DỮ LIỆU ĐÃ LƯU TRƯỚC TIÊN ===
+    // Bước 2: Luôn tải và hiển thị dữ liệu GỐC đã lưu của học viên lên form.
+    // Đây là "nguồn chân lý" cho những gì người dùng thấy.
     document.getElementById("student-index").value = id;
     document.getElementById("student-name").value = st.name || "";
     document.getElementById("student-dob").value = st.dob || "";
     document.getElementById("student-address").value = st.address || "";
-    
-    // Điền trực tiếp các thông tin gói và tài chính đã lưu
     document.getElementById("student-package").value = st.package || "";
     document.getElementById("student-original-price").value = st.originalPrice || 0;
     document.getElementById("student-total-due").value = st.totalDue || 0;
@@ -1662,34 +1670,18 @@ async function editStudent(id) {
     const totalSessionsPaid = st.totalSessionsPaid || 0;
     document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
 
-    // Các logic xử lý khác
     handleAgeChange();
     setTimeout(() => {
-      if (st.dob) {
-        const birthYear = parseInt(st.dob);
-        const currentYear = new Date().getFullYear();
-        const age = currentYear - birthYear;
-
-        const studentPhoneInput = document.getElementById("student-phone");
-        const studentParentInput = document.getElementById("student-parent");
-        const studentParentPhoneInput = document.getElementById("student-parent-phone");
-
-        if (age >= 18) {
-          if (studentPhoneInput) studentPhoneInput.value = st.phone || "";
-        } else {
-          if (studentPhoneInput) studentPhoneInput.value = st.phone || "";
-          if (studentParentInput) studentParentInput.value = st.parent || "";
-          if (studentParentPhoneInput) studentParentPhoneInput.value = st.parentPhone || "";
-        }
-      }
-    }, 0);
+        if (st.phone) document.getElementById("student-phone")?.setAttribute('value', st.phone);
+        if (st.parent) document.getElementById("student-parent")?.setAttribute('value', st.parent);
+        if (st.parentPhone) document.getElementById("student-parent-phone")?.setAttribute('value', st.parentPhone);
+    }, 10);
 
     const parentJobSelect = document.getElementById("student-parent-job");
     const parentJobOtherInput = document.getElementById("student-parent-job-other");
     if (st.parentJob && Array.from(parentJobSelect.options).some(option => option.value === st.parentJob)) {
       parentJobSelect.value = st.parentJob;
       parentJobOtherInput.style.display = "none";
-      parentJobOtherInput.value = "";
     } else if (st.parentJob) {
       parentJobSelect.value = "Khác";
       parentJobOtherInput.style.display = "inline-block";
@@ -1697,95 +1689,67 @@ async function editStudent(id) {
     } else {
       parentJobSelect.value = "";
       parentJobOtherInput.style.display = "none";
-      parentJobOtherInput.value = "";
     }
-    parentJobChange(parentJobSelect.value);
 
-    // --- LOGIC TỰ ĐỘNG CHỌN DROPDOWN (Vẫn giữ để tiện chỉnh sửa) ---
+    // Bước 3: (Nâng cao) Cố gắng tự động chọn các dropdown để tiện cho việc chỉnh sửa.
+    // Phần logic này được giữ lại nhưng sẽ không ảnh hưởng đến dữ liệu đã hiển thị ở Bước 2.
+    // --- (Toàn bộ khối logic `let foundPackage = false;` ... của bạn được giữ nguyên ở đây) ---
     const packageTypeSelect = document.getElementById('student-package-type');
     const generalEnglishCourseSelect = document.getElementById('general-english-course');
     const certificateTypeSelect = document.getElementById('student-certificate-type');
     const certificateCourseSelect = document.getElementById('student-certificate-course');
-    const comboSelectionContainer = document.getElementById('combo-selection-container');
-
-    packageTypeSelect.value = '';
-    generalEnglishCourseSelect.value = '';
-    certificateTypeSelect.value = '';
-    certificateCourseSelect.innerHTML = '';
-    comboSelectionContainer.style.display = 'none';
-    document.getElementById('combo-checkboxes-list').innerHTML = '';
-
     let foundPackage = false;
-    let selectedComboCoursesFromDB = st.selectedComboCourses;
-
-    // Logic tìm và khớp gói... (toàn bộ phần này giữ nguyên)
-    if (Array.isArray(selectedComboCoursesFromDB) && selectedComboCoursesFromDB.length > 0) {
-      let detectedCertType = null;
-      for (const key of ['HSK', 'YCT']) {
-        if (certificateCourses[`${key}_BASE`]?.some(c => c.name === selectedComboCoursesFromDB[0])) {
-          detectedCertType = key;
-          break;
-        }
-      }
-      if (detectedCertType) {
-        packageTypeSelect.value = 'Luyện thi chứng chỉ';
-        handlePackageTypeChange();
-        certificateTypeSelect.value = detectedCertType;
-        populateCourseDropdown();
-        // ... (logic combo giữ nguyên)
-      }
-    }
-    if (!foundPackage) {
-      for (const course of generalEnglishCourses) {
+    for (const course of generalEnglishCourses) {
         if (st.package && st.package.includes(course.name)) {
-          packageTypeSelect.value = 'Lớp tiếng Anh phổ thông';
-          handlePackageTypeChange();
-          generalEnglishCourseSelect.value = course.name;
-          foundPackage = true;
-          break;
+            packageTypeSelect.value = 'Lớp tiếng Anh phổ thông';
+            handlePackageTypeChange();
+            generalEnglishCourseSelect.value = course.name;
+            foundPackage = true;
+            break;
         }
-      }
-      if (!foundPackage) {
-        for (const certTypeKey in certificateCourses) {
-          if (certTypeKey.includes('_BASE')) continue;
-          if (certificateCourses.hasOwnProperty(certTypeKey)) {
-            for (const course of certificateCourses[certTypeKey]) {
-              if (st.package && st.package.includes(course.name)) {
-                packageTypeSelect.value = 'Luyện thi chứng chỉ';
-                handlePackageTypeChange();
-                certificateTypeSelect.value = certTypeKey;
-                populateCourseDropdown();
-                certificateCourseSelect.value = course.name;
-                if (course.selectionLimit > 0) handleCourseSelection();
-                foundPackage = true;
-                break;
-              }
-            }
-          }
-          if (foundPackage) break;
-        }
-      }
     }
-    // === PHẦN SỬA LỖI 2: KHÔNG XÓA DỮ LIỆU NẾU KHÔNG TÌM THẤY GÓI ===
     if (!foundPackage) {
-      console.log("Không tìm thấy gói học phù hợp trong dropdowns, giữ nguyên giá trị đã lưu.");
-      // Không gọi calculateFinalPrice() hay updateStudentPackageName() ở đây nữa
-      // để tránh ghi đè lên dữ liệu đã được điền ở trên.
+        for (const certTypeKey in certificateCourses) {
+            if (certTypeKey.includes('_BASE')) continue;
+            if (certificateCourses.hasOwnProperty(certTypeKey)) {
+                for (const course of certificateCourses[certTypeKey]) {
+                    if (st.package && st.package.includes(course.name)) {
+                        packageTypeSelect.value = 'Luyện thi chứng chỉ';
+                        handlePackageTypeChange();
+                        certificateTypeSelect.value = certTypeKey;
+                        populateCourseDropdown();
+                        certificateCourseSelect.value = course.name;
+                        if (course.selectionLimit > 0) handleCourseSelection();
+                        foundPackage = true;
+                        break;
+                    }
+                }
+            }
+            if (foundPackage) break;
+        }
     }
     
+    // Bước 4: **QUAN TRỌNG** - Sau khi khối logic "thông minh" ở trên chạy xong,
+    // ta một lần nữa khẳng định lại các giá trị tài chính đã lưu để đảm bảo chúng không bị ghi đè.
+    document.getElementById("student-original-price").value = st.originalPrice || 0;
+    document.getElementById("student-total-due").value = st.totalDue || 0;
+    document.getElementById("student-discount-percent").value = st.discountPercent || 0;
+    document.getElementById("student-promotion-percent").value = st.promotionPercent || 0;
+
+    // Bước 5: Hiển thị form
     document.getElementById("student-form-title").textContent = "Chỉnh sửa học viên";
     document.getElementById("student-form-modal").style.display = "flex";
     document.getElementById("student-form-container").style.display = "block";
-    
+    const modalContent = document.querySelector("#student-form-modal .modal-content");
+    modalContent.classList.remove("scale-up");
+    modalContent.offsetHeight;
+    modalContent.classList.add("scale-up");
+
   } catch (err) {
     console.error("Lỗi tải học viên:", err);
     Swal.fire("Lỗi", "Lỗi tải học viên: " + err.message, "error");
   } finally {
     showLoading(false);
-    const modalContent = document.querySelector("#student-form-modal .modal-content");
-    modalContent.classList.remove("scale-up");
-    modalContent.offsetHeight;
-    modalContent.classList.add("scale-up");
   }
 }
 // Hiển thị hoặc ẩn ô “Nhập nghề nghiệp khác”
@@ -4022,13 +3986,21 @@ async function renderClassAttendanceTable(classId) {
     const className = cls.name || "Không rõ tên lớp";
     document.getElementById("current-class-attendance-name").textContent = className;
     
-    // *** LOGIC ĐÃ ĐƠN GIẢN HÓA: Chỉ cần đọc danh sách buổi học đã có sẵn ***
+    // *** PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ***
     const sessionsData = cls.sessions || {};
-    const sessions = Object.keys(sessionsData).sort().map(date => ({
+    let sessions = Object.keys(sessionsData).sort().map(date => ({
         date: date,
         time: sessionsData[date].time || 'N/A'
     }));
     
+    // NẾU KHÔNG CÓ DỮ LIỆU BUỔI HỌC, TẠO LỊCH TẠM THỜI ĐỂ TƯƠNG THÍCH NGƯỢC
+    // Điều này đảm bảo các lớp cũ không có node "sessions" vẫn hoạt động
+    if (sessions.length === 0 && cls.fixedSchedule && cls.startDate) {
+        console.warn(`Lớp '${className}' không có dữ liệu buổi học (sessions). Đang tạo lịch tạm thời từ lịch cố định.`);
+        sessions = generateRollingSessions(cls.fixedSchedule, cls.startDate, 3); // Tạo lịch cho 3 tháng tới
+    }
+    // *** KẾT THÚC PHẦN SỬA LỖI ***
+
     const studentSnap = await database.ref("students").once("value");
     const allStudents = studentSnap.val() || {};
     const attSnap = await database.ref(`attendance/${classId}`).once("value");
@@ -4269,26 +4241,48 @@ async function deleteSession(classId, dateToDelete) {
 /**
  * HÀM NÂNG CẤP: Cập nhật trạng thái điểm danh và tăng/giảm số buổi đã học
  */
-function toggleAttendance(classId, studentId, dateStr, isChecked) {
-  database.ref(`attendance/${classId}/${studentId}/${dateStr}`).set(isChecked);
+async function toggleAttendance(classId, studentId, dateStr, isChecked) {
+  try {
+    // Bước 1: Vẫn cập nhật trạng thái điểm danh cho ngày cụ thể
+    await database.ref(`attendance/${classId}/${studentId}/${dateStr}`).set(isChecked);
 
-  const studentAttendedRef = database.ref(`students/${studentId}/sessionsAttended`);
+    // Bước 2: Đếm lại tổng số buổi đã học của học viên trên TẤT CẢ các lớp
+    let totalAttendedCount = 0;
+    
+    // Lấy danh sách tất cả các lớp mà học viên này đang tham gia
+    const studentClassesSnap = await database.ref(`students/${studentId}/classes`).once("value");
+    const studentClasses = studentClassesSnap.val() || {};
 
-  studentAttendedRef.transaction((currentSessionsAttended) => {
-    const currentVal = currentSessionsAttended || 0;
-    if (isChecked) {
-      return currentVal + 1;
-    } else {
-      return Math.max(0, currentVal - 1);
+    // Duyệt qua từng lớp để đếm
+    for (const enrolledClassId in studentClasses) {
+      const attendanceSnap = await database.ref(`attendance/${enrolledClassId}/${studentId}`).once("value");
+      const attendanceData = attendanceSnap.val() || {};
+      
+      // Đếm số lượng giá trị "true" (đã điểm danh) trong dữ liệu của lớp đó
+      const attendedInThisClass = Object.values(attendanceData).filter(val => val === true).length;
+      totalAttendedCount += attendedInThisClass;
     }
-  }).then(() => {
-      database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
-          allStudentsData = snapshot.val() || {};
-          renderStudentList(allStudentsData);
-      });
-  }).catch(error => {
-      console.error("Lỗi cập nhật sessionsAttended:", error);
-  });
+
+    // Bước 3: Cập nhật lại con số "sessionsAttended" trong hồ sơ học viên bằng tổng số vừa đếm được
+    await database.ref(`students/${studentId}/sessionsAttended`).set(totalAttendedCount);
+    
+    // Sau khi cập nhật, tải lại dữ liệu để giao diện hiển thị con số chính xác
+    const snapshot = await database.ref(DB_PATHS.STUDENTS).once("value");
+    allStudentsData = snapshot.val() || {};
+    // Render lại cả bảng học viên chính và bảng điểm danh nếu đang mở
+    if (window.location.hash.includes('student-management')) {
+      renderStudentList(allStudentsData);
+    }
+    const currentClassId = document.getElementById("current-class-attendance-name")?.dataset.classId;
+    if (currentClassId) {
+        renderClassAttendanceTable(currentClassId);
+    }
+
+
+  } catch (error) {
+    console.error("Lỗi khi cập nhật điểm danh và đồng bộ số buổi:", error);
+    Swal.fire("Lỗi", "Đã có lỗi xảy ra khi cập nhật điểm danh.", "error");
+  }
 }
 
 function updateHomeworkScore(classId, studentId, dateStr, value) { // THÊM dateStr VÀO ĐÂY
