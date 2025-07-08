@@ -1473,3 +1473,62 @@ th.sortable:hover {
 .reset-button:hover {
   background-color: #ec971f;
 }
+/* ========================================================= */
+/* === MÀN HÌNH LOADING CHÚ GẤU DỄ THƯƠNG === */
+/* ========================================================= */
+
+/* Lớp phủ toàn màn hình */
+#loading {
+  display: none; /* Ẩn mặc định */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 248, 225, 0.9); /* Màu vàng kem, hơi trong suốt */
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden; /* Ẩn chú gấu khi chạy ra ngoài màn hình */
+}
+
+/* Định dạng cho chú gấu */
+#loading .running-bear {
+  width: 120px; /* Chiều rộng của gấu */
+  height: 120px; /* Chiều cao của gấu */
+  background-image: url('images/running-bear1.png'); /* << URL HÌNH GẤU */
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  /* Gọi hiệu ứng chuyển động */
+  animation: run-across 2.5s linear infinite;
+}
+
+/* Định dạng cho chữ "Đang tải..." */
+#loading p {
+  margin-top: 15px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #8B4513; /* Màu nâu sô-cô-la */
+  font-family: 'Baloo 2', cursive;
+}
+
+/* Hiệu ứng chuyển động (keyframes) */
+@keyframes run-across {
+  0% {
+    transform: translateX(-200px); /* Bắt đầu từ bên ngoài màn hình (trái) */
+    opacity: 0;
+  }
+  10% {
+    opacity: 1; /* Hiện ra */
+  }
+  90% {
+    opacity: 1; /* Giữ nguyên */
+  }
+  100% {
+    transform: translateX(calc(50vw + 100px)); /* Chạy đến bên ngoài màn hình (phải) */
+    opacity: 0;
+  }
+}
