@@ -425,24 +425,6 @@ button[type="button"]:hover {
   background: #f4f7ff;
 }
 
-/* Schedule Management (FullCalendar) */
-#fc-mini-calendar-container,
-#fc-weekly-container {
-  max-width: 900px;
-  margin: 20px auto;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 0 18px rgb(0 0 0 / 0.12);
-}
-
-#fullcalendar-mini {
-  padding: 10px;
-}
-
-#fullcalendar-weekly {
-  padding: 10px;
-}
-
 /* Homework Management */
 #homework-class-list,
 #homework-student-list {
@@ -1214,128 +1196,7 @@ button:hover, .auth-form button:hover {
 .small-add-button:hover {
   background-color: #d8e5ff;
 }
-/* ========================================================= */
-/* === GIAO DIỆN MỚI CHO TRANG LỊCH HỌC / THỜI KHÓA BIỂU === */
-/* ========================================================= */
 
-/* Bố cục chính cho trang lịch học */
-.schedule-container {
-    position: relative; /* Cần thiết cho việc định vị popup lịch tháng */
-    margin-top: 20px;
-}
-
-/* --- Hiệu ứng Hover cho Lịch Tháng Mini --- */
-#mini-calendar-hover-container {
-    position: absolute;
-    top: -5px;
-    left: -15px;
-    z-index: 1050; /* Nổi lên trên lịch tuần */
-}
-
-#mini-calendar-icon {
-    width: 40px;
-    height: 40px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-#mini-calendar-icon i {
-    width: 24px;
-    height: 24px;
-    color: #0066cc;
-}
-
-#fullcalendar-mini-wrapper {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 300px; /* Độ rộng của popup lịch tháng */
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    padding: 10px;
-    /* Ẩn mặc định và tạo hiệu ứng */
-    opacity: 0;
-    visibility: hidden;
-    transform: scale(0.95) translateY(-10px);
-    transition: all 0.2s ease-in-out;
-}
-
-#mini-calendar-hover-container:hover #fullcalendar-mini-wrapper {
-    opacity: 1;
-    visibility: visible;
-    transform: scale(1) translateY(0);
-}
-
-/* --- TÙY CHỈNH THỜI KHÓA BIỂU (FULLCALENDAR-WEEKLY) --- */
-
-/* Bỏ viền và đổ bóng mặc định của FullCalendar */
-#fullcalendar-weekly {
-    border: none !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    border-radius: 12px;
-    overflow: hidden; /* Giúp bo góc hoạt động đúng */
-}
-
-/* Header (Thứ 2, Thứ 3...) */
-#fullcalendar-weekly .fc-col-header-cell {
-    background-color: #f3f6fb !important;
-    color: #004a99;
-    font-weight: 700;
-    font-size: 1em;
-    border: 1px solid #e9edf5;
-    border-bottom-width: 2px;
-}
-
-/* Các ô sự kiện (lớp học) */
-#fullcalendar-weekly .fc-timegrid-event .fc-event-main {
-    padding: 8px;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-#fullcalendar-weekly .fc-v-event {
-    border-width: 0 0 0 5px !important; /* Chỉ giữ viền trái để tạo điểm nhấn màu */
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-/* Nội dung bên trong sự kiện (lớp học) */
-.fc-event-main-content {
-    line-height: 1.4;
-    color: #fff;
-}
-
-.fc-event-title {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 4px;
-}
-
-.fc-event-teacher, .fc-event-assistant {
-    font-size: 12px;
-    font-weight: 400;
-    opacity: 0.9;
-}
-
-/* Các dòng giờ (8:00, 9:00...) */
-#fullcalendar-weekly .fc-timegrid-slot-label {
-    border-color: #e9edf5 !important;
-    font-weight: bold;
-    color: #555;
-    padding: 0 10px;
-}
-
-/* Các dòng kẻ ngang */
-#fullcalendar-weekly .fc-timegrid-slot-lane {
-    border-color: #e9edf5 !important;
-}
 /* styles.css */
 
 /* --- Thêm vào cuối file styles.css --- */
@@ -1531,4 +1392,273 @@ th.sortable:hover {
     transform: translateX(calc(50vw + 100px)); /* Chạy đến bên ngoài màn hình (phải) */
     opacity: 0;
   }
+}
+/* ========================================================= */
+/* === THỐNG KÊ VÀ BỘ LỌC TRANG QUẢN LÝ HỌC VIÊN === */
+/* ========================================================= */
+
+.student-page-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; /* Cho phép xuống dòng trên màn hình nhỏ */
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.student-stats {
+  display: flex;
+  gap: 20px;
+  background-color: #e7f3ff;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #b3d7ff;
+  font-size: 14px;
+}
+
+.student-stats span {
+  color: #0056b3;
+}
+
+.student-stats strong {
+  color: #004a99;
+  font-size: 16px;
+}
+
+.filter-controls-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+/* CSS cho ô chọn Giờ/Phút trong Form Lớp học */
+#class-fixed-schedule > div {
+  justify-content: space-between;
+}
+#class-fixed-schedule label {
+  flex-grow: 1;
+}
+.hour-select, .minute-select {
+  padding: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-left: 5px;
+}
+/* ========================================================= */
+/* === GIAO DIỆN LỊCH HỌC MỚI (TỐI ƯU HÓA) === */
+/* ========================================================= */
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.schedule-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #333;
+}
+
+#schedule-grid-container {
+  display: grid;
+  grid-template-columns: 60px repeat(14, 1fr);
+  grid-template-rows: auto auto repeat(30, 30px);
+  border: 1px solid #e0e0e0;
+  background-color: #fff;
+  position: relative; /* Cần thiết cho Tooltip */
+}
+
+.grid-header {
+  text-align: center;
+  font-weight: 700;
+  padding: 8px 5px;
+  border-bottom: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  background-color: #f9fafb;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  color: #555;
+  font-size: 14px;
+}
+.grid-header.time-label {
+  grid-column: 1 / 2;
+  grid-row: 1 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.grid-header.day {
+  grid-column: span 2;
+}
+.grid-header.room {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  background-color: #fdfdfd;
+}
+
+.time-slot {
+  grid-column: 1 / 2;
+  text-align: right;
+  padding-right: 5px;
+  font-size: 11px;
+  color: #aaa;
+  border-bottom: 1px dotted #f0f0f0;
+  border-right: 1px solid #e0e0e0;
+}
+.time-slot:nth-of-type(2n) {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* ĐỊNH DẠNG KHỐI LỊCH HỌC ĐÃ TỐI ƯU */
+.class-block {
+  border-radius: 4px;
+  padding: 5px 8px;
+  color: white;
+  font-size: 12px;
+  overflow: hidden;
+  margin: 1px;
+  border-left: 5px solid; /* Viền trái tạo điểm nhấn */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  cursor: pointer;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+.class-block .class-name {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.class-block .teacher-name {
+  font-size: 11px;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ĐỊNH NGHĨA MÀU SẮC THEO MÔN HỌC */
+.subject-english {
+  background-color: #eaf5ff;
+  border-color: #4a90e2;
+  color: #004a99;
+}
+.subject-chinese {
+  background-color: #fff4e6;
+  border-color: #f5a623;
+  color: #7b4f00;
+}
+.subject-ielts {
+  background-color: #ffeaea;
+  border-color: #d0021b;
+  color: #8b0000;
+}
+.subject-default {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+  color: #4b5563;
+}
+.class-block:hover {
+ transform: scale(1.05);
+ box-shadow: 0 6px 12px rgba(0,0,0,0.25); /* Tăng độ đổ bóng */
+ font-size: 12px;
+ padding: 6px 10px; /* Tăng padding một chút nữa */
+ opacity: 1;
+ z-index: 10; /* Đảm bảo lớp này luôn ở trên cùng */
+ overflow: visible;
+ white-space: normal;
+}
+/* ĐỊNH DẠNG CHO TOOLTIP */
+#schedule-tooltip {
+  position: fixed; /* Hoặc absolute tùy vào container */
+  display: none;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 10000;
+  pointer-events: none; /* Để không cản trở các sự kiện chuột khác */
+  white-space: pre-wrap; /* Giúp xuống dòng với \n */
+  line-height: 1.5;
+}
+/* ========================================================= */
+/* === MENU NGỮ CẢNH & MODAL LỚP TẠM THỜI === */
+/* ========================================================= */
+
+/* Định dạng Menu ngữ cảnh */
+.context-menu {
+  position: absolute;
+  display: none;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  z-index: 1000;
+  border: 1px solid #eee;
+  padding: 5px 0;
+}
+.context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.context-menu ul li {
+  padding: 10px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.context-menu ul li:hover {
+  background-color: #f5f5f5;
+}
+.context-menu ul li i {
+  width: 16px;
+  height: 16px;
+  color: #555;
+}
+
+/* Định dạng cho việc tìm và thêm học viên trong modal */
+.search-student-container {
+  position: relative;
+}
+.search-results {
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-top: none;
+  max-height: 150px;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 100;
+}
+.search-results div {
+  padding: 8px;
+  cursor: pointer;
+}
+.search-results div:hover {
+  background-color: #f0f0f0;
+}
+.selected-items {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.selected-item-tag {
+  background-color: #e0e0e0;
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.selected-item-tag .remove-tag {
+  cursor: pointer;
+  font-weight: bold;
 }
