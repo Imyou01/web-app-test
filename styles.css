@@ -1590,16 +1590,6 @@ th.sortable:hover {
 /* ========================================================= */
 
 /* Định dạng Menu ngữ cảnh */
-.context-menu {
-  position: absolute;
-  display: none;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  z-index: 1000;
-  border: 1px solid #eee;
-  padding: 5px 0;
-}
 .context-menu ul {
   list-style: none;
   margin: 0;
@@ -1661,4 +1651,198 @@ th.sortable:hover {
 .selected-item-tag .remove-tag {
   cursor: pointer;
   font-weight: bold;
+}
+/* === CSS CHO DANH SÁCH NHÂN SỰ VÀ LỚP HỌC LỒNG NHAU === */
+
+/* Áp dụng cho các mục nhân sự trong danh sách chính */
+#personnel-list-for-attendance > li {
+    font-weight: 600; /* Làm cho tên nhân sự đậm hơn */
+    background-color: #f4f7ff; /* Màu nền hơi khác để phân biệt */
+}
+
+/* Thêm hiệu ứng khi một mục nhân sự được chọn (active) */
+#personnel-list-for-attendance > li.active {
+    background-color: #e6f0ff;
+    border-left: 4px solid #0066cc;
+    padding-left: 12px;
+}
+
+/* Định dạng cho div chứa danh sách lớp con */
+.class-sublist {
+    margin-top: 10px;
+    padding-left: 20px;
+    border-left: 2px solid #dde4f0;
+}
+
+/* Định dạng cho danh sách ul chứa các lớp con */
+.class-sublist ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Định dạng cho từng mục li của lớp học con */
+.class-sublist li {
+    padding: 10px 12px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+    font-weight: 500; /* Chữ bình thường, không quá đậm */
+    color: #004a99;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.class-sublist li:last-child {
+    border-bottom: none;
+    border-radius: 0 0 8px 8px;
+}
+
+.class-sublist li:first-child {
+     border-radius: 8px 8px 0 0;
+}
+
+.class-sublist li:hover {
+    background-color: #fafcff;
+    font-weight: 600;
+}
+/* Định dạng cho việc tìm và thêm học viên trong modal */
+.search-student-container {
+  position: relative;
+}
+.search-results {
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-top: none;
+  max-height: 150px;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 100;
+}
+.search-results div {
+  padding: 8px;
+  cursor: pointer;
+}
+.search-results div:hover {
+  background-color: #f0f0f0;
+}
+.selected-items {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.selected-item-tag {
+  background-color: #e0e0e0;
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.selected-item-tag .remove-tag {
+  cursor: pointer;
+  font-weight: bold;
+}
+/* ========================================================= */
+/* === MENU CHUỘT PHẢI (ĐÃ SỬA LỖI VÀ TỐI ƯU) === */
+/* ========================================================= */
+
+.context-menu {
+  position: absolute;
+  z-index: 1000;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  border: 1px solid #eee;
+  padding: 5px 0;
+  /* Sử dụng visibility và opacity để ẩn/hiện thay vì display */
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+  transform: scale(0.95);
+}
+
+.context-menu.visible {
+  visibility: visible;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.context-menu ul li {
+  padding: 10px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  user-select: none; /* Tránh bôi đen chữ */
+}
+
+.context-menu ul li:hover {
+  background-color: #f5f5f5;
+}
+
+.context-menu ul li i {
+  width: 16px;
+  height: 16px;
+  color: #555;
+}
+/* Canh chỉnh các trường trong form modal */
+.form-row {
+  display: flex;
+  flex-wrap: wrap; /* Cho phép xuống dòng trên màn hình nhỏ */
+  gap: 15px;      /* Khoảng cách giữa các trường */
+  align-items: flex-start;
+  margin-bottom: 15px; /* Khoảng cách với trường "Ngày bắt đầu" bên dưới */
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column; /* Xếp nhãn và input theo chiều dọc */
+}
+
+.form-group label {
+  margin-bottom: 5px; /* Khoảng cách giữa nhãn và input */
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%; /* Đảm bảo input/select chiếm hết chiều rộng của group */
+}
+/* Nút xóa trên khối lớp tạm thời */
+.delete-temp-class {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    font-weight: bold;
+    cursor: pointer;
+    color: #333;
+    display: none; /* Ẩn ban đầu */
+    transition: all 0.2s;
+}
+
+/* Hiện nút xóa khi di chuột vào khối lớp */
+.class-block:hover .delete-temp-class {
+    display: block;
+}
+
+.delete-temp-class:hover {
+    background-color: #F44336;
+    color: white;
 }
