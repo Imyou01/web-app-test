@@ -1846,3 +1846,9 @@ th.sortable:hover {
     background-color: #F44336;
     color: white;
 }
+/* Hiệu ứng nổi bật cho các lớp học liên quan */
+.class-block.highlight-sibling {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px #FFB74D; /* Viền màu cam nổi bật */
+    z-index: 11; /* Đảm bảo nó nằm trên các lớp khác */
+}
