@@ -3948,6 +3948,7 @@ function renderNewSchedulePage() {
         return;
     }
 
+    // --- 1. Thiết lập tuần và tiêu đề ---
     let tempContainerHTML = '';
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -3962,16 +3963,31 @@ function renderNewSchedulePage() {
     document.getElementById('schedule-week-title').textContent = 
         `Tuần từ ${firstDayOfWeek.toLocaleDateString('vi-VN')} đến ${lastDayOfWeek.toLocaleDateString('vi-VN')}`;
 
-    // === THAY ĐỔI LỚN BẮT ĐẦU TẠI ĐÂY ===
-    // Bỏ logic "activeHours", thay bằng một khung giờ cố định
-    const displayHours = Array.from({ length: 16 }, (_, i) => i + 7); // Tạo mảng từ 7 (7h sáng) đến 22 (10h tối)
+    // === LOGIC "THÔNG MINH" ĐỂ TỰ ĐỘNG ẨN GIỜ TRỐNG ===
+    const activeHours = new Set();
+    const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+    if (visibleClasses) {
+        Object.values(visibleClasses).forEach(cls => {
+            if (cls.fixedSchedule) {
+                Object.values(cls.fixedSchedule).forEach(timeString => {
+                    if (timeString && typeof timeString === 'string' && timeString.includes(':')) {
+                        const hour = parseInt(timeString.split(':')[0], 10);
+                        if (!isNaN(hour)) activeHours.add(hour);
+                    }
+                });
+            }
+        });
+    }
+
+    const sortedActiveHours = Array.from(activeHours).sort((a, b) => a - b);
     const hourToRowMap = new Map();
-    displayHours.forEach((hour, index) => {
+    sortedActiveHours.forEach((hour, index) => {
         hourToRowMap.set(hour, index * 2 + 3);
     });
-    // === KẾT THÚC THAY ĐỔI LỚN ===
+    // === KẾT THÚC LOGIC "THÔNG MINH" ===
 
+    // Dựng cấu trúc lưới HTML
     tempContainerHTML += `<div class="grid-header time-label">Giờ</div>`;
     ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'].forEach(day => {
         tempContainerHTML += `<div class="grid-header day">${day}</div>`;
@@ -3981,42 +3997,41 @@ function renderNewSchedulePage() {
         tempContainerHTML += `<div class="grid-header room" style="grid-column: ${i * 2 + 3};">P.302</div>`;
     }
 
-    const totalRows = displayHours.length * 2;
-    container.style.gridTemplateRows = `auto auto repeat(${totalRows}, 30px)`;
-    
-    // Vẽ tất cả các hàng giờ trong khung giờ cố định
-    displayHours.forEach(hour => {
-        const gridRowStart = hourToRowMap.get(hour);
-        tempContainerHTML += `<div class="time-slot" style="grid-row: ${gridRowStart} / span 2;">${hour}:00</div>`;
-    });
+    const totalRows = sortedActiveHours.length * 2;
+    if (totalRows > 0) {
+        container.style.gridTemplateRows = `auto auto repeat(${totalRows}, 30px)`;
+        sortedActiveHours.forEach(hour => {
+            const gridRowStart = hourToRowMap.get(hour);
+            tempContainerHTML += `<div class="time-slot" style="grid-row: ${gridRowStart} / span 2;">${hour}:00</div>`;
+        });
+    } else {
+        container.style.gridTemplateRows = `auto auto 100px`;
+        tempContainerHTML += `<div style="grid-column: 2 / -1; text-align:center; padding-top: 30px; color: #999;">Không có lớp học nào trong tuần này.</div>`;
+    }
     
     container.innerHTML = tempContainerHTML;
 
+    // Hàm vẽ một khối lớp học (giữ nguyên)
     const renderBlock = (item) => {
         try {
             if (!item.time || typeof item.time !== 'string' || !item.time.includes(':')) return;
             const [hour, minute] = item.time.split(':').map(Number);
-            
-            // Chỉ vẽ nếu giờ học có trong khung giờ hiển thị
             if (hourToRowMap.has(hour)) {
-                const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const dayIndex = dayNamesList.indexOf(item.dayName);
                 if (dayIndex === -1) return;
-                
                 const baseRowIndex = hourToRowMap.get(hour);
                 const rowStart = baseRowIndex + (minute >= 30 ? 1 : 0);
                 const rowSpan = Math.ceil(90 / 30);
                 const colStart = (dayIndex * 2) + (item.room === "Phòng 301" ? 2 : 3);
-                
                 const studentCount = item.students ? Object.keys(item.students).length : 0;
                 const classBlock = document.createElement('div');
                 classBlock.className = `class-block ${getSubjectClass(item.name)}`;
                 classBlock.style.gridColumn = `${colStart}`;
                 classBlock.style.gridRow = `${rowStart} / span ${rowSpan}`;
                 classBlock.dataset.classId = item.id;
-                classBlock.dataset.tooltip = `Tên: ${item.name}\nPhòng: ${item.room}\nGV: ${item.teacher || ''}\nSĩ số: ${studentCount}`;
+                classBlock.dataset.tooltip = `Tên: ${item.name}\nPhòng: ${item.room}\nGiờ: ${item.time}\nGV: ${item.teacher || ''}\nSĩ số: ${studentCount}`;
+             //    classBlock.dataset.tooltip = `Tên: ${item.name}\nPhòng: ${item.room}\nGV: ${item.teacher || ''}\nSĩ số: ${studentCount}`;
                 classBlock.innerHTML = `<div class="class-name">${item.name}</div><div class="teacher-name">${item.teacher || ''}</div>`;
-                
                 const subject = getSubjectClass(item.name);
                 if (item.isTemporary || subject === 'subject-default') {
                     const deleteBtn = document.createElement('div');
@@ -4026,7 +4041,6 @@ function renderNewSchedulePage() {
                     deleteBtn.onclick = (event) => deleteTempClass(event, item.id);
                     classBlock.appendChild(deleteBtn);
                 }
-                
                 container.appendChild(classBlock);
             }
         } catch (error) {
@@ -4034,7 +4048,7 @@ function renderNewSchedulePage() {
         }
     };
 
-    // Lặp qua các lớp được phép xem và vẽ chúng lên lịch
+    // Lặp qua các lớp được phép xem và vẽ chúng
     Object.entries(visibleClasses).forEach(([classId, cls]) => {
         if (!cls.fixedSchedule) return;
         Object.entries(cls.fixedSchedule).forEach(([dayName, time]) => {
@@ -4057,34 +4071,54 @@ function initScheduleEventListeners() {
 
     let contextData = {};
 
-    scheduleContainer.addEventListener('mousemove', (e) => {
+    // SỬA LỖI VỊ TRÍ TOOLTIP VÀ THÊM LOGIC HIGHLIGHT
+    scheduleContainer.addEventListener('mouseover', (e) => {
         const targetBlock = e.target.closest('.class-block');
-        if (targetBlock && targetBlock.dataset.tooltip) {
-            tooltip.innerHTML = targetBlock.dataset.tooltip.replace(/\n/g, '<br>');
-            tooltip.style.display = 'block';
-            tooltip.style.left = `${e.pageX + 15}px`;
-            tooltip.style.top = `${e.pageY + 15}px`;
-        } else {
-            tooltip.style.display = 'none';
+        
+        // Xóa highlight cũ trước
+        document.querySelectorAll('.class-block.highlight-sibling').forEach(el => {
+            el.classList.remove('highlight-sibling');
+        });
+
+        if (targetBlock) {
+            // Hiển thị tooltip
+            if (targetBlock.dataset.tooltip) {
+                tooltip.innerHTML = targetBlock.dataset.tooltip.replace(/\n/g, '<br>');
+                tooltip.style.display = 'block';
+            }
+            // Logic highlight các lớp liên quan
+            const classIdToHighlight = targetBlock.dataset.classId;
+            if (classIdToHighlight) {
+                document.querySelectorAll(`.class-block[data-class-id="${classIdToHighlight}"]`).forEach(el => {
+                    el.classList.add('highlight-sibling');
+                });
+            }
         }
     });
 
-    scheduleContainer.addEventListener('mouseout', () => {
+    scheduleContainer.addEventListener('mousemove', (e) => {
+        // SỬA LỖI VỊ TRÍ: Dùng clientX/Y vì tooltip có position: fixed
+        tooltip.style.left = `${e.clientX + 15}px`;
+        tooltip.style.top = `${e.clientY + 15}px`;
+    });
+
+    scheduleContainer.addEventListener('mouseout', (e) => {
+        // Ẩn tooltip và xóa highlight khi chuột ra khỏi toàn bộ lưới lịch
         tooltip.style.display = 'none';
+        document.querySelectorAll('.class-block.highlight-sibling').forEach(el => {
+            el.classList.remove('highlight-sibling');
+        });
     });
     
+    // Phần xử lý context menu (giữ nguyên logic cũ)
     scheduleContainer.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-
         createMenu.classList.remove('visible');
         actionMenu.classList.remove('visible');
-
         const clickedBlock = e.target.closest('.class-block');
-        
         if (clickedBlock) {
             const classId = clickedBlock.dataset.classId;
             if (!classId) return;
-
             const editButton = document.getElementById('menu-edit-class');
             if (editButton) {
                 editButton.onclick = () => {
@@ -4092,13 +4126,10 @@ function initScheduleEventListeners() {
                     editClass(classId);
                 };
             }
-            
             actionMenu.style.left = `${e.pageX}px`;
             actionMenu.style.top = `${e.pageY}px`;
             actionMenu.classList.add('visible');
-
         } else {
-            // === LOGIC PHÂN QUYỀN MỚI CŨNG CẦN CHO PHẦN NÀY ===
             let visibleClasses = {};
             const isAdminOrHoiDong = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
             if (isAdminOrHoiDong) {
@@ -4113,36 +4144,39 @@ function initScheduleEventListeners() {
                     });
                 }
             }
-            // === KẾT THÚC LOGIC PHÂN QUYỀN ===
-
             const rect = scheduleContainer.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-
             if (y < 60 || x < 60) return; 
-
             const colWidth = (rect.width - 60) / 14;
             const colIndex = Math.floor((x - 60) / colWidth);
             const dayOfWeekIndex = Math.floor(colIndex / 2);
             const room = colIndex % 2 === 0 ? 'Phòng 301' : 'Phòng 302';
             const rowHeight = 30;
             const rowIndex = Math.floor((y - 60) / rowHeight);
-            
-            // Lấy giờ hoạt động từ các lớp được phép thấy
-            const sortedActiveHours = Array.from(new Set(Object.values(visibleClasses).flatMap(cls => Object.values(cls.fixedSchedule || {}).map(time => parseInt(time.split(':')[0], 10))))).sort((a,b)=>a-b);
+            const activeHours = new Set();
+            if (visibleClasses) {
+                Object.values(visibleClasses).forEach(cls => {
+                    if (cls.fixedSchedule) {
+                        Object.values(cls.fixedSchedule).forEach(timeString => {
+                            if (timeString && typeof timeString === 'string' && timeString.includes(':')) {
+                                const hour = parseInt(timeString.split(':')[0], 10);
+                                if (!isNaN(hour)) activeHours.add(hour);
+                            }
+                        });
+                    }
+                });
+            }
+            const sortedActiveHours = Array.from(activeHours).sort((a,b)=>a-b);
             const hourIndex = Math.floor(rowIndex / 2);
             const hour = sortedActiveHours[hourIndex] || (7 + hourIndex);
-            
             const minute = (rowIndex % 2) * 30;
             const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-            
             const firstDayOfWeek = new Date();
             firstDayOfWeek.setHours(0,0,0,0);
             firstDayOfWeek.setDate(firstDayOfWeek.getDate() - firstDayOfWeek.getDay() + (currentWeekOffset * 7) + dayOfWeekIndex);
-            
             const date = firstDayOfWeek.toISOString().split('T')[0];
             contextData = { date, time, room };
-            
             document.getElementById('menu-add-class').onclick = () => {
                 createMenu.classList.remove('visible');
                 showAddClassFormFromSchedule(contextData.date, contextData.time, contextData.room);
@@ -4151,7 +4185,6 @@ function initScheduleEventListeners() {
                 createMenu.classList.remove('visible');
                 showAddTempClassForm(contextData.date, contextData.time, contextData.room);
             };
-
             createMenu.style.left = `${e.pageX}px`;
             createMenu.style.top = `${e.pageY}px`;
             createMenu.classList.add('visible');
