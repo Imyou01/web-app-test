@@ -36,7 +36,7 @@
   </script>
 </head>
 <body>
-  <div id="schedule-tooltip"></div>
+ <div id="schedule-tooltip"></div>
   <!-- Loading Overlay -->
   <div id="loading">
   <div class="running-bear"></div>
@@ -631,7 +631,7 @@
     </div>
   </div>
 <!-- Lịch học mới -->
- <div id="new-schedule-page" class="management-page" style="display:none; max-width: 1200px;">
+<div id="new-schedule-page" class="management-page" style="display:none; max-width: 1200px;">
     <div class="schedule-header">
         <button id="schedule-prev-week">Tuần trước</button>
         <h2 id="schedule-week-title"></h2>
@@ -640,45 +640,112 @@
     <button onclick="backToDashboard()" class="back-btn" style="margin-bottom: 15px;">
         <i data-lucide="arrow-left"></i> Quay lại Dashboard
     </button>
+    
     <div id="schedule-grid-container">
-      <div id="schedule-context-menu" class="context-menu">
-    <ul>
-        <li id="menu-add-class"><i data-lucide="book-plus"></i> Thêm lớp chính thức</li>
-        <li id="menu-add-temp-class"><i data-lucide="clipboard-plus"></i> Thêm lớp tạm thời</li>
-    </ul>
-</div>
-        </div>
-        <div id="temp-class-form-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-content">
-        <button class="close-modal-btn" onclick="closeModal('temp-class-form-modal')">&times;</button>
-        <h2 id="temp-class-form-title">Tạo lớp học tạm thời</h2>
-        
-        <form id="temp-class-form" onsubmit="saveTempClass(event)">
-            <input type="hidden" id="temp-class-date">
-            <input type="hidden" id="temp-class-time">
-            <input type="hidden" id="temp-class-room">
-
-            <label for="temp-class-name">Tên sự kiện/lớp học:</label>
-            <input type="text" id="temp-class-name" required>
-            
-            <label for="temp-class-teacher">Giáo viên:</label>
-            <select id="temp-class-teacher"></select>
-
-            <label for="temp-class-assistant">Trợ giảng:</label>
-            <select id="temp-class-assistant"></select>
-            
-            <label>Thêm học viên (tùy chọn):</label>
-            <div class="search-student-container">
-                <input type="text" id="temp-class-student-search" placeholder="Tìm và thêm học viên...">
-                <div id="temp-class-student-results" class="search-results"></div>
-            </div>
-            <div id="temp-class-selected-students" class="selected-items"></div>
-
-            <button type="submit">Lưu sự kiện</button>
-            <button type="button" onclick="closeModal('temp-class-form-modal')">Hủy</button>
-        </form>
     </div>
-</div>
+     <div id="schedule-context-menu" class="context-menu">
+            <ul>
+                <li id="menu-add-class"><i data-lucide="book-plus"></i> Thêm lớp chính thức</li>
+                <li id="menu-add-temp-class"><i data-lucide="clipboard-plus"></i> Thêm lớp tạm thời</li>
+            </ul>
+        </div>
+
+    <div id="class-action-context-menu" class="context-menu">
+        <ul>
+         <li id="menu-edit-class"><i data-lucide="edit-3"></i> Sửa lớp học</li>
+        </ul>
+     </div>
+
+    <div id="temp-class-form-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('temp-class-form-modal')">&times;</button>
+            <h2 id="temp-class-form-title">Tạo lớp học tạm thời</h2>
+             <div id="temp-class-info" style="margin-bottom: 15px; background: #f0f8ff; padding: 10px; border-radius: 8px; border: 1px solid #d1e7fd; font-size: 14px; color: #0c5460;"></div>
+            <form id="temp-class-form" onsubmit="saveTempClass(event)">
+                <input type="hidden" id="temp-class-date">
+                <input type="hidden" id="temp-class-time">
+                <input type="hidden" id="temp-class-room">
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                   <div style="flex: 1; min-width: 250px;">
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;"> <label for="temp-class-name">Tên sự kiện/lớp học:</label>
+                                <input type="text" id="temp-class-name" required>
+                            </div>
+                    
+                            <div class="form-group" style="flex: 1;">
+                                <label for="temp-class-teacher">Giáo viên:</label>
+                                <select id="temp-class-teacher"></select>
+                            </div>
+                    
+                            <div class="form-group" style="flex: 1;">
+                                <label for="temp-class-assistant">Trợ giảng:</label>
+                                <select id="temp-class-assistant"></select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="temp-class-start-date">Ngày bắt đầu:</label>
+                            <input type="date" id="temp-class-start-date" required style="width: 100%; padding: 8px;">
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; min-width: 250px;">
+                        <label>Lịch học cố định (tuần):</label>
+                        <div id="temp-class-fixed-schedule">
+                            <div>
+                                <input type="checkbox" id="temp-schedule-sun" name="temp-schedule-day" value="Sunday" />
+                                <label for="temp-schedule-sun">Chủ Nhật</label>
+                                <select class="hour-select" id="temp-hour-sun"></select> : <select class="minute-select" id="temp-minute-sun"></select>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="temp-schedule-mon" name="temp-schedule-day" value="Monday" />
+                                <label for="temp-schedule-mon">Thứ 2</label>
+                                <select class="hour-select" id="temp-hour-mon"></select> : <select class="minute-select" id="temp-minute-mon"></select>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="temp-schedule-tue" name="temp-schedule-day" value="Tuesday" />
+                                <label for="temp-schedule-tue">Thứ 3</label>
+                                <select class="hour-select" id="temp-hour-tue"></select> : <select class="minute-select" id="temp-minute-tue"></select>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="temp-schedule-wed" name="temp-schedule-day" value="Wednesday" />
+                                <label for="temp-schedule-wed">Thứ 4</label>
+                                <select class="hour-select" id="temp-hour-wed"></select> : <select class="minute-select" id="temp-minute-wed"></select>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="temp-schedule-thu" name="temp-schedule-day" value="Thursday" />
+                                <label for="temp-schedule-thu">Thứ 5</label>
+                                <select class="hour-select" id="temp-hour-thu"></select> : <select class="minute-select" id="temp-minute-thu"></select>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="temp-schedule-fri" name="temp-schedule-day" value="Friday" />
+                                <label for="temp-schedule-fri">Thứ 6</label>
+                                <select class="hour-select" id="temp-hour-fri"></select> : <select class="minute-select" id="temp-minute-fri"></select>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="temp-schedule-sat" name="temp-schedule-day" value="Saturday" />
+                                <label for="temp-schedule-sat">Thứ 7</label>
+                                <select class="hour-select" id="temp-hour-sat"></select> : <select class="minute-select" id="temp-minute-sat"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr style="margin: 20px 0;">
+            
+                <label>Thêm học viên (tùy chọn):</label>
+                <div class="search-student-container">
+                    <input type="text" id="temp-class-student-search" placeholder="Tìm và thêm học viên...">
+                    <div id="temp-class-student-results" class="search-results"></div>
+                </div>
+                <div id="temp-class-selected-students" class="selected-items"></div>
+            
+                <button type="submit">Lưu lớp học</button>
+                <button type="button" onclick="closeModal('temp-class-form-modal')">Hủy</button>
+            </form>
+        </div>
+    </div>
 </div>
 <!-- Quản lí nhân sự -->
 <div id="personnel-management" class="management-page" style="display:none;">
