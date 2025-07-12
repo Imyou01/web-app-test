@@ -53,7 +53,8 @@ const pages = [
  //schedule-management",
   //"homework-management",
   "personnel-management",
-  "profile-page"
+  "profile-page",
+  "tuition-management"
 ];
 // script.js
 const PERSONNEL_MANAGEMENT_ROLES = ["Admin", "Hội Đồng"];
@@ -513,6 +514,11 @@ async function setupDashboardUI(userData) {
     displayNameEl.textContent = userData.name || "";
     displayHelloEl.textContent = userData.name || "";
   }
+  const tuitionCard = document.getElementById("tuition-management-card");
+  if (tuitionCard) {
+    const canAccessTuition = userData.role === 'Admin' || userData.role === 'Hội Đồng';
+    tuitionCard.style.display = canAccessTuition ? 'flex' : 'none';
+  }
 }
 
 // Quay lại Dashboard
@@ -557,6 +563,15 @@ if (hash === "account-management") {
   if (hash === "homework-management") await showHomeworkManagement();
   if (hash === "personnel-management") {
     await initPersonnelManagement(); // Hàm này sẽ chịu trách nhiệm render
+}
+if (hash === "tuition-management") {
+    const hasAccess = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+    if (!hasAccess) {
+        Swal.fire("Truy cập bị từ chối", "Bạn không có quyền truy cập chức năng này.", "warning");
+        window.location.hash = "dashboard"; // Đẩy người dùng về lại dashboard
+        return;
+    }
+    renderTuitionView(); 
 }
 }
 
@@ -1571,6 +1586,8 @@ async function saveStudent() {
       studentData.sessionsAttended = existingData.sessionsAttended || 0;
       studentData.createdAt = existingData.createdAt;
 
+      studentData.paymentHistory = existingData.paymentHistory || {};
+
       if (isRenewing) {
           // Nếu là gia hạn: cộng dồn số buổi mới vào tổng số buổi đã đóng
           studentData.totalSessionsPaid = (existingData.totalSessionsPaid || 0) + newPackageSessions;
@@ -1596,6 +1613,7 @@ async function saveStudent() {
       studentData.createdAt = firebase.database.ServerValue.TIMESTAMP;
       studentData.sessionsAttended = 0; // Mới tạo nên chưa học buổi nào
       studentData.totalSessionsPaid = newPackageSessions;
+      studentData.paymentHistory = {};
   }
   // =================================================================
 
@@ -5635,4 +5653,355 @@ function promptResetPackage() {
       }
     }
   });
+}
+// script.js
+
+// ======================================================
+// === CÁC HÀM MỚI CHO CHỨC NĂNG QUẢN LÝ HỌC PHÍ ===
+// ======================================================
+
+/**
+ * Hàm chính để render toàn bộ view quản lý học phí
+ * @param {string} query - Từ khóa tìm kiếm từ ô input
+ */
+function renderTuitionView(query = '') {
+    const classListContainer = document.getElementById("tuition-class-list");
+    if (!classListContainer) return;
+
+    // 1. Lấy dữ liệu và chuyển thành mảng
+    const classArray = Object.entries(allClassesData);
+
+    // 2. Lọc các lớp theo từ khóa tìm kiếm
+    const filteredClasses = query ? classArray.filter(([id, cls]) => {
+        return (cls.name || "").toLowerCase().includes(query.toLowerCase());
+    }) : classArray;
+
+
+    // 3. Sắp xếp mảng lớp học
+    // Tiêu chí 1: Sắp xếp theo môn học (IELTS > Chinese > English > Default)
+    // Tiêu chí 2: Trong cùng môn học, sắp xếp theo tên lớp A-Z
+    const subjectOrder = {
+        'subject-ielts': 1,
+        'subject-chinese': 2,
+        'subject-english': 3,
+        'subject-default': 4
+    };
+
+    filteredClasses.sort(([, a], [, b]) => {
+        const subjectA = getSubjectClass(a.name);
+        const subjectB = getSubjectClass(b.name);
+        
+        if (subjectOrder[subjectA] < subjectOrder[subjectB]) return -1;
+        if (subjectOrder[subjectA] > subjectOrder[subjectB]) return 1;
+
+        // Nếu cùng môn học, sắp xếp theo tên
+        return (a.name || "").localeCompare(b.name || "");
+    });
+
+    // 4. Render ra HTML
+    classListContainer.innerHTML = ""; // Xóa nội dung cũ
+    if (filteredClasses.length === 0) {
+        classListContainer.innerHTML = "<p>Không tìm thấy lớp học nào.</p>";
+        return;
+    }
+    
+    let currentSubject = null;
+    filteredClasses.forEach(([classId, cls]) => {
+        const subject = getSubjectClass(cls.name);
+        // Hiển thị tiêu đề nhóm môn học
+        if (subject !== currentSubject) {
+            currentSubject = subject;
+            const subjectName = subject.split('-')[1].toUpperCase();
+            classListContainer.innerHTML += `<h3 class="subject-header">${subjectName}</h3>`;
+        }
+
+        const classDiv = document.createElement("div");
+        classDiv.className = "tuition-class-item";
+        classDiv.innerHTML = `
+            <div class="class-header" onclick="showTuitionManagementForClass('${classId}')">
+              <span>${cls.name}</span>
+              <i data-lucide="chevron-right"></i>
+            </div>
+            <ul class="student-sublist">
+                </ul>
+        `;
+        classListContainer.appendChild(classDiv);
+    });
+    lucide.createIcons(); // Tạo lại icon
+}
+
+
+/**
+ * Hiển thị Modal quản lý học phí với dữ liệu của học viên được chọn
+ * @param {string} studentId - ID của học viên
+ */
+async function showTuitionModal(studentId) {
+    showLoading(true);
+    try {
+        // === THAY ĐỔI QUAN TRỌNG NHẤT LÀ Ở ĐÂY ===
+        const studentSnap = await database.ref(`students/${studentId}`).once('value');
+        const student = studentSnap.val();
+        // ===========================================
+
+        if (!student) {
+            Swal.fire("Lỗi", "Không tìm thấy dữ liệu học viên!", "error");
+            showLoading(false);
+            return;
+        }
+
+        // 1. Tính toán các số liệu
+        const totalDue = student.totalDue || 0;
+        let totalPaid = 0;
+        if (student.paymentHistory) {
+            totalPaid = Object.values(student.paymentHistory).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0);
+        }
+        const remainingBalance = totalDue - totalPaid;
+
+        // 2. Điền thông tin vào modal
+        document.getElementById("tuition-student-id").value = studentId;
+        document.getElementById("tuition-student-name").textContent = student.name;
+        document.getElementById("tuition-total-due").textContent = `${totalDue.toLocaleString('vi-VN')} VNĐ`;
+        document.getElementById("tuition-total-paid").textContent = `${totalPaid.toLocaleString('vi-VN')} VNĐ`;
+        document.getElementById("tuition-remaining-balance").textContent = `${remainingBalance.toLocaleString('vi-VN')} VNĐ`;
+
+        // 3. Render bảng lịch sử thanh toán
+        const historyList = document.getElementById("tuition-history-list");
+        historyList.innerHTML = "";
+        if (student.paymentHistory) {
+            // Sắp xếp lịch sử thanh toán, ngày mới nhất lên trên
+            const sortedHistory = Object.entries(student.paymentHistory)
+                                    .sort(([,a], [,b]) => new Date(b.paymentDate) - new Date(a.paymentDate));
+
+            sortedHistory.forEach(([paymentId, payment]) => {
+                const recordedBy = payment.recordedBy || 'N/A';
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${payment.paymentDate || ''}</td>
+                    <td>${(payment.amountPaid || 0).toLocaleString('vi-VN')}</td>
+                    <td>${payment.method || ''}</td>
+                    <td>${payment.note || ''}</td>
+                    <td>${recordedBy}</td>
+                    <td><button class="delete-btn" onclick="deletePayment('${studentId}', '${paymentId}')">Xóa</button></td>
+                `;
+                historyList.appendChild(row);
+            });
+        }
+
+        // 4. Reset form thêm mới và hiển thị modal
+        document.getElementById("tuition-payment-form").reset();
+        document.getElementById("tuition-modal").style.display = "flex";
+
+    } catch (error) {
+        console.error("Lỗi khi hiển thị modal học phí:", error);
+        Swal.fire("Lỗi", "Không thể hiển thị thông tin học phí: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+async function showTuitionManagementForClass(classId) {
+    showLoading(true);
+    try {
+        // 1. Lấy dữ liệu lớp học trực tiếp từ Firebase
+        const classSnap = await database.ref(`classes/${classId}`).once('value');
+        const classData = classSnap.val();
+
+        if (!classData) {
+            Swal.fire("Lỗi", "Không tìm thấy dữ liệu lớp học.", "error");
+            return;
+        }
+
+        // 2. Điền tên lớp vào tiêu đề modal và lấy danh sách ID học viên
+        document.getElementById("class-tuition-name").textContent = classData.name || "Không tên";
+        const studentListBody = document.getElementById("class-tuition-student-list");
+        studentListBody.innerHTML = '<tr><td colspan="6">Đang tải dữ liệu học viên...</td></tr>';
+
+        const studentIds = Object.keys(classData.students || {});
+
+        if (studentIds.length === 0) {
+            studentListBody.innerHTML = '<tr><td colspan="6">Lớp này chưa có học viên.</td></tr>';
+            return;
+        }
+
+        // 3. Lấy TẤT CẢ dữ liệu học viên trong lớp
+        const studentPromises = studentIds.map(id => database.ref(`students/${id}`).once('value'));
+        const studentSnapshots = await Promise.all(studentPromises);
+
+        let tableRowsHtml = "";
+        studentSnapshots.forEach(snap => {
+            const studentId = snap.key;
+            const student = snap.val();
+
+            if (student) {
+                // 4. Tính toán học phí cho từng em
+                const totalDue = student.totalDue || 0;
+                let totalPaid = 0;
+                if (student.paymentHistory) {
+                    totalPaid = Object.values(student.paymentHistory).reduce((sum, p) => sum + (p.amountPaid || 0), 0);
+                }
+                const remaining = totalDue - totalPaid;
+
+                let statusHtml, statusClass;
+if (totalDue > 0) {
+    // Trường hợp 1: Học viên CÓ khoản phí phải đóng.
+    if (remaining <= 0) {
+        // Đã đóng đủ
+        statusClass = 'status-paid';
+        statusHtml = 'Đã hoàn thành';
+    } else if (totalPaid > 0) {
+        // Đã đóng một phần
+        statusClass = 'status-partial';
+        statusHtml = 'Đã đóng một phần';
+    } else {
+        // Có phí nhưng chưa đóng đồng nào
+        statusClass = 'status-unpaid';
+        statusHtml = 'Chưa đóng';
+    }
+} else {
+    // Trường hợp 2: Học viên KHÔNG có khoản phí (totalDue = 0).
+    statusClass = 'status-default';
+    statusHtml = 'Không có HP'; // Dùng chữ này cho rõ ràng hơn
+}
+
+                // 5. Tạo một dòng trong bảng
+             const canEdit = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+
+// Quyết định xem tên học viên có phải là link hay chỉ là chữ
+const studentNameHtml = canEdit 
+    ? `<a href="#" onclick="event.preventDefault(); showStudentActionOptions('${studentId}')" class="clickable-student-name">${student.name}</a>`
+    : student.name; // Nếu không có quyền, chỉ hiển thị tên
+
+tableRowsHtml += `
+    <tr>
+        <td>${studentNameHtml}</td>
+        <td>${totalDue.toLocaleString('vi-VN')}</td>
+        <td>${totalPaid.toLocaleString('vi-VN')}</td>
+        <td>${remaining.toLocaleString('vi-VN')}</td>
+        <td><span class="tuition-status ${statusClass}">${statusHtml}</span></td>
+        <td>
+            <button onclick="showTuitionModal('${studentId}')">Lịch sử HP</button>
+        </td>
+    </tr>
+`;
+            }
+        });
+
+        studentListBody.innerHTML = tableRowsHtml;
+
+    } catch (error) {
+        console.error("Lỗi khi hiển thị tổng quan học phí lớp:", error);
+        studentListBody.innerHTML = `<tr><td colspan="6">Có lỗi xảy ra: ${error.message}</td></tr>`;
+    } finally {
+        // 6. Hiển thị modal lớn
+        showLoading(false);
+        document.getElementById("class-tuition-modal").style.display = "flex";
+    }
+}
+/**
+ * HÀM MỚI: Lưu một khoản thanh toán mới cho học viên
+ */
+async function savePayment() {
+    // 1. Lấy thông tin từ form trong modal
+    const studentId = document.getElementById("tuition-student-id").value;
+    const amountPaidInput = document.getElementById("tuition-amount-input");
+    const amountPaid = parseInt(amountPaidInput.value);
+    const method = document.getElementById("tuition-method-select").value;
+    const note = document.getElementById("tuition-note-input").value.trim();
+
+    // 2. Kiểm tra dữ liệu đầu vào
+    if (!studentId) {
+        Swal.fire("Lỗi", "Không tìm thấy ID học viên.", "error");
+        return;
+    }
+    if (isNaN(amountPaid) || amountPaid <= 0) {
+        Swal.fire("Lỗi", "Số tiền thanh toán phải là một số lớn hơn 0.", "error");
+        return;
+    }
+
+    // 3. Chuẩn bị đối tượng dữ liệu để lưu
+    const paymentData = {
+        amountPaid: amountPaid,
+        method: method,
+        note: note,
+        paymentDate: new Date().toISOString().split("T")[0], // Lấy ngày hiện tại dạng YYYY-MM-DD
+        recordedBy: currentUserData.name || "Không rõ" // Lấy tên người dùng đang đăng nhập
+    };
+
+    // 4. Đẩy dữ liệu lên Firebase
+    showLoading(true);
+    try {
+        const paymentRef = database.ref(`students/${studentId}/paymentHistory`);
+        await paymentRef.push(paymentData); // Dùng push() để Firebase tự tạo ID cho mỗi lần thanh toán
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Thành công!',
+            text: 'Đã ghi nhận thanh toán mới.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+        // 5. Tải lại modal để cập nhật thông tin mới nhất
+        await showTuitionModal(studentId);
+
+    } catch (error) {
+        console.error("Lỗi khi lưu thanh toán:", error);
+        Swal.fire("Lỗi", "Không thể lưu thanh toán: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+
+
+/**
+ * HÀM MỚI: Xóa một khoản thanh toán đã ghi nhận
+ * @param {string} studentId - ID của học viên
+ * @param {string} paymentId - ID của lần thanh toán cần xóa (do Firebase tự tạo)
+ */
+async function deletePayment(studentId, paymentId) {
+    // 1. Hỏi xác nhận trước khi xóa để đảm bảo an toàn
+    const result = await Swal.fire({
+        title: 'Bạn chắc chắn muốn xóa?',
+        text: "Hành động này sẽ xóa vĩnh viễn khoản thanh toán này và không thể hoàn tác!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Vâng, xóa nó!',
+        cancelButtonText: 'Hủy'
+    });
+
+    // 2. Nếu người dùng không đồng ý, thoát khỏi hàm
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    // 3. Tiến hành xóa trên Firebase
+    showLoading(true);
+    try {
+        const paymentRef = database.ref(`students/${studentId}/paymentHistory/${paymentId}`);
+        await paymentRef.remove();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Đã xóa!',
+            text: 'Khoản thanh toán đã được xóa.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+        // 4. Tải lại modal để cập nhật lại bảng lịch sử và các số liệu
+        await showTuitionModal(studentId);
+
+    } catch (error) {
+        console.error("Lỗi khi xóa thanh toán:", error);
+        Swal.fire("Lỗi", "Không thể xóa thanh toán: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * Hàm ẩn Modal quản lý học phí
+ */
+function hideTuitionModal() {
+    document.getElementById("tuition-modal").style.display = "none";
 }
