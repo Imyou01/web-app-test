@@ -1852,3 +1852,122 @@ th.sortable:hover {
     box-shadow: 0 0 0 3px #FFB74D; /* Viền màu cam nổi bật */
     z-index: 11; /* Đảm bảo nó nằm trên các lớp khác */
 }
+/* === CSS CHO MODAL QUẢN LÝ HỌC PHÍ === */
+.tuition-summary {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  margin: 20px 0;
+  padding: 10px;
+  background-color: #f4f7ff;
+  border-radius: 8px;
+}
+
+.tuition-summary p {
+  margin: 0 0 5px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.tuition-summary strong {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+#tuition-total-due {
+  color: #d9534f; /* Màu đỏ cho số tiền phải đóng */
+}
+
+#tuition-total-paid {
+  color: #5cb85c; /* Màu xanh cho số tiền đã trả */
+}
+
+#tuition-remaining-balance {
+  color: #0275d8; /* Màu xanh dương cho số dư */
+}
+
+#tuition-payment-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#tuition-history-list .delete-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* === CSS CHO TRANG QUẢN LÝ HỌC PHÍ === */
+
+.subject-header {
+    margin-top: 30px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #0066cc;
+    color: #004a99;
+    font-size: 18px;
+}
+
+.tuition-class-item {
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.tuition-class-item .class-header {
+    padding: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.tuition-class-item .class-header:hover {
+    background: #e9ecef;
+}
+
+.tuition-class-item .class-header i {
+    transition: transform 0.3s ease;
+}
+
+.student-sublist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: none; /* Ẩn mặc định */
+}
+
+.student-sublist li {
+    padding: 12px 20px;
+    border-bottom: 1px solid #f1f1f1;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.student-sublist li:last-child {
+    border-bottom: none;
+}
+
+.student-sublist li:hover {
+    background: #e6f0ff;
+}
+
+.tuition-status {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+}
+.status-paid { background-color: #28a745; }
+.status-partial { background-color: #ffc107; color: #333; }
+.status-unpaid { background-color: #dc3545; }
+.status-default { background-color: #6c757d; }
