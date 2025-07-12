@@ -509,6 +509,10 @@
             <div class="icon lucide" data-lucide="users-round"></div>
             <div>Quản lý nhân sự</div>
         </a>
+        <a class="card" href="#tuition-management" id="tuition-management-card">
+          <div class="icon lucide" data-lucide="dollar-sign"></div>
+          <div>Quản lý Học phí</div>
+        </a>
     </main>
   </div>
 
@@ -836,6 +840,103 @@
 
         <button onclick="hideSalaryDetailModal()" style="margin-top: 20px;">Đóng</button>
     </div>
+</div>
+<!--Trang quản lí học phí-->
+<div id="tuition-management" class="management-page" style="display:none;">
+    <h2>Quản lý Học phí</h2>
+    <button onclick="backToDashboard()">
+        <i data-lucide="arrow-left"></i>
+    </button>
+    <input type="text" id="tuition-class-search" placeholder="Tìm kiếm lớp học..." oninput="renderTuitionView(this.value)" style="width: 100%; max-width: 400px; padding: 10px; margin: 15px 0; border-radius: 8px; border: 1px solid #ccc;">
+
+    <div id="tuition-class-list">
+        </div>
+</div>
+
+<div id="class-tuition-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 850px;">
+    <button class="modal-close" onclick="hideElement('class-tuition-modal')">×</button>
+    <h3>Tổng quan học phí - Lớp <span id="class-tuition-name"></span></h3>
+    <div class="table-scroll-wrapper" style="max-height: 70vh;">
+      <table>
+        <thead>
+          <tr>
+            <th>Họ và Tên</th>
+            <th>Tổng Phải Đóng</th>
+            <th>Đã Thanh Toán</th>
+            <th>Còn Lại</th>
+            <th>Trạng Thái</th>
+            <th>Hành Động</th>
+          </tr>
+        </thead>
+        <tbody id="class-tuition-student-list">
+          </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tuition-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 700px;">
+    <button class="modal-close" onclick="hideTuitionModal()">×</button>
+    <h3>Quản lý học phí - <span id="tuition-student-name"></span></h3>
+    <hr>
+    <div class="tuition-summary">
+      <div>
+        <p>Tổng phải đóng</p>
+        <strong id="tuition-total-due">0 VNĐ</strong>
+      </div>
+      <div>
+        <p>Đã thanh toán</p>
+        <strong id="tuition-total-paid">0 VNĐ</strong>
+      </div>
+      <div>
+        <p>Còn lại</p>
+        <strong id="tuition-remaining-balance">0 VNĐ</strong>
+      </div>
+    </div>
+    <hr>
+    <h4>Lịch sử thanh toán</h4>
+    <div class="table-scroll-wrapper" style="max-height: 200px; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Ngày TT</th>
+            <th>Số tiền</th>
+            <th>Phương thức</th>
+            <th>Ghi chú</th>
+            <th>Người ghi nhận</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="tuition-history-list">
+          </tbody>
+      </table>
+    </div>
+    <h4 style="margin-top: 25px;">Ghi nhận thanh toán mới</h4>
+    <form id="tuition-payment-form" onsubmit="event.preventDefault(); savePayment()">
+      <input type="hidden" id="tuition-student-id">
+      <div style="display: flex; gap: 15px; align-items: flex-end;">
+        <div style="flex: 2;">
+          <label for="tuition-amount-input">Số tiền (VNĐ)</label>
+          <input type="number" id="tuition-amount-input" required style="width: 100%; padding: 8px;">
+        </div>
+        <div style="flex: 1;">
+          <label for="tuition-method-select">Phương thức</label>
+          <select id="tuition-method-select" style="width: 100%; padding: 8px;">
+            <option>Tiền mặt</option>
+            <option>Chuyển khoản</option>
+            <option>Quẹt thẻ</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top: 10px;">
+        <label for="tuition-note-input">Ghi chú</label>
+        <input type="text" id="tuition-note-input" placeholder="Ví dụ: Phụ huynh đóng lần 1" style="width: 100%; padding: 8px;">
+      </div>
+      <button type="submit" style="margin-top: 15px; width: 100%; padding: 10px;">Lưu Thanh Toán</button>
+    </form>
+  </div>
 </div>
   <!-- Trang Cá nhân -->
   <div id="profile-page" class="management-page" style="display:none;">
