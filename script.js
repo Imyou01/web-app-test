@@ -3659,133 +3659,124 @@ let personnelChart = null; // Biến để lưu instance của Chart.js
 
 async function renderPersonnelSalaryChart(staffUid, monthYear) {
     showLoading(true);
-    const staffData = allStaffData[staffUid]; // allStaffData vẫn chứa thông tin cơ bản của nhân sự
+    const staffData = allStaffData[staffUid];
     if (!staffData) {
         showLoading(false);
         return;
     }
 
     const [year, month] = monthYear.split('-').map(Number);
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const firstDayOfMonth = new Date(year, month - 1, 1);
-    const lastDayOfMonth = new Date(year, month - 1, daysInMonth);
+
+    // LOGIC MỚI: Tính ngày bắt đầu và kết thúc của chu kỳ lương
+    const startDate = new Date(year, month - 2, 16); // Ngày 16 của tháng trước
+    const endDate = new Date(year, month - 1, 15);   // Ngày 15 của tháng đã chọn
+    endDate.setHours(23, 59, 59, 999); // Bao gồm toàn bộ ngày cuối cùng
 
     const allAttendanceSnap = await database.ref(`personnelAttendance`).once("value");
     const allAttendanceData = allAttendanceSnap.val() || {};
-
-    let dailyTeacherShifts = new Array(daysInMonth).fill(0);
-    let dailyAssistantShifts = new Array(daysInMonth).fill(0);
-    let totalTeacherShifts = 0;
-    let totalAssistantShifts = 0;
-    let dailyShiftDetails = {};
-
-    // Lấy tất cả các lớp một lần để tra cứu lương
     const allClassesSnap = await database.ref(DB_PATHS.CLASSES).once("value");
     const allClasses = allClassesSnap.val() || {};
 
-    for (const classId in allAttendanceData) {
-        const staffAttendance = allAttendanceData[classId]?.[staffUid];
-        const cls = allClasses[classId]; // Lấy thông tin lớp
-        if (!staffAttendance || !cls) continue; // Bỏ qua nếu không có attendance hoặc lớp không tồn tại
+    let dailyShiftDetails = {};
+    let finalCalculatedSalary = 0;
+    
+    // Tạo một map để lưu số ca theo từng ngày trong chu kỳ
+    const dailyShiftsMap = new Map();
 
-        // Xác định mức lương cho GV/TG trong LỚP HIỆN TẠI
-        let salaryTeacherPerClass = 0;
-        let salaryAssistantPerClass = 0;
+    // Duyệt qua tất cả các lớp để tính lương và chấm công
+    for (const classId in allClasses) {
+        const cls = allClasses[classId];
+        if (!cls) continue;
 
-        if (cls.teacherUid === staffUid) {
-            salaryTeacherPerClass = cls.teacherSalary || 0;
-        }
-        if (cls.assistantTeacherUid === staffUid) {
-            salaryAssistantPerClass = cls.assistantTeacherSalary || 0;
-        }
+        const staffAttendanceInClass = allAttendanceData[classId]?.[staffUid];
+        if (!staffAttendanceInClass) continue;
 
-        for (const dateStr in staffAttendance) {
+        // Xác định mức lương của nhân sự trong lớp này
+        const salaryTeacherPerClass = (cls.teacherUid === staffUid) ? (cls.teacherSalary || 0) : 0;
+        const salaryAssistantPerClass = (cls.assistantTeacherUid === staffUid) ? (cls.assistantTeacherSalary || 0) : 0;
+
+        // Duyệt qua các ngày đã chấm công của nhân sự trong lớp
+        for (const dateStr in staffAttendanceInClass) {
             const sessionDate = new Date(dateStr);
-            if (sessionDate >= firstDayOfMonth && sessionDate <= lastDayOfMonth) {
-                const dayIndex = sessionDate.getDate() - 1;
-                const weekdayEng = sessionDate.toLocaleDateString("en-US", { weekday: "long" });
-                const sessionTime = cls.fixedSchedule?.[weekdayEng] || 'Không rõ giờ';
+            if (sessionDate >= startDate && sessionDate <= endDate) {
+                
+                // Khởi tạo nếu ngày chưa có trong map
+                if (!dailyShiftsMap.has(dateStr)) {
+                    dailyShiftsMap.set(dateStr, { teacher: 0, assistant: 0 });
+                }
+                if (!dailyShiftDetails[dateStr]) {
+                    dailyShiftDetails[dateStr] = [];
+                }
 
-                const rolesAttended = staffAttendance[dateStr];
-
-                // Cộng dồn ca và chi tiết ca, sử dụng lương theo lớp
-                if (rolesAttended?.['Giáo Viên'] === true) {
-                    dailyTeacherShifts[dayIndex]++;
-                    totalTeacherShifts++;
-                    if (!dailyShiftDetails[dateStr]) dailyShiftDetails[dateStr] = [];
+                const rolesAttended = staffAttendanceInClass[dateStr];
+                const sessionTime = cls.fixedSchedule?.[sessionDate.toLocaleDateString("en-US", { weekday: "long" })] || 'N/A';
+                
+                if (rolesAttended['Giáo Viên'] === true) {
+                    dailyShiftsMap.get(dateStr).teacher++;
+                    finalCalculatedSalary += salaryTeacherPerClass;
                     dailyShiftDetails[dateStr].push(`Lớp: ${cls.name} (GV - ${sessionTime}) - Lương: ${salaryTeacherPerClass.toLocaleString('vi-VN')} VNĐ`);
                 }
-                if (rolesAttended?.['Trợ Giảng'] === true) {
-                    dailyAssistantShifts[dayIndex]++;
-                    totalAssistantShifts++;
-                    if (!dailyShiftDetails[dateStr]) dailyShiftDetails[dateStr] = [];
+                if (rolesAttended['Trợ Giảng'] === true) {
+                    dailyShiftsMap.get(dateStr).assistant++;
+                    finalCalculatedSalary += salaryAssistantPerClass;
                     dailyShiftDetails[dateStr].push(`Lớp: ${cls.name} (TG - ${sessionTime}) - Lương: ${salaryAssistantPerClass.toLocaleString('vi-VN')} VNĐ`);
                 }
             }
         }
     }
+    
+    // Chuẩn bị dữ liệu và nhãn cho biểu đồ từ startDate đến endDate
+    const labels = [];
+    const teacherData = [];
+    const assistantData = [];
+    let totalTeacherShifts = 0;
+    let totalAssistantShifts = 0;
 
-    // Tính tổng lương cuối cùng
-    let finalCalculatedSalary = 0;
-    for (const classId in allClasses) { // Duyệt lại qua các lớp để tính tổng lương thực tế
-        const cls = allClasses[classId];
-        if (!cls) continue;
-
-        let salaryTeacherPerClass = 0;
-        let salaryAssistantPerClass = 0;
-        if (cls.teacherUid === staffUid) salaryTeacherPerClass = cls.teacherSalary || 0;
-        if (cls.assistantTeacherUid === staffUid) salaryAssistantPerClass = cls.assistantTeacherSalary || 0;
-
-        const staffAttendanceInClass = allAttendanceData[classId]?.[staffUid];
-        if (staffAttendanceInClass) {
-            for (const dateStr in staffAttendanceInClass) {
-                const sessionDate = new Date(dateStr);
-                if (sessionDate >= firstDayOfMonth && sessionDate <= lastDayOfMonth) {
-                    const rolesAttended = staffAttendanceInClass[dateStr];
-                    if (rolesAttended?.['Giáo Viên'] === true) {
-                        finalCalculatedSalary += salaryTeacherPerClass;
-                    }
-                    if (rolesAttended?.['Trợ Giảng'] === true) {
-                        finalCalculatedSalary += salaryAssistantPerClass;
-                    }
-                }
-            }
-        }
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        labels.push(`${currentDate.getDate()}/${currentDate.getMonth() + 1}`);
+        
+        const shifts = dailyShiftsMap.get(dateStr) || { teacher: 0, assistant: 0 };
+        teacherData.push(shifts.teacher);
+        assistantData.push(shifts.assistant);
+        totalTeacherShifts += shifts.teacher;
+        totalAssistantShifts += shifts.assistant;
+        
+        currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Cập nhật thông tin tóm tắt trên modal
+    // Cập nhật giao diện
+    const noteElement = document.getElementById('salary-period-note');
+    if (noteElement) {
+        noteElement.textContent = `Lưu ý: Lương tháng ${month}/${year} được tính từ ngày ${startDate.toLocaleDateString('vi-VN')} đến ${endDate.toLocaleDateString('vi-VN')}.`;
+    }
     document.getElementById("summary-month-year").textContent = `${month}/${year}`;
-    document.getElementById("total-monthly-salary").textContent = finalCalculatedSalary.toLocaleString('vi-VN'); // Dùng lương đã tính toán
+    document.getElementById("total-monthly-salary").textContent = finalCalculatedSalary.toLocaleString('vi-VN');
     document.getElementById("total-teacher-shifts").textContent = totalTeacherShifts;
     document.getElementById("total-assistant-shifts").textContent = totalAssistantShifts;
-    // Chuẩn bị dữ liệu cho biểu đồ
-    const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1); // Ngày 1, 2, 3...
-    const teacherData = dailyTeacherShifts;
-    const assistantData = dailyAssistantShifts;
 
+    // Vẽ biểu đồ
     const ctx = document.getElementById('personnel-daily-chart').getContext('2d');
-
-    // Nếu biểu đồ đã tồn tại, hủy nó đi để vẽ lại
     if (personnelChart) {
         personnelChart.destroy();
     }
-
     personnelChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: labels, // Dữ liệu nhãn đã được tạo chính xác
             datasets: [
                 {
                     label: 'Ca Giáo viên',
-                    data: teacherData,
-                    backgroundColor: 'rgba(0, 102, 204, 0.7)', // Màu xanh dương
+                    data: teacherData, // Dữ liệu ca GV đã được tạo chính xác
+                    backgroundColor: 'rgba(0, 102, 204, 0.7)',
                     borderColor: 'rgba(0, 102, 204, 1)',
                     borderWidth: 1
                 },
                 {
                     label: 'Ca Trợ giảng',
-                    data: assistantData,
-                    backgroundColor: 'rgba(0, 74, 153, 0.7)', // Màu xanh đậm hơn
+                    data: assistantData, // Dữ liệu ca TG đã được tạo chính xác
+                    backgroundColor: 'rgba(0, 74, 153, 0.7)',
                     borderColor: 'rgba(0, 74, 153, 1)',
                     borderWidth: 1
                 }
@@ -3797,37 +3788,31 @@ async function renderPersonnelSalaryChart(staffUid, monthYear) {
             scales: {
                 x: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Ngày trong tháng'
-                    }
+                    title: { display: true, text: 'Ngày trong chu kỳ lương' }
                 },
                 y: {
                     stacked: true,
                     beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Số ca chấm công'
-                    },
-                    ticks: {
-                        stepSize: 1 // Chỉ hiển thị số nguyên
-                    }
+                    title: { display: true, text: 'Số ca chấm công' },
+                    ticks: { stepSize: 1 }
                 }
             },
             plugins: {
                 tooltip: {
                     callbacks: {
-                        title: function(tooltipItems) {
-                            return `Ngày ${tooltipItems[0].label}`;
-                        },
-                        label: function(context) {
-                            const datasetLabel = context.dataset.label || '';
-                            const value = context.parsed.y;
-                            return `${datasetLabel}: ${value} ca`;
-                        },
-                        afterBody: function(tooltipItems) {
-                            const day = tooltipItems[0].label;
-                            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        title: (tooltipItems) => `Ngày ${tooltipItems[0].label}`,
+                        label: (context) => `${context.dataset.label || ''}: ${context.parsed.y} ca`,
+                        afterBody: (tooltipItems) => {
+                            const [day, month] = tooltipItems[0].label.split('/');
+                            // Tìm ngày chính xác trong chu kỳ
+                            let tooltipDate = new Date(startDate);
+                            while(tooltipDate <= endDate) {
+                                if(tooltipDate.getDate() == day && (tooltipDate.getMonth() + 1) == month) {
+                                    break;
+                                }
+                                tooltipDate.setDate(tooltipDate.getDate() + 1);
+                            }
+                            const dateStr = tooltipDate.toISOString().split('T')[0];
                             const details = dailyShiftDetails[dateStr];
                             if (details && details.length > 0) {
                                 return '\nChi tiết:\n' + details.join('\n');
@@ -3840,20 +3825,15 @@ async function renderPersonnelSalaryChart(staffUid, monthYear) {
         }
     });
 
-    // Cập nhật chi tiết chấm công theo ngày dưới biểu đồ
+    // Cập nhật chi tiết chấm công theo ngày
     const dailyShiftsList = document.getElementById("daily-shifts-list");
     dailyShiftsList.innerHTML = "";
-    for (let i = 0; i < daysInMonth; i++) {
-        const date = i + 1;
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    Object.keys(dailyShiftDetails).sort().forEach(dateStr => {
         const details = dailyShiftDetails[dateStr];
-        if (details && details.length > 0) {
-            const li = document.createElement("li");
-            li.innerHTML = `<strong>Ngày ${date}:</strong><br>` + details.map(d => `- ${d}`).join('<br>');
-            dailyShiftsList.appendChild(li);
-        }
-    }
-
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>Ngày ${new Date(dateStr).toLocaleDateString('vi-VN')}:</strong><br>` + details.map(d => `- ${d}`).join('<br>');
+        dailyShiftsList.appendChild(li);
+    });
 
     showLoading(false);
 }
