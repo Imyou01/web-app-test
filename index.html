@@ -10,7 +10,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS chính -->
   <link rel="stylesheet" href="styles.css" />
-
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.309.0/bin/lucide.css">
+  
   <!-- FullCalendar CSS -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
 
@@ -599,6 +601,12 @@
  <button onclick="backToDashboard()">
   <i data-lucide="arrow-left"></i>
 </button>
+<button onclick="generateExamsForGeneralClasses()" style="background-color: #ffc107; color: #212529; font-weight: bold;">
+    Tạo bù KT cho Lớp Phổ Thông
+</button>
+<button onclick="generateExamsForCertificateClasses()" style="background-color: #17a2b8; color: white; font-weight: bold;">
+    Tạo bù KT cho Lớp Chứng Chỉ
+</button>
 <!-- Thanh tìm kiếm cho lớp học -->
   <input type="text"
           id="class-search"
@@ -961,7 +969,24 @@
     <button onclick="hideStudentSessions()">Đóng</button>
   </div>
 </div>
+<div id="progress-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 800px;">
+    <button class="modal-close" onclick="hideElement('progress-modal')">&times;</button>
+    <h3>Phân tích sự tiến bộ - <span id="progress-student-name"></span></h3>
+    <hr>
+    
+    <div id="progress-summary" style="display: flex; justify-content: space-around; text-align: center; margin: 15px 0;">
+    </div>
 
+    <div id="progress-charts-container" style="width: 100%; margin-top: 20px;">
+      <canvas id="progress-over-time-chart" style="margin-bottom: 25px;"></canvas>
+      <canvas id="progress-breakdown-chart"></canvas>
+    </div>
+
+    <div id="progress-data-table" style="margin-top: 25px; max-height: 200px; overflow-y: auto;">
+    </div>
+  </div>
+</div>
   <!-- Script chính -->
   <script src="script.js"></script>
 </body>
