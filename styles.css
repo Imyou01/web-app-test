@@ -1971,3 +1971,64 @@ th.sortable:hover {
 .status-partial { background-color: #ffc107; color: #333; }
 .status-unpaid { background-color: #dc3545; }
 .status-default { background-color: #6c757d; }
+/* --- THÊM VÀO CUỐI FILE styles.css --- */
+
+/* Tùy chỉnh cho ô lựa chọn mức độ đánh giá */
+.evaluation-select {
+  font-weight: bold;
+  font-size: 13px; /* << BẠN CÓ THỂ THAY ĐỔI CỠ CHỮ Ở ĐÂY */
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  max-width: 120px; /* Giới hạn chiều rộng nếu cần */
+  margin-left: 5px;
+  background-color: #fff; /* Đảm bảo nền trắng */
+  color: inherit !important;
+}
+.exam-score-input {
+  width: 100px; /* Hoặc chiều rộng bạn muốn */
+  padding: 8px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-left: 5px;
+}
+/* Highlight header cột bài thi */
+#class-attendance-table th.exam-header {
+  color: #B71C1C !important; 
+  font-weight: 800 !important; 
+  background-color: #FFEBEE !important; 
+}
+
+/* Thanh cuộn ngang phía trên bảng điểm danh */
+.top-scrollbar-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 20px;
+}
+.top-scrollbar-content {
+  height: 1px;
+}
+/* Căn chỉnh cho nhóm nút tự tạo trong SweetAlert */
+.swal-custom-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px; /* Khoảng cách giữa các nút */
+  margin-top: 20px;
+}
+
+/* Style cho từng nút tự tạo, sao chép style mặc định của SweetAlert */
+.swal-custom-buttons button.swal2-styled {
+  border-radius: .25em;
+  padding: .625em 2em;
+  font-size: 1em;
+  font-weight: 600;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+/* Màu sắc riêng cho từng nút */
+#swal-edit-btn { background-color: #007bff; }
+#swal-renew-btn { background-color: #28a745; }
+#swal-progress-btn { background-color: #6c757d; }
