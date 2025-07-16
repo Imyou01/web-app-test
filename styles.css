@@ -1983,7 +1983,6 @@ th.sortable:hover {
   max-width: 120px; /* Giới hạn chiều rộng nếu cần */
   margin-left: 5px;
   background-color: #fff; /* Đảm bảo nền trắng */
-  color: inherit !important;
 }
 .exam-score-input {
   width: 100px; /* Hoặc chiều rộng bạn muốn */
