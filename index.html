@@ -240,8 +240,8 @@
         <option value="Phòng 302">Phòng 302</option>
     </select>
     <br/>
-
-    <label>Lịch học cố định (tuần):</label>
+<fieldset id="fieldset-fixed-schedule" style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-top: 15px;">
+    <legend>Lịch học cố định (tuần):</legend>
     <div id="class-fixed-schedule">
       <div>
         <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
@@ -279,6 +279,10 @@
         <select class="hour-select" id="hour-sat"></select> : <select class="minute-select" id="minute-sat"></select>
       </div>
     </div>
+     </fieldset>
+     <button type="button" id="btn-change-schedule" onclick="showChangeScheduleModal()" style="display:none; width: 100%; margin: 15px 0; background-color: #ffc107; color: #212529;">
+        <i data-lucide="calendar-plus"></i> Thay đổi Lịch học từ ngày...
+    </button>
     <label>Ngày bắt đầu lớp học:<br />
     <input type="date" id="class-start-date" required />
     </label><br />
@@ -310,6 +314,60 @@
 </div>
     </div>
   </div>
+   <div id="change-schedule-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 500px;">
+    <button class="modal-close" onclick="hideChangeScheduleModal()">×</button>
+    <h3>Thay đổi Lịch học</h3>
+    <p>Lịch học mới sẽ được áp dụng từ ngày bạn chọn. Các buổi học cũ chưa diễn ra sẽ bị xóa.</p>
+
+    <input type="hidden" id="change-schedule-class-id">
+
+    <label for="change-schedule-date"><b>Áp dụng từ ngày:</b></label>
+    <input type="date" id="change-schedule-date" required style="width: 100%; padding: 10px; margin-bottom: 15px;">
+
+    <label><b>Lịch học cố định MỚI:</b></label>
+    <div id="new-fixed-schedule-container">
+      <div>
+        <input type="checkbox" id="new-schedule-sun" name="new-schedule-day" value="Sunday" />
+        <label for="new-schedule-sun">Chủ Nhật</label>
+        <select class="hour-select" id="new-hour-sun"></select> : <select class="minute-select" id="new-minute-sun"></select>
+      </div>
+      <div>
+        <input type="checkbox" id="new-schedule-mon" name="new-schedule-day" value="Monday" />
+        <label for="new-schedule-mon">Thứ 2</label>
+        <select class="hour-select" id="new-hour-mon"></select> : <select class="minute-select" id="new-minute-mon"></select>
+      </div>
+      <div>
+        <input type="checkbox" id="new-schedule-tue" name="new-schedule-day" value="Tuesday" />
+        <label for="new-schedule-tue">Thứ 3</label>
+        <select class="hour-select" id="new-hour-tue"></select> : <select class="minute-select" id="new-minute-tue"></select>
+      </div>
+      <div>
+        <input type="checkbox" id="new-schedule-wed" name="new-schedule-day" value="Wednesday" />
+        <label for="new-schedule-wed">Thứ 4</label>
+        <select class="hour-select" id="new-hour-wed"></select> : <select class="minute-select" id="new-minute-wed"></select>
+      </div>
+      <div>
+        <input type="checkbox" id="new-schedule-thu" name="new-schedule-day" value="Thursday" />
+        <label for="new-schedule-thu">Thứ 5</label>
+        <select class="hour-select" id="new-hour-thu"></select> : <select class="minute-select" id="new-minute-thu"></select>
+      </div>
+      <div>
+        <input type="checkbox" id="new-schedule-fri" name="new-schedule-day" value="Friday" />
+        <label for="new-schedule-fri">Thứ 6</label>
+        <select class="hour-select" id="new-hour-fri"></select> : <select class="minute-select" id="new-minute-fri"></select>
+      </div>
+      <div>
+        <input type="checkbox" id="new-schedule-sat" name="new-schedule-day" value="Saturday" />
+        <label for="new-schedule-sat">Thứ 7</label>
+        <select class="hour-select" id="new-hour-sat"></select> : <select class="minute-select" id="new-minute-sat"></select>
+      </div>
+    </div>
+
+    <button type="button" onclick="confirmScheduleChange()" style="margin-top: 20px;">Lưu Thay Đổi</button>
+    <button type="button" class="delete-btn" onclick="hideChangeScheduleModal()">Hủy</button>
+  </div>
+</div>
 <div id="class-attendance-modal-overlay" class="modal-overlay">
   <div class="modal-content" style="max-width: 90vw; width: auto;">
     <button class="modal-close" onclick="hideClassAttendanceModal()">×</button>
@@ -600,6 +658,9 @@
     <h2>Quản lý lớp học</h2>
  <button onclick="backToDashboard()">
   <i data-lucide="arrow-left"></i>
+</button>
+<button onclick="migrateAttendanceData()" style="background-color: #f0ad4e; color: white;">
+    (Một lần) Chuẩn hóa Điểm danh cũ
 </button>
 <button onclick="generateExamsForGeneralClasses()" style="background-color: #ffc107; color: #212529; font-weight: bold;">
     Tạo bù KT cho Lớp Phổ Thông
