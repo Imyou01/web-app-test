@@ -174,7 +174,9 @@
             <label>Tổng tiền phải đóng:<br />
               <input type="number" id="student-total-due" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
             </label><br />
-
+            <label>Tổng tiền sách phải đóng:<br />
+              <input type="number" id="student-book-fee-due" value="0" placeholder="Nhập tổng tiền sách..." />
+            </label><br />
            <label>Số buổi còn lại (Đã đóng):<br />
              <input type="number" id="student-remaining-sessions-display" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
            </label><br />
@@ -931,7 +933,7 @@
         <thead>
           <tr>
             <th>Họ và Tên</th>
-            <th>Tổng Phải Đóng</th>
+            <th>Loại</th> <th>Tổng Phải Đóng</th>
             <th>Đã Thanh Toán</th>
             <th>Còn Lại</th>
             <th>Trạng Thái</th>
@@ -949,6 +951,7 @@
   <div class="modal-content" style="max-width: 700px;">
     <button class="modal-close" onclick="hideTuitionModal()">×</button>
     <h3>Quản lý học phí - <span id="tuition-student-name"></span></h3>
+    <input type="hidden" id="tuition-modal-class-id" />
     <hr>
     <div class="tuition-summary">
       <div>
@@ -1000,10 +1003,71 @@
         </div>
       </div>
       <div style="margin-top: 10px;">
+        <label for="tuition-holder-input">Người cầm tiền</label>
+        <input type="text" id="tuition-holder-input" placeholder="Nhập tên người cầm tiền" style="width: 100%; padding: 8px;" required>
+      </div>
+      <div style="margin-top: 10px;">
         <label for="tuition-note-input">Ghi chú</label>
         <input type="text" id="tuition-note-input" placeholder="Ví dụ: Phụ huynh đóng lần 1" style="width: 100%; padding: 8px;">
       </div>
       <button type="submit" style="margin-top: 15px; width: 100%; padding: 10px;">Lưu Thanh Toán</button>
+    </form>
+
+    <hr style="margin: 30px 0; border-top: 2px solid #aac0db;">
+
+    <h3 style="color: #004a99;">Quản lý Tiền sách</h3>
+
+    <h4>Lịch sử đóng tiền sách</h4>
+    <div class="table-scroll-wrapper" style="max-height: 200px; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Ngày TT</th>
+            <th>Số tiền</th>
+            <th>Tên sách/Giáo trình</th>
+            <th>Ghi chú</th>
+            <th>Người ghi nhận</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="book-fee-history-list"></tbody>
+      </table>
+    </div>
+
+    <h4 style="margin-top: 25px;">Ghi nhận đóng tiền sách mới</h4>
+    <form id="book-fee-payment-form" onsubmit="event.preventDefault(); saveBookFeePayment()">
+      <div style="margin-bottom: 10px;">
+        <label for="book-fee-title-input">Tên sách / Giáo trình</label>
+        <input type="text" id="book-fee-title-input" placeholder="Ví dụ: Giáo trình IELTS Foundation" style="width: 100%; padding: 8px;" required>
+      </div>
+
+      <div style="display: flex; gap: 15px; align-items: flex-end;">
+        <div style="flex: 2;">
+          <label for="book-fee-amount-input">Số tiền (VNĐ)</label>
+          <input type="number" id="book-fee-amount-input" required style="width: 100%; padding: 8px;">
+        </div>
+        <div style="flex: 1;">
+          <label for="book-fee-method-select">Phương thức</label>
+          <select id="book-fee-method-select" style="width: 100%; padding: 8px;">
+            <option>Tiền mặt</option>
+            <option>Chuyển khoản</option>
+            <option>Quẹt thẻ</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top: 10px;">
+        <label for="book-fee-holder-input">Người cầm tiền</label>
+        <input type="text" id="book-fee-holder-input" placeholder="Nhập tên người cầm tiền" style="width: 100%; padding: 8px;" required>
+      </div>
+      <div style="margin-top: 10px;">
+        <label for="book-fee-note-input">Ghi chú</label>
+        <input type="text" id="book-fee-note-input" placeholder="Ghi chú thêm (nếu có)" style="width: 100%; padding: 8px;">
+      </div>
+      <button type="submit" style="margin-top: 15px; width: 100%; padding: 10px; background-color: #28a745;">Lưu Tiền Sách</button>
+    </form>
+
+    </div>
+</div>
     </form>
   </div>
 </div>
