@@ -230,6 +230,12 @@ certificateCourses.YCT = certificateCourses.HSK.map(course => ({
     sessions: course.sessions, // sessions sẽ là undefined cho combos, điều này là bình thường
     selectionLimit: course.selectionLimit
 }));
+generalEnglishCourses.sort((a, b) => b.name.length - a.name.length);
+for (const key in certificateCourses) {
+    if (Array.isArray(certificateCourses[key])) {
+        certificateCourses[key].sort((a, b) => b.name.length - a.name.length);
+    }
+}
 // Thêm vào script.js, trước phần sử dụng showPageFromHash
 function showPage(id) {
   // Ẩn tất cả các trang management, dashboard, profile…
@@ -857,45 +863,29 @@ async function showRenewPackageForm(studentId) {
     }
 
     document.getElementById("student-form").reset();
-    document.getElementById("student-index").value = studentId; 
-    document.getElementById("student-name").value = st.name || "";
-    document.getElementById("student-dob").value = st.dob || "";
-
+    document.getElementById("student-index").value = studentId;
     document.getElementById("student-form-title").textContent = "Gia hạn";
 
-    const fieldsToHide = [
-        "student-name", "student-dob", "contact-info-container",
-        "student-address", "student-parent-job"
-    ];
+    // Ẩn các trường thông tin cá nhân không cần thiết khi gia hạn
+    const fieldsToHide = ["student-name", "student-dob", "contact-info-container", "student-address", "student-parent-job"];
     fieldsToHide.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.parentElement.classList.add('form-field-hidden');
     });
 
+    // === DÒNG MỚI: ẨN TRƯỜNG TIỀN SÁCH ===
+    document.getElementById('student-book-fee-due').parentElement.style.display = 'none';
+
+    // Reset các trường về giá trị mặc định cho gói mới
     document.getElementById("student-package-type").value = "";
     document.getElementById("general-english-options-container").style.display = "none";
     document.getElementById("certificate-options-container").style.display = "none";
-    document.getElementById("student-new-package-sessions").value = "0";
     document.getElementById("student-package").value = "";
     document.getElementById("student-original-price").value = "0";
     document.getElementById("student-total-due").value = "0";
-    document.getElementById("student-discount-percent").value = "0";
-    document.getElementById("student-promotion-percent").value = "0";
-
-    const sessionsAttended = st.sessionsAttended || 0;
-    const totalSessionsPaid = st.totalSessionsPaid || 0;
-    document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
-    document.getElementById("student-total-attended-sessions").value = sessionsAttended;
 
     document.getElementById("student-form-modal").style.display = "flex";
-    const canSaveChanges = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
-    setStudentFormReadonly(!canSaveChanges);
-
     document.getElementById("student-form-container").style.display = "block";
-    const modalContent = document.querySelector("#student-form-modal .modal-content");
-    modalContent.classList.remove("scale-up");
-    modalContent.offsetHeight;
-    modalContent.classList.add("scale-up");
 
   } catch (error) {
     console.error("Lỗi khi mở form gia hạn:", error);
@@ -1546,6 +1536,7 @@ async function saveStudent() {
   const promotionPercent = parseInt(document.getElementById("student-promotion-percent").value) || 0;
   const originalPrice = parseInt(document.getElementById("student-original-price").value) || 0;
   const totalDue = parseInt(document.getElementById("student-total-due").value) || 0;
+  const totalBookFeeDue = parseInt(document.getElementById("student-book-fee-due").value) || 0;
 
   let selectedComboCourses = null;
   const packageType = document.getElementById('student-package-type').value;
@@ -1587,6 +1578,7 @@ async function saveStudent() {
     promotionPercent: promotionPercent,
     originalPrice: originalPrice,
     totalDue: totalDue,
+    totalBookFeeDue: totalBookFeeDue,
     updatedAt: firebase.database.ServerValue.TIMESTAMP
   };
 
@@ -1681,153 +1673,101 @@ function setStudentFormReadonly(isReadonly) {
 }
 // Chỉnh sửa học viên (đổ dữ liệu vào form)
 async function editStudent(id) {
-  showLoading(true);
-  try {
-    const snapshot = await database.ref(`${DB_PATHS.STUDENTS}/${id}`).once("value");
-    const st = snapshot.val();
-    if (!st) {
-      Swal.fire("Lỗi", "Học viên không tồn tại!", "error");
-      return;
-    }
-
-    document.getElementById("student-form").reset();
-    document.getElementById("student-new-package-sessions").value = "0";
-
-    document.getElementById("student-index").value = id;
-    document.getElementById("student-name").value = st.name || "";
-    document.getElementById("student-dob").value = st.dob || "";
-    document.getElementById("student-address").value = st.address || "";
-    document.getElementById("student-package").value = st.package || "";
-    document.getElementById("student-original-price").value = st.originalPrice || 0;
-    document.getElementById("student-total-due").value = st.totalDue || 0;
-    document.getElementById("student-discount-percent").value = st.discountPercent || 0;
-    document.getElementById("student-promotion-percent").value = st.promotionPercent || 0;
-
-    const sessionsAttended = st.sessionsAttended || 0;
-    const totalSessionsPaid = st.totalSessionsPaid || 0;
-    document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
-    document.getElementById("student-total-attended-sessions").value = sessionsAttended;
-
-    handleAgeChange();
-    setTimeout(() => {
-      if (st.dob) {
-        const birthYear = parseInt(st.dob);
-        const currentYear = new Date().getFullYear();
-        const age = currentYear - birthYear;
-        const studentPhoneInput = document.getElementById("student-phone");
-        const studentParentInput = document.getElementById("student-parent");
-        const studentParentPhoneInput = document.getElementById("student-parent-phone");
-
-        if (age >= 18) {
-          if (studentPhoneInput) studentPhoneInput.value = st.phone || "";
-        } else {
-          if (studentPhoneInput) studentPhoneInput.value = st.phone || "";
-          if (studentParentInput) studentParentInput.value = st.parent || "";
-          if (studentParentPhoneInput) studentParentPhoneInput.value = st.parentPhone || "";
+    showLoading(true);
+    try {
+        const snapshot = await database.ref(`${DB_PATHS.STUDENTS}/${id}`).once("value");
+        const st = snapshot.val();
+        if (!st) {
+            Swal.fire("Lỗi", "Học viên không tồn tại!", "error");
+            return;
         }
-      }
-    }, 0);
 
-    const parentJobSelect = document.getElementById("student-parent-job");
-    const parentJobOtherInput = document.getElementById("student-parent-job-other");
-    if (st.parentJob && Array.from(parentJobSelect.options).some(option => option.value === st.parentJob)) {
-      parentJobSelect.value = st.parentJob;
-      parentJobOtherInput.style.display = "none";
-      parentJobOtherInput.value = "";
-    } else if (st.parentJob) {
-      parentJobSelect.value = "Khác";
-      parentJobOtherInput.style.display = "inline-block";
-      parentJobOtherInput.value = st.parentJob;
-    } else {
-      parentJobSelect.value = "";
-      parentJobOtherInput.style.display = "none";
-      parentJobOtherInput.value = "";
-    }
-    parentJobChange(parentJobSelect.value);
-
-    const packageTypeSelect = document.getElementById('student-package-type');
-    const generalEnglishCourseSelect = document.getElementById('general-english-course');
-    const certificateTypeSelect = document.getElementById('student-certificate-type');
-    const certificateCourseSelect = document.getElementById('student-certificate-course');
-    const comboSelectionContainer = document.getElementById('combo-selection-container');
-
-    packageTypeSelect.value = '';
-    generalEnglishCourseSelect.value = '';
-    certificateTypeSelect.value = '';
-    certificateCourseSelect.innerHTML = '';
-    comboSelectionContainer.style.display = 'none';
-    document.getElementById('combo-checkboxes-list').innerHTML = '';
-
-    let foundPackage = false;
-    let selectedComboCoursesFromDB = st.selectedComboCourses;
-
-    if (Array.isArray(selectedComboCoursesFromDB) && selectedComboCoursesFromDB.length > 0) {
-      let detectedCertType = null;
-      for (const key of ['HSK', 'YCT']) {
-        if (certificateCourses[`${key}_BASE`]?.some(c => c.name === selectedComboCoursesFromDB[0])) {
-          detectedCertType = key;
-          break;
-        }
-      }
-      if (detectedCertType) {
-        packageTypeSelect.value = 'Luyện thi chứng chỉ';
-        handlePackageTypeChange();
-        certificateTypeSelect.value = detectedCertType;
-        populateCourseDropdown();
-      }
-    }
-    if (!foundPackage) {
-      for (const course of generalEnglishCourses) {
-        if (st.package && st.package.includes(course.name)) {
-          packageTypeSelect.value = 'Lớp tiếng Anh phổ thông';
-          handlePackageTypeChange();
-          generalEnglishCourseSelect.value = course.name;
-          foundPackage = true;
-          break;
-        }
-      }
-      if (!foundPackage) {
-        for (const certTypeKey in certificateCourses) {
-          if (certTypeKey.includes('_BASE')) continue;
-          if (certificateCourses.hasOwnProperty(certTypeKey)) {
-            for (const course of certificateCourses[certTypeKey]) {
-              if (st.package && st.package.includes(course.name)) {
-                packageTypeSelect.value = 'Luyện thi chứng chỉ';
-                handlePackageTypeChange();
-                certificateTypeSelect.value = certTypeKey;
-                populateCourseDropdown();
-                certificateCourseSelect.value = course.name;
-                if (course.selectionLimit > 0) handleCourseSelection();
-                foundPackage = true;
-                break;
-              }
+        document.getElementById("student-form").reset();
+        
+        const fieldsToShow = ["student-name", "student-dob", "contact-info-container", "student-address", "student-parent-job", "student-book-fee-due"];
+        fieldsToShow.forEach(fieldId => {
+            const el = document.getElementById(fieldId);
+            if (el) {
+                el.parentElement.classList.remove('form-field-hidden');
+                el.parentElement.style.display = 'block';
             }
-          }
-          if (foundPackage) break;
-        }
-      }
-    }
+        });
+        
+        // Bước 1: Điền tất cả dữ liệu gốc vào form
+        document.getElementById("student-index").value = id;
+        document.getElementById("student-name").value = st.name || "";
+        document.getElementById("student-dob").value = st.dob || "";
+        document.getElementById("student-address").value = st.address || "";
+        document.getElementById("student-package").value = st.package || "";
+        document.getElementById("student-original-price").value = st.originalPrice || 0;
+        document.getElementById("student-total-due").value = st.totalDue || 0;
+        document.getElementById("student-discount-percent").value = st.discountPercent || 0;
+        document.getElementById("student-promotion-percent").value = st.promotionPercent || 0;
+        document.getElementById("student-book-fee-due").value = st.totalBookFeeDue || 0;
 
-    if (!foundPackage) {
-      console.log("Không tìm thấy gói học phù hợp trong dropdowns, giữ nguyên giá trị đã lưu.");
+        const sessionsAttended = st.sessionsAttended || 0;
+        const totalSessionsPaid = st.totalSessionsPaid || 0;
+        document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
+        document.getElementById("student-total-attended-sessions").value = sessionsAttended;
+
+        handleAgeChange(); 
+
+        // Bước 2: Dùng setTimeout để đảm bảo các hành động sau chạy sau khi form đã ổn định
+        setTimeout(() => {
+            if (st.package) {
+                let foundPackage = false;
+                // Thử tìm trong Tiếng Anh phổ thông
+                for (const course of generalEnglishCourses) {
+                    if (st.package.includes(course.name)) {
+                        document.getElementById('student-package-type').value = 'Lớp tiếng Anh phổ thông';
+                        handlePackageTypeChange(); // Hiện container
+                        document.getElementById('general-english-course').value = course.name;
+                        foundPackage = true;
+                        break;
+                    }
+                }
+                // Nếu không, thử tìm trong Chứng chỉ
+                if (!foundPackage) {
+                    for (const certTypeKey in certificateCourses) {
+                        if (certTypeKey.includes('_BASE')) continue;
+                        for (const course of certificateCourses[certTypeKey]) {
+                            if (st.package.includes(course.name)) {
+                                document.getElementById('student-package-type').value = 'Luyện thi chứng chỉ';
+                                handlePackageTypeChange();
+                                document.getElementById('student-certificate-type').value = certTypeKey;
+                                populateCourseDropdown();
+                                document.getElementById('student-certificate-course').value = course.name;
+                                handleCourseSelection(); // Hiện checkbox nếu là combo
+                                if (st.selectedComboCourses && Array.isArray(st.selectedComboCourses)) {
+                                    st.selectedComboCourses.forEach(comboCourseName => {
+                                        const checkbox = document.querySelector(`#combo-checkboxes-list input[value="${comboCourseName}"]`);
+                                        if (checkbox) checkbox.checked = true;
+                                    });
+                                }
+                                foundPackage = true;
+                                break;
+                            }
+                        }
+                        if (foundPackage) break;
+                    }
+                }
+            }
+
+            // Bước 3: Sau khi đã chọn lại tất cả, tính giá lần cuối cùng
+            updateStudentPackageName(); // Hàm này sẽ tự động gọi calculateFinalPrice
+
+        }, 100); // Chờ 100ms để đảm bảo mọi thứ sẵn sàng
+        
+        document.getElementById("student-form-title").textContent = "Chỉnh sửa học viên";
+        document.getElementById("student-form-container").style.display = "block";
+        document.getElementById("student-form-modal").style.display = "flex";
+        
+    } catch (err) {
+        console.error("Lỗi tải học viên:", err);
+        Swal.fire("Lỗi", "Lỗi tải học viên: " + err.message, "error");
+    } finally {
+        showLoading(false);
     }
-    
-    document.getElementById("student-form-title").textContent = "Chỉnh sửa học viên";
-    document.getElementById("student-form-modal").style.display = "flex";
-    document.getElementById("student-form-container").style.display = "block";
-    const canSaveChanges = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
-    setStudentFormReadonly(!canSaveChanges);
-    
-  } catch (err) {
-    console.error("Lỗi tải học viên:", err);
-    Swal.fire("Lỗi", "Lỗi tải học viên: " + err.message, "error");
-  } finally {
-    showLoading(false);
-    const modalContent = document.querySelector("#student-form-modal .modal-content");
-    modalContent.classList.remove("scale-up");
-    modalContent.offsetHeight;
-    modalContent.classList.add("scale-up");
-  }
 }
 // Hiển thị hoặc ẩn ô “Nhập nghề nghiệp khác”
 function parentJobChange(value) {
@@ -5713,62 +5653,71 @@ function renderTuitionView(query = '') {
  * Hiển thị Modal quản lý học phí với dữ liệu của học viên được chọn
  * @param {string} studentId - ID của học viên
  */
-async function showTuitionModal(studentId) {
+async function showTuitionModal(studentId, classId) {
     showLoading(true);
     try {
-        // === THAY ĐỔI QUAN TRỌNG NHẤT LÀ Ở ĐÂY ===
         const studentSnap = await database.ref(`students/${studentId}`).once('value');
         const student = studentSnap.val();
-        // ===========================================
-
         if (!student) {
             Swal.fire("Lỗi", "Không tìm thấy dữ liệu học viên!", "error");
-            showLoading(false);
             return;
         }
 
-        // 1. Tính toán các số liệu
+        // Lưu studentId và classId vào các trường ẩn trong modal
+        document.getElementById("tuition-student-id").value = studentId;
+        document.getElementById("tuition-modal-class-id").value = classId;
+
+        document.getElementById("tuition-student-name").textContent = student.name;
+        // ... giữ nguyên toàn bộ logic tính toán và render 2 bảng lịch sử ...
         const totalDue = student.totalDue || 0;
         let totalPaid = 0;
         if (student.paymentHistory) {
             totalPaid = Object.values(student.paymentHistory).reduce((sum, payment) => sum + (payment.amountPaid || 0), 0);
         }
         const remainingBalance = totalDue - totalPaid;
-
-        // 2. Điền thông tin vào modal
-        document.getElementById("tuition-student-id").value = studentId;
-        document.getElementById("tuition-student-name").textContent = student.name;
         document.getElementById("tuition-total-due").textContent = `${totalDue.toLocaleString('vi-VN')} VNĐ`;
         document.getElementById("tuition-total-paid").textContent = `${totalPaid.toLocaleString('vi-VN')} VNĐ`;
         document.getElementById("tuition-remaining-balance").textContent = `${remainingBalance.toLocaleString('vi-VN')} VNĐ`;
-
-        // 3. Render bảng lịch sử thanh toán
+        
         const historyList = document.getElementById("tuition-history-list");
         historyList.innerHTML = "";
         if (student.paymentHistory) {
-            // Sắp xếp lịch sử thanh toán, ngày mới nhất lên trên
-            const sortedHistory = Object.entries(student.paymentHistory)
-                                    .sort(([,a], [,b]) => new Date(b.paymentDate) - new Date(a.paymentDate));
-
+            const sortedHistory = Object.entries(student.paymentHistory).sort(([,a], [,b]) => new Date(b.paymentDate) - new Date(a.paymentDate));
             sortedHistory.forEach(([paymentId, payment]) => {
-                const recordedBy = payment.recordedBy || 'N/A';
                 const row = document.createElement("tr");
                 row.innerHTML = `
                     <td>${payment.paymentDate || ''}</td>
                     <td>${(payment.amountPaid || 0).toLocaleString('vi-VN')}</td>
                     <td>${payment.method || ''}</td>
                     <td>${payment.note || ''}</td>
-                    <td>${recordedBy}</td>
-                    <td><button class="delete-btn" onclick="deletePayment('${studentId}', '${paymentId}')">Xóa</button></td>
+                    <td>${payment.recordedBy || 'N/A'}</td>
+                    <td><button class="delete-btn" onclick="deletePayment('${studentId}')">Xóa</button></td>
                 `;
                 historyList.appendChild(row);
             });
         }
-
-        // 4. Reset form thêm mới và hiển thị modal
         document.getElementById("tuition-payment-form").reset();
-        document.getElementById("tuition-modal").style.display = "flex";
+        
+        const bookFeeHistoryList = document.getElementById("book-fee-history-list");
+        bookFeeHistoryList.innerHTML = "";
+        if (student.bookFeeHistory) {
+            const sortedBookHistory = Object.entries(student.bookFeeHistory).sort(([,a], [,b]) => new Date(b.paymentDate) - new Date(a.paymentDate));
+            sortedBookHistory.forEach(([paymentId, payment]) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${payment.paymentDate || ''}</td>
+                    <td>${(payment.amountPaid || 0).toLocaleString('vi-VN')}</td>
+                    <td>${payment.bookTitle || ''}</td>
+                    <td>${payment.note || ''}</td>
+                    <td>${payment.recordedBy || 'N/A'}</td>
+                    <td><button class="delete-btn" onclick="deleteBookFeePayment('${studentId}')">Xóa</button></td>
+                `;
+                bookFeeHistoryList.appendChild(row);
+            });
+        }
+        document.getElementById("book-fee-payment-form").reset();
 
+        document.getElementById("tuition-modal").style.display = "flex";
     } catch (error) {
         console.error("Lỗi khi hiển thị modal học phí:", error);
         Swal.fire("Lỗi", "Không thể hiển thị thông tin học phí: " + error.message, "error");
@@ -5776,151 +5725,180 @@ async function showTuitionModal(studentId) {
         showLoading(false);
     }
 }
-async function showTuitionManagementForClass(classId) {
-    showLoading(true);
-    try {
-        // 1. Lấy dữ liệu lớp học trực tiếp từ Firebase
-        const classSnap = await database.ref(`classes/${classId}`).once('value');
-        const classData = classSnap.val();
+async function promptSetBookFeeDue() {
+    const studentId = document.getElementById("tuition-student-id").value;
+    // Lấy classId từ trường ẩn mà chúng ta đã lưu
+    const classId = document.getElementById("tuition-modal-class-id").value;
+    const studentRef = database.ref(`students/${studentId}`);
 
-        if (!classData) {
-            Swal.fire("Lỗi", "Không tìm thấy dữ liệu lớp học.", "error");
-            return;
+    const oldData = (await studentRef.once('value')).val();
+    const oldBookFeeDue = oldData.totalBookFeeDue || 0;
+
+    const { value: newTotalBookFeeDue } = await Swal.fire({
+        title: 'Cập nhật Tổng nợ Tiền sách',
+        input: 'number',
+        inputLabel: 'Nhập tổng số tiền sách mà học viên cần phải đóng',
+        inputValue: oldBookFeeDue,
+        showCancelButton: true,
+        confirmButtonText: 'Lưu',
+        cancelButtonText: 'Hủy',
+        inputValidator: (value) => {
+            if (value === '' || value < 0) {
+                return 'Giá trị phải là một số không âm!'
+            }
         }
+    });
 
-        // 2. Điền tên lớp vào tiêu đề modal và lấy danh sách ID học viên
-        document.getElementById("class-tuition-name").textContent = classData.name || "Không tên";
-        const studentListBody = document.getElementById("class-tuition-student-list");
-        studentListBody.innerHTML = '<tr><td colspan="6">Đang tải dữ liệu học viên...</td></tr>';
-
-        const studentIds = Object.keys(classData.students || {});
-
-        if (studentIds.length === 0) {
-            studentListBody.innerHTML = '<tr><td colspan="6">Lớp này chưa có học viên.</td></tr>';
-            return;
+    if (newTotalBookFeeDue !== undefined) {
+        showLoading(true);
+        try {
+            await studentRef.update({ totalBookFeeDue: parseInt(newTotalBookFeeDue) });
+            
+            // Tải lại modal chi tiết của học viên để cập nhật số liệu
+            await showTuitionModal(studentId, classId);
+            Swal.fire('Thành công!', 'Đã cập nhật tổng nợ tiền sách.', 'success');
+            
+            // Nếu có classId, tức là người dùng đi từ bảng tổng quan, hãy tải lại nó
+            if(classId) {
+                await showTuitionManagementForClass(classId);
+            }
+        } catch(error) {
+             Swal.fire('Lỗi!', 'Không thể cập nhật.', 'error');
+        } finally {
+            showLoading(false);
         }
-
-        // 3. Lấy TẤT CẢ dữ liệu học viên trong lớp
-        const studentPromises = studentIds.map(id => database.ref(`students/${id}`).once('value'));
-        const studentSnapshots = await Promise.all(studentPromises);
-
-        let tableRowsHtml = "";
-        studentSnapshots.forEach(snap => {
-            const studentId = snap.key;
-            const student = snap.val();
-
-            if (student) {
-                // 4. Tính toán học phí cho từng em
-                const totalDue = student.totalDue || 0;
-                let totalPaid = 0;
-                if (student.paymentHistory) {
-                    totalPaid = Object.values(student.paymentHistory).reduce((sum, p) => sum + (p.amountPaid || 0), 0);
-                }
-                const remaining = totalDue - totalPaid;
-
-                let statusHtml, statusClass;
-if (totalDue > 0) {
-    // Trường hợp 1: Học viên CÓ khoản phí phải đóng.
-    if (remaining <= 0) {
-        // Đã đóng đủ
-        statusClass = 'status-paid';
-        statusHtml = 'Đã hoàn thành';
-    } else if (totalPaid > 0) {
-        // Đã đóng một phần
-        statusClass = 'status-partial';
-        statusHtml = 'Đã đóng một phần';
-    } else {
-        // Có phí nhưng chưa đóng đồng nào
-        statusClass = 'status-unpaid';
-        statusHtml = 'Chưa đóng';
     }
-} else {
-    // Trường hợp 2: Học viên KHÔNG có khoản phí (totalDue = 0).
-    statusClass = 'status-default';
-    statusHtml = 'Không có HP'; // Dùng chữ này cho rõ ràng hơn
 }
 
-                // 5. Tạo một dòng trong bảng
-             const canEdit = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+async function showTuitionManagementForClass(classId) {
+    showLoading(true);
+    const studentListBody = document.getElementById("class-tuition-student-list");
+    studentListBody.innerHTML = ''; 
 
-// Quyết định xem tên học viên có phải là link hay chỉ là chữ
-const studentNameHtml = canEdit 
-    ? `<a href="#" onclick="event.preventDefault(); showStudentActionOptions('${studentId}')" class="clickable-student-name">${student.name}</a>`
-    : student.name; // Nếu không có quyền, chỉ hiển thị tên
+    try {
+        const classSnap = await database.ref(`classes/${classId}`).once('value');
+        const classData = classSnap.val();
+        if (!classData) throw new Error("Không tìm thấy dữ liệu lớp học.");
+        
+        // Lưu classId vào chính modal để các hàm khác có thể dùng
+        document.getElementById("class-tuition-name").textContent = classData.name || "Không tên";
+        document.getElementById("class-tuition-modal").dataset.classId = classId; // Lưu vào đây
 
-tableRowsHtml += `
-    <tr>
-        <td>${studentNameHtml}</td>
-        <td>${totalDue.toLocaleString('vi-VN')}</td>
-        <td>${totalPaid.toLocaleString('vi-VN')}</td>
-        <td>${remaining.toLocaleString('vi-VN')}</td>
-        <td><span class="tuition-status ${statusClass}">${statusHtml}</span></td>
-        <td>
-            <button onclick="showTuitionModal('${studentId}')">Lịch sử HP</button>
-        </td>
-    </tr>
-`;
-            }
+        const studentIds = Object.keys(classData.students || {});
+        if (studentIds.length === 0) {
+            studentListBody.innerHTML = '<tr><td colspan="7">Lớp này chưa có học viên.</td></tr>';
+            document.getElementById("class-tuition-modal").style.display = "flex";
+            showLoading(false);
+            return;
+        }
+
+        const studentPromises = studentIds.map(id => database.ref(`students/${id}`).once('value'));
+        const studentSnapshots = await Promise.all(studentPromises);
+        let tableRowsHtml = "";
+
+        studentSnapshots.forEach(snap => {
+            if (!snap.exists()) return;
+            const studentId = snap.key;
+            const student = snap.val();
+            
+            const totalTuitionDue = student.totalDue || 0;
+            const totalTuitionPaid = Object.values(student.paymentHistory || {}).reduce((sum, p) => sum + p.amountPaid, 0);
+            const remainingTuition = totalTuitionDue - totalTuitionPaid;
+            let tuitionStatusHtml = getStatusHtml(totalTuitionDue, remainingTuition, totalTuitionPaid);
+
+            const totalBookFeeDue = student.totalBookFeeDue || 0;
+            const totalBookFeePaid = Object.values(student.bookFeeHistory || {}).reduce((sum, p) => sum + p.amountPaid, 0);
+            const remainingBookFee = totalBookFeeDue - totalBookFeePaid;
+            let bookFeeStatusHtml = getStatusHtml(totalBookFeeDue, remainingBookFee, totalBookFeePaid);
+            
+            const canEdit = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+            const studentNameHtml = canEdit 
+                ? `<a href="#" onclick="event.preventDefault(); showStudentActionOptions('${studentId}')" class="clickable-student-name">${student.name}</a>`
+                : student.name;
+
+            tableRowsHtml += `
+                <tr>
+                    <td rowspan="2" style="vertical-align: middle;">${studentNameHtml}</td>
+                    <td style="font-weight: bold;">HP</td>
+                    <td>${totalTuitionDue.toLocaleString('vi-VN')}</td>
+                    <td>${totalTuitionPaid.toLocaleString('vi-VN')}</td>
+                    <td>${remainingTuition.toLocaleString('vi-VN')}</td>
+                    <td>${tuitionStatusHtml}</td>
+                    <td rowspan="2" style="vertical-align: middle;">
+                        <button onclick="showTuitionModal('${studentId}', '${classId}')">Lịch sử HP</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">Sách</td>
+                    <td>${totalBookFeeDue.toLocaleString('vi-VN')}</td>
+                    <td>${totalBookFeePaid.toLocaleString('vi-VN')}</td>
+                    <td>${remainingBookFee.toLocaleString('vi-VN')}</td>
+                    <td>${bookFeeStatusHtml}</td>
+                </tr>`;
         });
-
         studentListBody.innerHTML = tableRowsHtml;
-
     } catch (error) {
         console.error("Lỗi khi hiển thị tổng quan học phí lớp:", error);
-        studentListBody.innerHTML = `<tr><td colspan="6">Có lỗi xảy ra: ${error.message}</td></tr>`;
+        studentListBody.innerHTML = `<tr><td colspan="7">Có lỗi xảy ra: ${error.message}</td></tr>`;
     } finally {
-        // 6. Hiển thị modal lớn
         showLoading(false);
         document.getElementById("class-tuition-modal").style.display = "flex";
     }
+}
+
+// THÊM HÀM HELPER MỚI NÀY VÀO script.js
+// Hàm này giúp tạo HTML cho cột trạng thái để tránh lặp code
+function getStatusHtml(totalDue, remaining, totalPaid) {
+    let statusClass, statusText;
+    if (totalDue > 0) {
+        if (remaining <= 0) {
+            statusClass = 'status-paid';
+            statusText = 'Hoàn thành';
+        } else if (totalPaid > 0) {
+            statusClass = 'status-partial';
+            statusText = 'Đã đóng một phần';
+        } else {
+            statusClass = 'status-unpaid';
+            statusText = 'Chưa đóng';
+        }
+    } else {
+        statusClass = 'status-default';
+        statusText = 'Miễn phí / Không có';
+    }
+    return `<span class="tuition-status ${statusClass}">${statusText}</span>`;
 }
 /**
  * HÀM MỚI: Lưu một khoản thanh toán mới cho học viên
  */
 async function savePayment() {
-    // 1. Lấy thông tin từ form trong modal
     const studentId = document.getElementById("tuition-student-id").value;
-    const amountPaidInput = document.getElementById("tuition-amount-input");
-    const amountPaid = parseInt(amountPaidInput.value);
+    const amountPaid = parseInt(document.getElementById("tuition-amount-input").value);
     const method = document.getElementById("tuition-method-select").value;
     const note = document.getElementById("tuition-note-input").value.trim();
+    
+    // Lấy giá trị từ ô input mới
+    const holder = document.getElementById("tuition-holder-input").value.trim();
 
-    // 2. Kiểm tra dữ liệu đầu vào
-    if (!studentId) {
-        Swal.fire("Lỗi", "Không tìm thấy ID học viên.", "error");
-        return;
-    }
-    if (isNaN(amountPaid) || amountPaid <= 0) {
-        Swal.fire("Lỗi", "Số tiền thanh toán phải là một số lớn hơn 0.", "error");
+    if (!studentId || isNaN(amountPaid) || amountPaid <= 0 || !holder) {
+        Swal.fire("Lỗi", "Vui lòng nhập đầy đủ số tiền và tên người cầm tiền.", "error");
         return;
     }
 
-    // 3. Chuẩn bị đối tượng dữ liệu để lưu
     const paymentData = {
         amountPaid: amountPaid,
         method: method,
         note: note,
-        paymentDate: new Date().toISOString().split("T")[0], // Lấy ngày hiện tại dạng YYYY-MM-DD
-        recordedBy: currentUserData.name || "Không rõ" // Lấy tên người dùng đang đăng nhập
+        paymentDate: new Date().toISOString().split("T")[0],
+        // Thay thế 'recordedBy' bằng giá trị từ input 'holder'
+        recordedBy: holder 
     };
 
-    // 4. Đẩy dữ liệu lên Firebase
     showLoading(true);
     try {
         const paymentRef = database.ref(`students/${studentId}/paymentHistory`);
-        await paymentRef.push(paymentData); // Dùng push() để Firebase tự tạo ID cho mỗi lần thanh toán
-
-        Swal.fire({
-            icon: 'success',
-            title: 'Thành công!',
-            text: 'Đã ghi nhận thanh toán mới.',
-            timer: 1500,
-            showConfirmButton: false
-        });
-
-        // 5. Tải lại modal để cập nhật thông tin mới nhất
+        await paymentRef.push(paymentData);
+        Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Đã ghi nhận thanh toán mới.', timer: 1500, showConfirmButton: false });
         await showTuitionModal(studentId);
-
     } catch (error) {
         console.error("Lỗi khi lưu thanh toán:", error);
         Swal.fire("Lỗi", "Không thể lưu thanh toán: " + error.message, "error");
@@ -5928,8 +5906,6 @@ async function savePayment() {
         showLoading(false);
     }
 }
-
-
 /**
  * HÀM MỚI: Xóa một khoản thanh toán đã ghi nhận
  * @param {string} studentId - ID của học viên
@@ -6487,5 +6463,77 @@ async function migrateAttendanceData() {
         Swal.fire('Lỗi', `Đã xảy ra lỗi khi chuyển đổi: ${error.message}`, 'error');
     } finally {
         showLoading(false);
+    }
+}
+/** 
+ * Hàm Lưu Tiền Sách
+ */
+async function saveBookFeePayment() {
+    const studentId = document.getElementById("tuition-student-id").value;
+    const bookTitle = document.getElementById("book-fee-title-input").value.trim();
+    const amountPaid = parseInt(document.getElementById("book-fee-amount-input").value);
+    const method = document.getElementById("book-fee-method-select").value;
+    const note = document.getElementById("book-fee-note-input").value.trim();
+
+    // Lấy giá trị từ ô input mới
+    const holder = document.getElementById("book-fee-holder-input").value.trim();
+
+    if (!bookTitle || isNaN(amountPaid) || amountPaid <= 0 || !holder) {
+        Swal.fire("Lỗi", "Vui lòng nhập đầy đủ tên sách, số tiền và tên người cầm tiền.", "error");
+        return;
+    }
+
+    const paymentData = {
+        bookTitle,
+        amountPaid,
+        method,
+        note,
+        paymentDate: new Date().toISOString().split("T")[0],
+        // Thay thế logic cũ, lưu giá trị từ input 'holder'
+        recordedBy: holder 
+    };
+
+    showLoading(true);
+    try {
+        const bookFeeRef = database.ref(`students/${studentId}/bookFeeHistory`);
+        await bookFeeRef.push(paymentData);
+        Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Đã ghi nhận thanh toán tiền sách.', timer: 1500, showConfirmButton: false });
+        await showTuitionModal(studentId);
+    } catch (error) {
+        console.error("Lỗi khi lưu tiền sách:", error);
+        Swal.fire("Lỗi", "Không thể lưu thanh toán: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * HÀM MỚI: Xóa một khoản thanh toán tiền sách đã ghi nhận.
+ */
+async function deleteBookFeePayment(studentId, paymentId) {
+    const result = await Swal.fire({
+        title: 'Bạn chắc chắn muốn xóa?',
+        text: "Hành động này sẽ xóa vĩnh viễn khoản thanh toán tiền sách này!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Vâng, xóa nó!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
+        showLoading(true);
+        try {
+            const paymentRef = database.ref(`students/${studentId}/bookFeeHistory/${paymentId}`);
+            await paymentRef.remove();
+            Swal.fire({ icon: 'success', title: 'Đã xóa!', text: 'Khoản thanh toán tiền sách đã được xóa.', timer: 1500, showConfirmButton: false });
+            // Tải lại toàn bộ modal để cập nhật
+            await showTuitionModal(studentId);
+        } catch (error) {
+            console.error("Lỗi khi xóa tiền sách:", error);
+            Swal.fire("Lỗi", "Không thể xóa thanh toán: " + error.message, "error");
+        } finally {
+            showLoading(false);
+        }
     }
 }
