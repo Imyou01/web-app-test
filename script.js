@@ -1641,6 +1641,7 @@ async function saveStudent() {
     localStorage.removeItem("student-parent");
     localStorage.removeItem("student-parent-phone");
     hideStudentForm();
+    applyStudentFilters();
 
   } catch (error) {
     Swal.fire("Lỗi", "Lỗi lưu học viên: " + error.message, "error");
@@ -1798,8 +1799,9 @@ function renderClassList(classes) {
   const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
   const currentUid = currentUserData.uid;
 
-  classArray.forEach(([id, cls]) => {
-    if (isAdminOrHoiDong || cls.teacherUid === currentUid || cls.assistantTeacherUid === currentUid) {
+classArray.forEach(([id, cls]) => {
+    // THÊM ĐIỀU KIỆN: Chỉ hiển thị nếu lớp đó KHÔNG PHẢI là lớp tạm thời
+    if (!cls.isTemporary && (isAdminOrHoiDong || cls.teacherUid === currentUid || cls.assistantTeacherUid === currentUid)) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${cls.name || ""}</td>
@@ -1821,7 +1823,7 @@ function renderClassList(classes) {
 
       tbody.appendChild(tr);
     }
-  });
+});
 }
 // Mảng chứa các role được phép làm giáo viên hoặc trợ giảng
 const TEACHER_ROLES = ["Giáo Viên", "Trợ Giảng"];
@@ -1882,19 +1884,21 @@ async function editClass(id) {
     }
 
     // --- LOGIC NHẬN DIỆN MỚI ---
-    let isConsideredTemp = false;
+   let isConsideredTemp = false;
 
-    // 1. Ưu tiên kiểm tra cờ 'isTemporary' mà chúng ta đã thêm ở bước trước
-    if (classData.isTemporary === true) {
+// 1. Ưu tiên kiểm tra cờ 'isTemporary' có được đặt tường minh hay không
+if (classData.isTemporary === true) {
+    isConsideredTemp = true;
+// 2. Sau đó, kiểm tra loại lớp 'classType' đã được lưu
+} else if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp chứng chỉ') {
+    isConsideredTemp = false; // Đây chắc chắn là lớp chính thức, không phải lớp tạm thời
+// 3. Cuối cùng, mới dùng tên lớp để "đoán" cho các trường hợp khác hoặc dữ liệu cũ (fallback)
+} else {
+    const subject = getSubjectClass(classData.name);
+    if (subject === 'subject-default') {
         isConsideredTemp = true;
-    } else {
-        // 2. Nếu không có cờ, sẽ "đoán" dựa trên tên lớp
-        //    (Lớp nào không có từ khóa "IELTS", "tiếng anh"... sẽ được coi là lớp tạm thời)
-        const subject = getSubjectClass(classData.name);
-        if (subject === 'subject-default') {
-            isConsideredTemp = true;
-        }
     }
+}
     // --- KẾT THÚC LOGIC MỚI ---
 
     if (isConsideredTemp) {
@@ -3815,7 +3819,7 @@ function renderNewSchedulePage() {
 
     // === LOGIC "THÔNG MINH" ĐỂ TỰ ĐỘNG ẨN GIỜ TRỐNG ===
     const activeHours = new Set();
-    const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+   // const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     if (visibleClasses) {
         Object.values(visibleClasses).forEach(cls => {
@@ -3875,7 +3879,8 @@ function renderNewSchedulePage() {
                 const colStart = (dayIndex * 2) + (item.room === "Phòng 301" ? 2 : 3);
                 const studentCount = item.students ? Object.keys(item.students).length : 0;
                 const classBlock = document.createElement('div');
-                classBlock.className = `class-block ${getSubjectClass(item.name)}`;
+                const subjectClass = item.isTemporary ? 'subject-default' : getSubjectClass(item.name);
+                classBlock.className = `class-block ${subjectClass}`;
                 classBlock.style.gridColumn = `${colStart}`;
                 classBlock.style.gridRow = `${rowStart} / span ${rowSpan}`;
                 classBlock.dataset.classId = item.id;
@@ -3898,13 +3903,19 @@ function renderNewSchedulePage() {
         }
     };
 
-    // Lặp qua các lớp được phép xem và vẽ chúng
-    Object.entries(visibleClasses).forEach(([classId, cls]) => {
-        if (!cls.fixedSchedule) return;
-        Object.entries(cls.fixedSchedule).forEach(([dayName, time]) => {
+// Lặp qua các lớp được phép xem và vẽ chúng
+const dayNamesList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+Object.entries(visibleClasses).forEach(([classId, cls]) => {
+    if (!cls.fixedSchedule) return;
+    Object.entries(cls.fixedSchedule).forEach(([dayIndex, time]) => { // Đổi tên biến thành dayIndex cho rõ ràng
+        // Chuyển key dạng SỐ (ví dụ: "1") trở lại thành tên ngày dạng CHỮ (ví dụ: "Monday")
+        const dayName = dayNamesList[parseInt(dayIndex, 10)]; 
+
+        if (dayName) { // Chỉ render nếu chuyển đổi thành công
             renderBlock({ ...cls, id: classId, dayName, time });
-        });
+        }
     });
+});
 }
 function initScheduleEventListeners() {
     if (scheduleEventListenersInitialized) return;
@@ -4175,31 +4186,27 @@ async function saveTempClass(event) {
         return;
     }
 
-    // Tạo lịch học cho 3 tháng tới dựa trên lịch cố định
-    const sessionsToGenerate = {};
-    const rollingSessionArray = generateRollingSessions(fixedSchedule, startDate, 3);
-    rollingSessionArray.forEach(session => {
-        sessionsToGenerate[session.date] = { time: session.time, type: 'scheduled' };
-    });
+   // Tạo lịch học cho khoảng 30 buổi tới dựa trên lịch cố định
+const sessionsToGenerate = generateRollingSessions(startDate, 30, fixedSchedule); // Gọi lại hàm với đúng tham số
 
-    // Tạo đối tượng dữ liệu lớp học
-    const classData = {
-        name,
-        teacher,
-        teacherUid,
-        assistantTeacher,
-        assistantTeacherUid,
-        room,
-        startDate,
-        fixedSchedule,
-        students: {},
-        sessions: sessionsToGenerate,
-        isTemporary: true,
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        updatedAt: firebase.database.ServerValue.TIMESTAMP,
-        teacherSalary: 0,
-        assistantTeacherSalary: 0,
-    };
+// Tạo đối tượng dữ liệu lớp học
+const classData = {
+    name,
+    teacher,
+    teacherUid,
+    assistantTeacher,
+    assistantTeacherUid,
+    room,
+    startDate,
+    fixedSchedule,
+    students: {},
+    sessions: sessionsToGenerate, // Gán trực tiếp kết quả vào đây
+    isTemporary: true,
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    updatedAt: firebase.database.ServerValue.TIMESTAMP,
+    teacherSalary: 0,
+    assistantTeacherSalary: 0,
+};
 
     // Thêm thông tin học viên đã chọn
     Object.entries(selectedTempStudents).forEach(([studentId, studentName]) => {
@@ -4235,17 +4242,21 @@ async function saveTempClass(event) {
 }
 function getTempFixedScheduleFromForm() {
     const schedule = {};
+    // Thêm một bộ ánh xạ để chuyển tên ngày (chữ) sang chỉ số (số)
+    const dayNameToIndex = { "Sunday": 0, "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6 };
     const dayCheckboxes = document.querySelectorAll("input[name='temp-schedule-day']:checked");
 
     dayCheckboxes.forEach(checkbox => {
-        const day = checkbox.value; // ví dụ: "Monday"
+        const dayName = checkbox.value; // Lấy tên ngày, ví dụ: "Monday"
+        const dayIndex = dayNameToIndex[dayName]; // Chuyển "Monday" thành số 1
         const dayKey = checkbox.id.split("-")[2]; // "mon", "tue", ...
 
         const hour = document.getElementById(`temp-hour-${dayKey}`).value;
         const minute = document.getElementById(`temp-minute-${dayKey}`).value;
 
-        if (hour && minute) {
-            schedule[day] = `${hour}:${minute}`;
+        if (hour && minute && dayIndex !== undefined) {
+            // SỬA LỖI: Dùng dayIndex (số) làm key thay vì dayName (chữ)
+            schedule[dayIndex] = `${hour}:${minute}`;
         }
     });
     return schedule;
@@ -5691,12 +5702,12 @@ async function showTuitionModal(studentId, classId) {
                     <td>${payment.method || ''}</td>
                     <td>${payment.note || ''}</td>
                     <td>${payment.recordedBy || 'N/A'}</td>
-                    <td><button class="delete-btn" onclick="deletePayment('${studentId}')">Xóa</button></td>
+                    <td><button class="delete-btn" onclick="deletePayment('${studentId}', '${paymentId}')">Xóa</button></td>
                 `;
                 historyList.appendChild(row);
             });
         }
-        document.getElementById("tuition-payment-form").reset();
+       // document.getElementById("tuition-payment-form").reset();
         
         const bookFeeHistoryList = document.getElementById("book-fee-history-list");
         bookFeeHistoryList.innerHTML = "";
@@ -5706,16 +5717,16 @@ async function showTuitionModal(studentId, classId) {
                 const row = document.createElement("tr");
                 row.innerHTML = `
                     <td>${payment.paymentDate || ''}</td>
-                    <td>${(payment.amountPaid || 0).toLocaleString('vi-VN')}</td>
+                    <td>${(payment.amountPaid || 0).toLocaleString('vi-VN')}</td>s
                     <td>${payment.bookTitle || ''}</td>
                     <td>${payment.note || ''}</td>
                     <td>${payment.recordedBy || 'N/A'}</td>
-                    <td><button class="delete-btn" onclick="deleteBookFeePayment('${studentId}')">Xóa</button></td>
+                    <td><button class="delete-btn" onclick="deleteBookFeePayment('${studentId}', '${paymentId}')">Xóa</button></td>
                 `;
                 bookFeeHistoryList.appendChild(row);
             });
         }
-        document.getElementById("book-fee-payment-form").reset();
+        //document.getElementById("book-fee-payment-form").reset();
 
         document.getElementById("tuition-modal").style.display = "flex";
     } catch (error) {
@@ -5898,6 +5909,7 @@ async function savePayment() {
         const paymentRef = database.ref(`students/${studentId}/paymentHistory`);
         await paymentRef.push(paymentData);
         Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Đã ghi nhận thanh toán mới.', timer: 1500, showConfirmButton: false });
+        document.getElementById("tuition-payment-form").reset();
         await showTuitionModal(studentId);
     } catch (error) {
         console.error("Lỗi khi lưu thanh toán:", error);
