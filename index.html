@@ -661,15 +661,15 @@
  <button onclick="backToDashboard()">
   <i data-lucide="arrow-left"></i>
 </button>
-<button onclick="migrateAttendanceData()" style="background-color: #f0ad4e; color: white;">
-    (Một lần) Chuẩn hóa Điểm danh cũ
-</button>
-<button onclick="generateExamsForGeneralClasses()" style="background-color: #ffc107; color: #212529; font-weight: bold;">
-    Tạo bù KT cho Lớp Phổ Thông
-</button>
-<button onclick="generateExamsForCertificateClasses()" style="background-color: #17a2b8; color: white; font-weight: bold;">
-    Tạo bù KT cho Lớp Chứng Chỉ
-</button>
+<button id="btn-migrate-attendance" onclick="migrateAttendanceData()" style="background-color: #f0ad4e; color: white;">
+        (Một lần) Chuẩn hóa Điểm danh cũ
+    </button>
+    <button id="btn-gen-exam-general" onclick="generateExamsForGeneralClasses()" style="background-color: #ffc107; color: #212529; font-weight: bold;">
+        Tạo bù KT cho Lớp Phổ Thông
+    </button>
+    <button id="btn-gen-exam-cert" onclick="generateExamsForCertificateClasses()" style="background-color: #17a2b8; color: white; font-weight: bold;">
+        Tạo bù KT cho Lớp Chứng Chỉ
+    </button>
 <!-- Thanh tìm kiếm cho lớp học -->
   <input type="text"
           id="class-search"
@@ -1002,9 +1002,15 @@
           </select>
         </div>
       </div>
-      <div style="margin-top: 10px;">
+       <div style="margin-top: 10px;">
         <label for="tuition-holder-input">Người cầm tiền</label>
-        <input type="text" id="tuition-holder-input" placeholder="Nhập tên người cầm tiền" style="width: 100%; padding: 8px;" required>
+        <select id="tuition-holder-input" style="width: 100%; padding: 8px;" required>
+            <option value="">-- Chọn người cầm tiền --</option>
+            <option value="Dương Trung Kiên">Dương Trung Kiên</option>
+            <option value="Nguyễn Văn Hùng">Nguyễn Văn Hùng</option>
+            <option value="Thành Long">Thành Long</option>
+            <option value="Vũ Gia Huy">Vũ Gia Huy</option>
+        </select>
       </div>
       <div style="margin-top: 10px;">
         <label for="tuition-note-input">Ghi chú</label>
@@ -1033,12 +1039,16 @@
         <tbody id="book-fee-history-list"></tbody>
       </table>
     </div>
-
-    <h4 style="margin-top: 25px;">Ghi nhận đóng tiền sách mới</h4>
+  
+<h4 style="margin-top: 25px;">Ghi nhận đóng tiền sách mới</h4>
     <form id="book-fee-payment-form" onsubmit="event.preventDefault(); saveBookFeePayment()">
       <div style="margin-bottom: 10px;">
-        <label for="book-fee-title-input">Tên sách / Giáo trình</label>
-        <input type="text" id="book-fee-title-input" placeholder="Ví dụ: Giáo trình IELTS Foundation" style="width: 100%; padding: 8px;" required>
+        <label>Tên sách / Giáo trình</label>
+        
+        <div id="book-selection-container" style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;"></div>
+
+        <label for="book-fee-title-final" style="margin-top: 10px;">Tên sách đầy đủ (Tự động):</label>
+        <input type="text" id="book-fee-title-final" readonly style="width: 100%; padding: 8px; background-color: #eee; border: 1px solid #ccc;">
       </div>
 
       <div style="display: flex; gap: 15px; align-items: flex-end;">
@@ -1057,7 +1067,13 @@
       </div>
       <div style="margin-top: 10px;">
         <label for="book-fee-holder-input">Người cầm tiền</label>
-        <input type="text" id="book-fee-holder-input" placeholder="Nhập tên người cầm tiền" style="width: 100%; padding: 8px;" required>
+        <select id="book-fee-holder-input" style="width: 100%; padding: 8px;" required>
+            <option value="">-- Chọn người cầm tiền --</option>
+            <option value="Dương Trung Kiên">Dương Trung Kiên</option>
+            <option value="Nguyễn Văn Hùng">Nguyễn Văn Hùng</option>
+            <option value="Thành Long">Thành Long</option>
+            <option value="Vũ Gia Huy">Vũ Gia Huy</option>
+        </select>
       </div>
       <div style="margin-top: 10px;">
         <label for="book-fee-note-input">Ghi chú</label>
