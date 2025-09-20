@@ -574,15 +574,29 @@ function backToDashboard() {
   window.location.hash = "dashboard";
 }
 async function loadInitialData() {
-    console.log("Bắt đầu tải dữ liệu ban đầu...");
+    console.log("Bắt đầu tải dữ liệu ban đầu (với timeout 10 giây)...");
     try {
-        // Dùng Promise.all để tải tất cả dữ liệu cùng lúc và chờ tất cả hoàn thành
-        const [usersSnap, classesSnap, studentsSnap] = await Promise.all([
+        // --- PHẦN MỚI BẮT ĐẦU ---
+        // 1. Tạo một Promise sẽ báo lỗi sau 10 giây
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Yêu cầu tải dữ liệu đã quá hạn.")), 10000); // 10000ms = 10s
+        });
+
+        // 2. Tạo Promise để tải dữ liệu như cũ
+        const dataFetchPromise = Promise.all([
             database.ref(DB_PATHS.USERS).once('value'),
             database.ref(DB_PATHS.CLASSES).once('value'),
             database.ref(DB_PATHS.STUDENTS).once('value')
         ]);
-        
+
+        // 3. Cho 2 Promise trên "chạy đua", ai về trước thì thắng
+        // Kết quả sẽ là dữ liệu (nếu tải xong) hoặc lỗi timeout
+        const [usersSnap, classesSnap, studentsSnap] = await Promise.race([
+            dataFetchPromise,
+            timeoutPromise
+        ]);
+        // --- PHẦN MỚI KẾT THÚC ---
+
         // Gán dữ liệu vào các biến toàn cục
         allUsersData = usersSnap.val() || {};
         allClassesData = classesSnap.val() || {};
