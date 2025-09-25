@@ -53,7 +53,8 @@ const pages = [
   "personnel-management",
   "tuition-management",
   "profile-page",
-  "trash-management"
+  "trash-management",
+  "activity-log-page"
 ];
 // script.js
 const PERSONNEL_MANAGEMENT_ROLES = ["Admin", "Hội Đồng"];
@@ -307,54 +308,46 @@ for (const key in certificateCourses) {
 auth.onAuthStateChanged(async (user) => {
   isAuthReady = true;
 
+  // Ẩn tất cả các màn hình trước khi xử lý
+  document.getElementById("auth-container").style.display = "none";
+  document.getElementById("role-selection").style.display = "none";
+  document.getElementById("pending-approval-screen").style.display = "none";
+  document.getElementById("app-layout").style.display = "none";
+
   if (user) {
-    // ---- KHI USER ĐÃ ĐĂNG NHẬP ----
     const userSnapshot = await database.ref(`${DB_PATHS.USERS}/${user.uid}`).once("value");
     currentUserData = { uid: user.uid, ...userSnapshot.val() };
 
     if (!currentUserData.role) {
-      // Trường hợp user mới, chưa chọn vai trò
-      document.getElementById("app-layout").style.display = "none";
-      document.getElementById("auth-container").style.display = "none";
+      // 1. Chưa có vai trò -> Bắt chọn vai trò
       document.getElementById("role-selection").style.display = "block";
+    } else if (currentUserData.status === 'pending') {
+      // 2. Đã có vai trò nhưng đang chờ duyệt -> Hiển thị màn hình chờ
+      document.getElementById("pending-approval-screen").style.display = "flex";
     } else {
-      // Trường hợp user đã có vai trò -> Đây là luồng chính
-      document.getElementById("auth-container").style.display = "none";
-      document.getElementById("role-selection").style.display = "none";
+      // 3. Đã được duyệt -> Vào màn hình chính
       document.getElementById("app-layout").style.display = "flex";
-
       showLoading(true);
       try {
-        // 1. Tải toàn bộ dữ liệu cần thiết trước
         await loadInitialData();
-
-        // 2. Thiết lập các hàm lắng nghe sự kiện thay đổi dữ liệu
         initStudentsListener();
         initClassesListener();
         initUsersListener();
-
-        // 3. Cập nhật giao diện chung
         setupDashboardUI(currentUserData);
         updateUIAccessByRole(currentUserData);
-       if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-       }
-        // 4. Hiển thị trang dựa trên URL hash (quan trọng)
-        // Hàm này sẽ tự động gọi renderStudentList nếu hash là #student-management
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
         await showPageFromHash();
-
       } catch (error) {
          console.error("Lỗi nghiêm trọng khi khởi tạo:", error);
-         Swal.fire("Lỗi", "Không thể khởi tạo ứng dụng. Vui lòng thử lại.", "error");
       } finally {
         showLoading(false);
       }
     }
   } else {
-    // ---- KHI USER ĐÃ ĐĂNG XUẤT HOẶC CHƯA ĐĂNG NHẬP ----
-    document.getElementById("app-layout").style.display = "none";
-    document.getElementById("role-selection").style.display = "none";
-    document.getElementById("auth-container").style.display = "block";
+    // 4. Chưa đăng nhập -> Hiển thị form đăng nhập
+    document.getElementById("auth-container").style.display = "flex";
     currentUserData = null;
   }
 });
@@ -417,6 +410,7 @@ function register() {
             timer: 2000, // Thời gian hiển thị ngắn hơn
             showConfirmButton: false
           }).then(() => {
+            showForm('login');
             auth.signOut(); // Đăng xuất để người dùng tự đăng nhập lại
           });
 
@@ -478,16 +472,22 @@ function forgotPassword() {
 // Đăng xuất
 function logout() {
   auth.signOut().then(() => {
-    toggleUI(false);
+    // Ẩn giao diện chính của ứng dụng
+    document.getElementById("app-layout").style.display = "none";
+    
+    // Hiển thị lại màn hình đăng nhập với thuộc tính 'flex' để căn giữa
+    document.getElementById("auth-container").style.display = "flex"; 
+
+    // Các thao tác dọn dẹp khác
     showForm("login");
     window.location.hash = "";
     hideAllManagementPages();
     personnelListInitialized = false;
+
   }).catch(error => {
     alert("Lỗi đăng xuất: " + error.message);
   });
 }
-
 // =========================== UI & NAVIGATION ===========================
 
 // Ẩn tất cả các page
@@ -540,29 +540,35 @@ function showForm(formName) {
 async function saveUserRole() {
   const user = auth.currentUser;
   if (!user) {
-    alert("Đã có lỗi: Vui lòng đăng nhập lại.");
+    Swal.fire("Lỗi", "Đã có lỗi: Vui lòng đăng nhập lại.", "error");
     return;
   }
   const selectedRole = document.getElementById("select-role").value;
   if (!selectedRole) {
-    alert("Vui lòng chọn một chức vụ!");
+    Swal.fire("Thông báo", "Vui lòng chọn một chức vụ!", "warning");
     return;
   }
 
-  await database.ref(`${DB_PATHS.USERS}/${user.uid}/role`).set(selectedRole);
-  const userSnapshot = await database.ref(`${DB_PATHS.USERS}/${user.uid}`).once("value");
-  const userData = userSnapshot.val();
+  try {
+    showLoading(true);
+    // 1. Lưu chức vụ vào database như cũ
+    await database.ref(`${DB_PATHS.USERS}/${user.uid}/role`).set(selectedRole);
 
-  hideElement("role-selection");
-  document.getElementById("auth-container").style.display = "none";
-document.getElementById("app-layout").style.display = "flex"; // Dùng 'flex' thay vì 'block'
-setupDashboardUI(userData);
-if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-}
-  showElement("dashboard");
-}
+    // 2. Ẩn màn hình chọn chức vụ
+    hideElement("role-selection");
 
+    // 3. HIỂN THỊ TRỰC TIẾP màn hình chờ duyệt
+    document.getElementById("pending-approval-screen").style.display = "flex";
+
+    // 4. Tắt loading
+    showLoading(false);
+
+  } catch (error) {
+    showLoading(false);
+    console.error("Lỗi khi lưu chức vụ:", error);
+    Swal.fire("Lỗi", "Không thể lưu lựa chọn chức vụ của bạn.", "error");
+  }
+}
 // Thiết lập UI Dashboard (hiển thị tên hoặc chức vụ)
 async function setupDashboardUI(userData) {
     const displayHelloEl = document.getElementById("display-name-hello");
@@ -817,6 +823,10 @@ async function showPageFromHash() {
         case 'trash-management':
             renderTrashPage();
             break;
+        case 'activity-log-page':
+            renderActivityLog();
+             break;
+
     }
 }
 window.addEventListener("hashchange", () => {
@@ -858,33 +868,46 @@ async function renderAccountList() {
     }
     accountListEl.innerHTML = "";
 
-    const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
     const users = allUsersData; 
-
     try {
         const sortedUsers = Object.entries(users).sort(([,a],[,b]) => (a.name || "").localeCompare(b.name || ""));
 
         for (const [uid, userData] of sortedUsers) {
             const row = document.createElement("tr");
             const userEmail = auth.currentUser?.uid === uid ? auth.currentUser.email : (userData.email || "N/A");
-            const username = userEmail.split('@')[0];
-
-            let actionButtonHTML = '';
-            if (isAdminOrHoiDong) {
-                actionButtonHTML = `
-                    <button onclick="showApproveAccountModal('${uid}')">${userData.role ? 'Sửa' : 'Duyệt'}</button>
-                    <button class="delete-btn" onclick="deleteAccount('${uid}')">Xóa</button>
-                `;
-            } else {
-                actionButtonHTML = 'Không có quyền';
+            
+            // === LOGIC PHÂN QUYỀN NÚT BẤM MỚI ===
+            let actionButtonHTML = '<td>Không có quyền</td>'; // Mặc định
+            
+            if (currentUserData.role === 'Admin') {
+                // Admin có mọi quyền, trừ việc tự xóa mình
+                if (currentUserData.uid !== uid) {
+                    actionButtonHTML = `
+                        <td>
+                            <button onclick="showApproveAccountModal('${uid}')">${userData.status === 'pending' ? 'Duyệt' : 'Sửa'}</button>
+                            <button class="delete-btn" onclick="deleteAccount('${uid}')">Xóa</button>
+                        </td>`;
+                } else {
+                     actionButtonHTML = `<td><button onclick="showApproveAccountModal('${uid}')">Sửa</button></td>`;
+                }
+            } else if (currentUserData.role === 'Hội Đồng') {
+                // Hội đồng có quyền với tất cả, trừ Admin
+                if (userData.role !== 'Admin') {
+                     actionButtonHTML = `
+                        <td>
+                            <button onclick="showApproveAccountModal('${uid}')">${userData.status === 'pending' ? 'Duyệt' : 'Sửa'}</button>
+                            <button class="delete-btn" onclick="deleteAccount('${uid}')">Xóa</button>
+                        </td>`;
+                }
             }
+            // ===================================
 
             row.innerHTML = `
                 <td>${userEmail}</td>
                 <td>${userData.name || ""}</td>
-                <td>${username}</td>
-                <td>${userData.role || "(Chưa duyệt)"}</td>
-                <td>${actionButtonHTML}</td>
+                <td>${(userEmail || "").split('@')[0]}</td>
+                <td>${userData.role || "(Chưa có vai trò)"}</td>
+                ${actionButtonHTML}
             `;
             accountListEl.appendChild(row);
         }
@@ -911,7 +934,7 @@ async function showApproveAccountModal(uid) {
         document.getElementById("approve-account-role-select").value = userData.role || "";
 
         document.getElementById("approve-account-modal").style.display = "flex";
-        const modalContent = document.querySelector("#approve-account-modal .modal-content");
+        const modalContent = document.querySelector("#approve-account-modal .modal__content");
         modalContent.classList.remove("scale-up");
         modalContent.offsetHeight;
         modalContent.classList.add("scale-up");
@@ -940,14 +963,19 @@ async function approveAccount() {
 
     showLoading(true);
     try {
+        // Lấy tên của user trước khi cập nhật
+        const userSnap = await database.ref(`${DB_PATHS.USERS}/${currentApprovingUid}`).once('value');
+        const targetUserName = userSnap.val()?.name || 'Không rõ';
+
         await database.ref(`${DB_PATHS.USERS}/${currentApprovingUid}`).update({
             role: selectedRole,
-            status: "active", // Đặt trạng thái là active khi được duyệt
+            status: "active",
             updatedAt: firebase.database.ServerValue.TIMESTAMP
         });
+        await logActivity(`Đã duyệt/sửa vai trò cho "${targetUserName}" thành "${selectedRole}"`);
         Swal.fire({ icon: 'success', title: 'Đã cập nhật chức vụ!', timer: 2000, showConfirmButton: false });
         hideApproveAccountModal();
-        renderAccountList(); // Tải lại danh sách tài khoản
+        renderAccountList();
     } catch (error) {
         console.error("Lỗi duyệt tài khoản:", error);
         Swal.fire("Lỗi", "Không thể duyệt tài khoản: " + error.message, "error");
@@ -957,22 +985,34 @@ async function approveAccount() {
 }
 
 async function deleteAccount(uid) {
-    if (!confirm("Bạn có chắc muốn xóa tài khoản này?")) return;
+    // Sử dụng Swal thay cho confirm để đẹp hơn
+    const result = await Swal.fire({
+        title: 'Bạn chắc chắn muốn xóa?',
+        text: "Hành động này không thể hoàn tác!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonText: 'Hủy',
+        confirmButtonText: 'Vâng, xóa nó!'
+    });
+
+    if (!result.isConfirmed) return;
+
     showLoading(true);
     try {
-        // Xóa tài khoản khỏi Realtime Database
-        await database.ref(`${DB_PATHS.USERS}/${uid}`).remove();
+        // Lấy tên của user trước khi xóa
+        const userSnap = await database.ref(`${DB_PATHS.USERS}/${uid}`).once('value');
+        const targetUserName = userSnap.val()?.name || 'Không rõ';
 
-        // Nếu người dùng đang tự xóa tài khoản của mình, đăng xuất họ
+        await database.ref(`${DB_PATHS.USERS}/${uid}`).remove();
+        await logActivity(`Đã xóa tài khoản: ${targetUserName}`);
+
         if (auth.currentUser && auth.currentUser.uid === uid) {
-            await auth.signOut(); // Đăng xuất người dùng
+            await auth.signOut();
         } else {
-            // Đối với admin xóa người khác, firebase auth không cho xóa user khác từ client
-            // Cần một Cloud Function nếu muốn Admin xóa user Auth thực sự
-            // Hiện tại, chỉ xóa data trên DB
             Swal.fire({ icon: 'success', title: 'Đã xóa dữ liệu tài khoản trên Database!', text: 'Lưu ý: Chỉ Admin hệ thống mới có thể xóa tài khoản Auth thực sự.', timer: 3000, showConfirmButton: false });
         }
-        renderAccountList(); // Tải lại danh sách tài khoản
+        renderAccountList();
     } catch (error) {
         console.error("Lỗi xóa tài khoản:", error);
         Swal.fire("Lỗi", "Không thể xóa tài khoản: " + error.message, "error");
@@ -1853,9 +1893,11 @@ async function saveStudent() {
   try {
     if (id) {
       await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
+      await logActivity(`Đã cập nhật hồ sơ học viên: "${name}"`);
       Swal.fire({ icon: 'success', title: 'Đã cập nhật học viên!', timer: 2000, showConfirmButton: false });
     } else {
       await database.ref(DB_PATHS.STUDENTS).push(studentData);
+      await logActivity(`Đã tạo hồ sơ học viên mới: "${name}"`);
       Swal.fire({ icon: 'success', title: 'Đã thêm học viên!', timer: 2000, showConfirmButton: false });
     }
     
@@ -1896,6 +1938,7 @@ async function deleteStudent(id) {
                 status: 'deleted',
                 deletedAt: firebase.database.ServerValue.TIMESTAMP
             });
+            await logActivity(`Đã chuyển học viên vào thùng rác: ${studentName}`);
             Swal.fire('Đã chuyển!', 'Học viên đã được chuyển vào thùng rác.', 'success');
         } catch (error) {
             Swal.fire("Lỗi", "Không thể thực hiện: " + error.message, "error");
@@ -2562,6 +2605,7 @@ async function saveClass(event) {
             });
 
             await database.ref().update(updates);
+            await logActivity(`Đã tạo/cập nhật lớp: ${classData.name}`);
             Swal.fire({ icon: 'success', title: 'Đã cập nhật lớp học!', timer: 2000, showConfirmButton: false });
             
         } else {
@@ -2617,6 +2661,7 @@ async function deleteClass(id) {
                 status: 'deleted',
                 deletedAt: firebase.database.ServerValue.TIMESTAMP
             });
+            await logActivity(`Đã chuyển lớp vào thùng rác: ${className}`);
             Swal.fire('Đã chuyển!', 'Lớp học đã được chuyển vào thùng rác.', 'success');
         } catch (error) {
             Swal.fire("Lỗi", "Không thể thực hiện: " + error.message, "error");
@@ -5834,7 +5879,7 @@ function promptResetPackage() {
 
         // Cập nhật dữ liệu trên Firebase
         await database.ref(`${DB_PATHS.STUDENTS}/${studentId}`).update(resetData);
-
+        await logActivity(`Đã reset gói học cho: ${studentName}`);
         Swal.fire(
           'Đã Reset!',
           'Thông tin gói đăng ký của học viên đã được xóa.',
@@ -7090,14 +7135,25 @@ async function permanentlyDeleteClass(id) {
 }
 // HÀM MỚI: Cập nhật giao diện dựa trên vai trò người dùng
 function updateUIAccessByRole(userData) {
+    // Biến để kiểm tra quyền truy cập các mục chung (Admin + Hội Đồng)
     const isAuthorized = userData && (userData.role === 'Admin' || userData.role === 'Hội Đồng');
+    
+    // === PHẦN SỬA LỖI: Định nghĩa biến 'isAdmin' một cách rõ ràng ===
+    const isAdmin = userData && userData.role === 'Admin';
+    // ==========================================================
 
     // Lấy thẻ Thùng rác trên Bảng điều khiển
     const trashCard = document.querySelector('a[href="#trash-management"]');
-    
     if (trashCard) {
-        // Nếu được ủy quyền thì hiển thị, không thì ẩn đi
+        // Chỉ Admin và Hội Đồng mới thấy Thùng rác
         trashCard.style.display = isAuthorized ? 'block' : 'none';
+    }
+
+    // Lấy link Nhật ký Hoạt động trên sidebar
+    const activityLogNav = document.getElementById('nav-activity-log');
+    if (activityLogNav) {
+        // Chỉ Admin mới thấy Nhật ký
+        activityLogNav.style.display = isAdmin ? 'block' : 'none';
     }
 }
 /**
@@ -7527,6 +7583,7 @@ async function promptResetClassBookFee() {
 
             // 3. Gửi một lệnh cập nhật duy nhất lên Firebase
             await database.ref().update(updates);
+            await logActivity(`Đã reset tiền sách cho lớp: ${className}`);
 
             Swal.fire('Đã Reset!', 'Toàn bộ thông tin tiền sách của lớp đã được xóa.', 'success');
 
@@ -7553,5 +7610,68 @@ function toggleCollapsible(headerElement) {
         content.style.display = "none";
     } else {
         content.style.display = "block";
+    }
+}
+async function logActivity(actionDescription) {
+    // Chỉ ghi nhật ký nếu người dùng không phải là Admin
+    if (!currentUserData || currentUserData.role === 'Admin') {
+        return; 
+    }
+
+    const logEntry = {
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        userUid: currentUserData.uid,
+        userName: currentUserData.name,
+        userRole: currentUserData.role,
+        action: actionDescription
+    };
+
+    try {
+        await database.ref('activityLog').push(logEntry);
+    } catch (error) {
+        console.error("Lỗi khi ghi nhật ký hoạt động:", error);
+    }
+}
+
+/**
+ * HÀM MỚI: Render (vẽ) ra trang Nhật ký Hoạt động
+ */
+async function renderActivityLog() {
+    const logListBody = document.getElementById("activity-log-list");
+    logListBody.innerHTML = '<tr><td colspan="4">Đang tải nhật ký...</td></tr>';
+    showLoading(true);
+
+    try {
+        // Lấy 100 hoạt động gần nhất
+        const snapshot = await database.ref('activityLog').orderByChild('timestamp').limitToLast(100).once('value');
+        const logs = snapshot.val() || {};
+
+        if (Object.keys(logs).length === 0) {
+            logListBody.innerHTML = '<tr><td colspan="4">Chưa có hoạt động nào được ghi nhận.</td></tr>';
+            return;
+        }
+
+        // Sắp xếp lại để hiển thị cái mới nhất lên đầu
+        const sortedLogs = Object.values(logs).sort((a, b) => b.timestamp - a.timestamp);
+
+        let tableRowsHtml = "";
+        sortedLogs.forEach(log => {
+            const logTime = new Date(log.timestamp).toLocaleString('vi-VN');
+            tableRowsHtml += `
+                <tr>
+                    <td>${logTime}</td>
+                    <td>${log.userName}</td>
+                    <td>${log.userRole}</td>
+                    <td>${log.action}</td>
+                </tr>
+            `;
+        });
+        logListBody.innerHTML = tableRowsHtml;
+
+    } catch (error) {
+        console.error("Lỗi khi tải nhật ký:", error);
+        logListBody.innerHTML = '<tr><td colspan="4">Không thể tải nhật ký hoạt động.</td></tr>';
+    } finally {
+        showLoading(false);
     }
 }
