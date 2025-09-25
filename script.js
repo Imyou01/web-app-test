@@ -1547,8 +1547,13 @@ function renderStudentList(dataset) {
   tbody.innerHTML = "";
 
   // *** LOGIC PHÂN QUYỀN BẮT ĐẦU TỪ ĐÂY ***
-  const canEditStudents = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
-
+  //const canEditStudents = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
+const canEditStudents = currentUserData && (
+    currentUserData.role === "Admin" || 
+    currentUserData.role === "Hội Đồng" || 
+    currentUserData.role === "Giáo Viên" || 
+    currentUserData.role === "Trợ Giảng"
+);
   currentPageStudents.forEach(([id, st]) => {
     let actionButtonsHTML = '';
 
@@ -7569,6 +7574,7 @@ async function promptResetClassBookFee() {
 
             const studentIds = Object.keys(classData.students || {});
             const updates = {};
+            const className = classData.name || 'Không rõ tên';
 
             // 1. Xóa thông tin sách và các đợt thu của lớp
             updates[`/classes/${classId}/bookInfo`] = null;
