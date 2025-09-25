@@ -1,35 +1,37 @@
 /* ==========================================================================
-   1. Global Styles & CSS Variables
+   1. Global Styles & CSS Variables (ĐÃ TỐI ƯU)
    ========================================================================== */
 
-/* Định nghĩa các biến màu và font chữ để dễ dàng quản lý */
-:root {
-    --color-primary: #0066cc; /* Xanh dương chuyên nghiệp */
-    --color-primary-dark: #0052a3; /* Màu xanh đậm hơn khi hover */
-    --color-background: #f3f6fb; /* Nền xám rất nhạt */
-    --color-surface: #ffffff;    /* Nền cho các thẻ, modal */
-    --color-text-primary: #212529;  /* Chữ đen chính */
-    --color-text-secondary: #6c757d; /* Chữ xám phụ */
-    --color-border: #dee2e6;       /* Viền cho các ô input */
-    --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --border-radius: 8px; /* Bo tròn góc cho thống nhất */
-    --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Đổ bóng nhẹ */
+/* Thêm font-size gốc để dễ dàng điều chỉnh tỷ lệ chung */
+html {
+    font-size: 14.5px; /* Giảm nhẹ so với 16px mặc định để giao diện gọn hơn */
 }
 
-/* CSS Reset cơ bản */
+:root {
+    --color-primary: #0066cc;
+    --color-primary-dark: #0052a3;
+    --color-background: #f0f2f5; /* Nền xám nhạt hơn một chút */
+    --color-surface: #ffffff;
+    --color-text-primary: #212529;
+    --color-text-secondary: #6c757d;
+    --color-border: #dee2e6;
+    --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --border-radius: 6px; /* Giảm bo góc */
+    --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
-/* Áp dụng styles chung cho toàn bộ trang */
 body {
     font-family: var(--font-family-base);
     background-color: var(--color-background);
     color: var(--color-text-primary);
     line-height: 1.6;
-    -webkit-font-smoothing: antialiased; /* Làm chữ mượt hơn trên Chrome/Safari */
+    -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -42,10 +44,9 @@ a:hover {
 }
 
 /* ==========================================================================
-   2. Authentication Block (.auth-container)
+   2. Authentication Block (.auth-container) (ĐÃ TỐI ƯU)
    ========================================================================== */
 
-/* Khối bao bọc chính, căn giữa màn hình */
 .auth-container {
     display: flex;
     justify-content: center;
@@ -54,98 +55,87 @@ a:hover {
     padding: 20px;
 }
 
-/* Thẻ form chính */
 .auth-form {
     background-color: var(--color-surface);
-    padding: 32px;
+    padding: 28px; /* Giảm padding */
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     width: 100%;
     max-width: 400px;
-    display: none; /* Mặc định ẩn các form */
+    display: none;
     animation: fadeIn 0.5s ease-in-out;
 }
 
-/* Biến thể để hiển thị form active */
 .auth-form.active {
     display: block;
 }
 
-/* Hiệu ứng mờ dần khi chuyển form */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Tiêu đề form */
 .auth-form__title {
-    font-size: 24px;
+    font-size: 22px; /* Giảm cỡ chữ */
     font-weight: 600;
     text-align: center;
     margin-bottom: 24px;
     color: var(--color-text-primary);
 }
 
-/* Khối bao bọc label và input */
 .auth-form__field {
-    margin-bottom: 20px;
+    margin-bottom: 18px; /* Giảm khoảng cách */
 }
 
-/* Nhãn của trường nhập liệu */
 .auth-form__label {
     display: block;
     font-size: 14px;
     font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: 6px; /* Giảm khoảng cách */
     color: var(--color-text-secondary);
 }
 
-/* Ô nhập liệu */
 .auth-form__input {
     width: 100%;
-    padding: 12px 16px;
+    padding: 10px 14px; /* Giảm padding */
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
-    font-size: 16px;
+    font-size: 14px; /* Giảm cỡ chữ */
     font-family: var(--font-family-base);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-/* Hiệu ứng khi focus vào ô nhập liệu */
 .auth-form__input:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
 }
 
-/* Nút bấm chính */
 .auth-form__button {
     width: 100%;
-    padding: 12px 16px;
+    padding: 11px 16px; /* Giảm padding */
     background-color: var(--color-primary);
     color: #ffffff;
     border: none;
     border-radius: var(--border-radius);
-    font-size: 16px;
+    font-size: 15px; /* Giảm cỡ chữ */
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
-/* Hiệu ứng khi di chuột qua nút */
 .auth-form__button:hover {
     background-color: var(--color-primary-dark);
 }
 
-/* Dòng chữ để chuyển đổi giữa các form */
 .auth-form__switch {
-    margin-top: 24px;
+    margin-top: 20px;
     text-align: center;
-    font-size: 14px;
+    font-size: 13px; /* Giảm cỡ chữ */
     color: var(--color-text-secondary);
 }
 /* ==========================================================================
-   3. App Layout (Sidebar & Main Content)
+   3. App Layout (Sidebar & Main Content) (ĐÃ TỐI ƯU)
    ========================================================================== */
 
 .app-layout {
@@ -153,44 +143,42 @@ a:hover {
     min-height: 100vh;
 }
 
-/* --- Sidebar Styles --- */
 .sidebar {
-    width: 180px;
-    flex-shrink: 0; /* Ngăn sidebar bị co lại */
-    background-color: #0d253f; /* Màu xanh dương đậm */
+    width: 160px; /* Giảm chiều rộng sidebar */
+    flex-shrink: 0;
+    background-color: #0d253f;
     color: #ffffff;
     display: flex;
     flex-direction: column;
-    padding: 20px 0;
+    padding: 16px 0; /* Giảm padding */
 }
 
 .sidebar__profile {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0 20px 20px 20px;
+    padding: 0 16px 16px 16px; /* Giảm padding */
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar__avatar {
-    width: 80px;
-    height: 80px;
+    width: 70px; /* Giảm kích thước avatar */
+    height: 70px;
     border-radius: 50%;
     object-fit: cover;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     border: 3px solid rgba(255, 255, 255, 0.3);
     cursor: pointer;
 }
 
 .sidebar__username {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 15px; /* Giảm cỡ chữ */
 }
 
-/* --- Navigation in Sidebar --- */
 .sidebar__nav {
-    flex-grow: 1; /* Đẩy nav chiếm hết không gian còn lại */
-    margin-top: 20px;
+    flex-grow: 1;
+    margin-top: 16px;
 }
 
 .sidebar__nav-list {
@@ -200,11 +188,12 @@ a:hover {
 .sidebar__nav-link {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 14px 24px;
-    color: #aeb9c6; /* Màu chữ xám nhạt */
+    gap: 12px; /* Giảm khoảng cách */
+    padding: 12px 20px; /* Giảm padding */
+    color: #aeb9c6;
     text-decoration: none;
     font-weight: 500;
+    font-size: 14px; /* Giảm cỡ chữ */
     transition: background-color 0.2s, color 0.2s;
     border-left: 4px solid transparent;
 }
@@ -215,17 +204,15 @@ a:hover {
     border-left-color: var(--color-primary);
 }
 
-/* Icon style */
 .sidebar__nav-link svg {
-    width: 20px;
-    height: 20px;
+    width: 18px; /* Giảm kích thước icon */
+    height: 18px;
     flex-shrink: 0;
 }
 
 
-/* --- Content Area --- */
 .content-wrapper {
-    flex-grow: 1; /* Chiếm hết không gian còn lại */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
 }
@@ -234,14 +221,14 @@ a:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 32px;
+    padding: 12px 24px; /* Giảm padding */
     background-color: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
 }
 
 .top-bar__title {
-    font-size: 22px;
+    font-size: 20px; /* Giảm cỡ chữ */
     font-weight: 700;
 }
 
@@ -252,7 +239,7 @@ a:hover {
     background-color: transparent;
     border: 1px solid var(--color-border);
     color: var(--color-text-secondary);
-    padding: 8px 16px;
+    padding: 7px 14px; /* Giảm padding */
     border-radius: var(--border-radius);
     cursor: pointer;
     font-weight: 500;
@@ -260,87 +247,78 @@ a:hover {
 }
 
 .top-bar__logout-button:hover {
-    background-color: #ffebee; /* Màu đỏ nhạt */
+    background-color: #ffebee;
     border-color: #f44336;
     color: #f44336;
 }
 
 .main-content {
     flex-grow: 1;
-    padding: 32px;
+    padding: 24px; /* Giảm padding */
     background-color: var(--color-background);
 }
-
-/* Cần chạy lại hàm này trong JS để render icon */
-/* lucide.createIcons(); */
 /* ==========================================================================
-   4. Dashboard (.dashboard)
+   4. Dashboard (.dashboard) (ĐÃ TỐI ƯU)
    ========================================================================== */
 
 .dashboard__grid {
     display: grid;
-    /* Tạo các cột tự động co giãn, tối thiểu 280px */
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); /* Giảm kích thước tối thiểu */
+    gap: 20px; /* Giảm khoảng cách */
 }
 
-/* Kiểu dáng cho mỗi thẻ điều hướng */
 .dashboard__card {
-    display: block; /* Để toàn bộ thẻ có thể click được */
+    display: block;
     background-color: var(--color-surface);
-    padding: 24px;
+    padding: 20px; /* Giảm padding */
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     text-decoration: none;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-/* Hiệu ứng "nhấc" lên khi di chuột */
 .dashboard__card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard__card-title {
-    font-size: 18px;
+    font-size: 17px; /* Giảm cỡ chữ */
     font-weight: 600;
     color: var(--color-text-primary);
     margin-bottom: 8px;
 }
 
 .dashboard__card-description {
-    font-size: 14px;
+    font-size: 13px; /* Giảm cỡ chữ */
     color: var(--color-text-secondary);
     line-height: 1.5;
 }
 /* ==========================================================================
-   5. Management Page Styles (Header & Controls)
+   5. Management Page Styles (Header & Controls) (ĐÃ TỐI ƯU)
    ========================================================================== */
 
-/* --- Page Header --- */
-/* Khối bao bọc tiêu đề và nút hành động chính (ví dụ: "Thêm học viên") */
 .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
+    margin-bottom: 20px; /* Giảm khoảng cách */
+    padding-bottom: 14px; /* Giảm padding */
     border-bottom: 1px solid var(--color-border);
 }
 
 .page-header__title {
-    font-size: 24x;
+    font-size: 22px; /* Giảm cỡ chữ */
     font-weight: 700;
 }
 
-/* Nút hành động chính trong header */
 .page-header__button {
     background-color: var(--color-primary);
     color: #ffffff;
     border: none;
-    padding: 10px 20px;
+    padding: 9px 18px; /* Giảm padding */
     border-radius: var(--border-radius);
-    font-size: 15px;
+    font-size: 14px; /* Giảm cỡ chữ */
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
@@ -351,23 +329,20 @@ a:hover {
 }
 
 
-/* --- Controls Area --- */
-/* Áp dụng cho các khối .student-management__controls, .class-management__controls, etc. */
 .student-management__controls {
     display: flex;
-    gap: 16px; /* Khoảng cách giữa các phần tử */
-    margin-bottom: 24px;
+    gap: 12px;
+    margin-bottom: 20px;
     align-items: center;
 }
 
-/* Ô tìm kiếm chung */
 .student-management__search,
 .class-management__search {
-    flex-grow: 1; /* Cho ô tìm kiếm chiếm nhiều không gian nhất */
-    padding: 10px 16px;
+    flex-grow: 1;
+    padding: 9px 14px; /* Giảm padding */
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
-    font-size: 15px;
+    font-size: 14px; /* Giảm cỡ chữ */
 }
 
 .student-management__search:focus,
@@ -377,19 +352,17 @@ a:hover {
     box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
 }
 
-/* Dropdown bộ lọc chung */
 .student-management__filter {
-    padding: 10px;
+    padding: 9px;
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
     background-color: #fff;
-    font-size: 15px;
+    font-size: 14px;
 }
 /* ==========================================================================
-   6. Data Table (.data-table)
+   6. Data Table (.data-table) (ĐÃ TỐI ƯU)
    ========================================================================== */
 
-/* Khối bao bọc để bảng có thể cuộn ngang trên màn hình nhỏ */
 .data-table-wrapper {
     overflow-x: auto;
     background-color: var(--color-surface);
@@ -400,48 +373,43 @@ a:hover {
 
 .data-table {
     width: 100%;
-    border-collapse: collapse; /* Gộp các đường viền lại cho gọn */
-    white-space: nowrap; /* Ngăn text xuống dòng đột ngột */
+    border-collapse: collapse;
+    white-space: nowrap;
 }
 
-/* Tiêu đề của bảng (thead) */
 .data-table__head .data-table__row {
-    background-color: #f8f9fa; /* Màu nền xám rất nhạt cho header */
+    background-color: #f8f9fa;
 }
 
 .data-table__header {
-    padding: 12px 16px;
+    padding: 10px 14px; /* Giảm padding */
     text-align: left;
-    font-size: 14px;
+    font-size: 12px; /* Giảm cỡ chữ */
     font-weight: 600;
     color: var(--color-text-secondary);
-    text-transform: uppercase; /* Viết hoa chữ tiêu đề */
+    text-transform: uppercase;
     border-bottom: 2px solid var(--color-border);
 }
 
-/* Thân bảng (tbody) */
 .data-table__row {
     transition: background-color 0.15s ease-in-out;
 }
 
-/* Hiệu ứng khi di chuột qua một hàng */
 .data-table__row:hover {
     background-color: #f1f3f5;
 }
 
-/* Các ô dữ liệu (td) */
 .data-table__cell {
-    padding: 12px 16px;
+    padding: 10px 14px; /* Giảm padding */
     border-top: 1px solid var(--color-border);
-    font-size: 15px;
-    vertical-align: middle; /* Căn giữa nội dung theo chiều dọc */
+    font-size: 14px; /* Giảm cỡ chữ */
+    vertical-align: middle;
 }
 
-/* Nút bấm hành động trong bảng */
 .data-table__cell button {
     background: none;
     border: 1px solid var(--color-border);
-    padding: 6px 12px;
+    padding: 5px 10px; /* Giảm padding */
     border-radius: 6px;
     cursor: pointer;
     margin-right: 5px;
@@ -455,35 +423,31 @@ a:hover {
 }
 
 .data-table__cell button.delete-btn:hover {
-    background-color: #dc3545; /* Màu đỏ cho nút xóa */
+    background-color: #dc3545;
     color: white;
     border-color: #dc3545;
 }
 /* ==========================================================================
-   7. Modal Styles (.modal)
+   7. Modal Styles (.modal) (ĐÃ TỐI ƯU)
    ========================================================================== */
 
-/* Lớp chính của modal, bao gồm cả nền mờ và nội dung */
 .modal {
-    position: fixed; /* Hiển thị đè lên mọi thứ khác */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    display: flex; /* Dùng flexbox để căn giữa nội dung */
+    display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 2000; /* Luôn nằm trên cùng */
-    /* Không còn opacity hay visibility ở đây */
+    z-index: 2000;
 }
 
-/* Biến thể khi modal được hiển thị (thêm class .visible bằng JS) */
 .modal.visible {
     opacity: 1;
     visibility: visible;
 }
 
-/* Lớp nền mờ */
 .modal__overlay {
     position: absolute;
     top: 0;
@@ -493,97 +457,91 @@ a:hover {
     background-color: rgba(0, 0, 0, 0.6);
 }
 
-/* Hộp nội dung chính của modal */
 .modal__content {
     background-color: var(--color-surface);
     border-radius: var(--border-radius);
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
     width: 90%;
-    max-width: 800px; /* Chiều rộng tối đa cho modal */
-    max-height: 90vh; /* Chiều cao tối đa, tránh tràn màn hình */
+    max-width: 750px; /* Giảm max-width */
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
     position: relative;
     animation: scaleUp 0.3s ease-in-out;
 }
 
-/* Hiệu ứng phóng to khi modal xuất hiện */
 @keyframes scaleUp {
     from { transform: scale(0.9); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
 
-/* Tiêu đề modal */
 .modal__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--color-border);
+    padding: 14px 20px; /* Giảm padding */
 }
 
 .modal__title {
-    font-size: 20px;
+    font-size: 18px; /* Giảm cỡ chữ */
     font-weight: 600;
 }
 
 .modal__close-btn {
     background: none;
     border: none;
-    font-size: 28px;
+    font-size: 26px; /* Giảm cỡ chữ */
     cursor: pointer;
     color: var(--color-text-secondary);
     line-height: 1;
 }
 
-/* Form bên trong modal */
 .modal__form {
-    padding: 24px;
-    overflow-y: auto; /* <-- Thuộc tính này sẽ tạo thanh cuộn khi cần */
-    flex-grow: 1;     /* <-- Quan trọng: Cho phép form chiếm không gian và cuộn */
+    padding: 20px; /* Giảm padding */
+    overflow-y: auto;
+    flex-grow: 1;
     min-height: 0;
 }
 
-/* Lưới cho các trường trong form (để chia cột) */
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Mặc định 2 cột */
-    gap: 16px 20px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 18px; /* Giảm khoảng cách */
 }
 
 .form-grid__field--full {
-    grid-column: 1 / -1; /* Chiếm toàn bộ chiều rộng */
+    grid-column: 1 / -1;
 }
 
 .form-grid label {
     font-weight: 500;
     margin-bottom: 6px;
     display: block;
+    font-size: 13px; /* Giảm cỡ chữ */
 }
 
 .form-grid input,
 .form-grid select {
     width: 100%;
-    padding: 10px;
+    padding: 9px; /* Giảm padding */
     border: 1px solid var(--color-border);
     border-radius: 6px;
-    font-size: 15px;
+    font-size: 14px; /* Giảm cỡ chữ */
 }
 
-/* Chân modal (chứa các nút bấm) */
 .modal__footer {
     display: flex;
-    justify-content: flex-end; /* Căn các nút về bên phải */
-    gap: 12px;
-    padding: 16px 24px;
+    justify-content: flex-end;
+    gap: 10px; /* Giảm khoảng cách */
+    padding: 14px 20px; /* Giảm padding */
     border-top: 1px solid var(--color-border);
     background-color: #f8f9fa;
 }
 
 .modal__button {
-    padding: 10px 20px;
+    padding: 9px 18px; /* Giảm padding */
     border-radius: var(--border-radius);
-    font-size: 15px;
+    font-size: 14px; /* Giảm cỡ chữ */
     font-weight: 600;
     cursor: pointer;
     border: 1px solid transparent;
@@ -605,263 +563,161 @@ a:hover {
 .modal__button--cancel:hover {
     background-color: #e9ecef;
 }
+
 /* ==========================================================================
-   8. Responsive Design
+   11. Schedule Page Styles (Lịch học) (ĐÃ TỐI ƯU - QUAN TRỌNG)
    ========================================================================== */
 
-/* Áp dụng cho màn hình từ 768px trở xuống (Tablets and Phones) */
-@media (max-width: 768px) {
-    /* --- Bố cục chính --- */
-    .app-layout {
-        flex-direction: column;
-    }
-
-    .sidebar {
-        position: fixed; /* Chuyển thành menu trượt đè lên nội dung */
-        left: 0;
-        top: 0;
-        height: 100%;
-        z-index: 3000;
-        transform: translateX(-100%); /* Ẩn sidebar sang bên trái */
-        transition: transform 0.3s ease-in-out;
-    }
-
-    .sidebar.visible {
-        transform: translateX(0); /* Hiện sidebar khi có class 'visible' */
-    }
-
-    .top-bar__title {
-        display: none; /* Ẩn tiêu đề để có thêm không gian */
-    }
-    
-    .top-bar__hamburger {
-        display: block; /* Hiển thị nút hamburger */
-    }
-
-    .main-content {
-        padding: 16px; /* Giảm padding trên di động */
-    }
-
-    /* --- Điều chỉnh các thành phần khác --- */
-    .page-header {
-        flex-direction: column; /* Xếp tiêu đề và nút theo chiều dọc */
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .page-header__title {
-        font-size: 24px;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr; /* Chuyển tất cả form thành 1 cột */
-    }
-    
-    .dashboard__grid {
-        grid-template-columns: 1fr; /* Các thẻ dashboard thành 1 cột */
-    }
-    
-    .modal__content {
-        width: 95%; /* Tăng chiều rộng modal trên màn hình nhỏ */
-    }
-}
-/* --- Dashboard Mới --- */
-.dashboard__content {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    text-align: center;
+.schedule-page__grid-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background-color: var(--color-surface);
 }
 
-.dashboard__welcome-message {
-    font-size: 28x;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.dashboard__clock {
-    font-size: 64x;
-    font-weight: 300;
-    font-family: 'Courier New', Courier, monospace;
-    color: var(--color-primary);
-    margin-top: 16px;
-    letter-spacing: 2px;
-}
-/* --- Khu vực Biểu đồ trên Dashboard --- */
-.dashboard__charts-grid {
+.schedule-page__grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Chia làm 2 cột bằng nhau */
-    gap: 24px;
-    margin-top: 28x;
-    width: 100%;
+    /* THAY ĐỔI QUAN TRỌNG: Giảm chiều rộng tối thiểu của cột lịch */
+    grid-template-columns: 50px repeat(14, minmax(95px, 1fr));
 }
 
-.chart-container {
-    background-color: var(--color-surface);
-    padding: 24px;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-}
-
-.chart-title {
-    text-align: center;
-    margin-bottom: 20px;
-    font-size: 18px;
+.grid-header {
+    background-color: #f8f9fa;
+    padding: 8px; /* Giảm padding */
+    font-size: 13px; /* Giảm cỡ chữ */
     font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-/* Responsive cho biểu đồ */
-@media (max-width: 992px) {
-    .dashboard__charts-grid {
-        grid-template-columns: 1fr; /* Chuyển thành 1 cột trên màn hình nhỏ hơn */
-    }
-}
-/* --- Thêm style cho ngày tháng --- */
-.dashboard__date {
-    font-size: 18px;
-    color: var(--color-text-secondary);
-    margin-top: 24px;
-}
-
-.dashboard__clock {
-    margin-top: 8px; /* Giảm khoảng cách với ngày tháng */
-}
-/* --- Responsive Styles for Data Table --- */
-@media (max-width: 768px) {
-    .data-table {
-        /* Remove the fixed layout and borders for a card-like look */
-        border: none;
-        box-shadow: none;
-    }
-
-    .data-table thead {
-        /* Hide the original table header on mobile */
-        display: none;
-    }
-
-    .data-table tr {
-        /* Each row becomes a block, like a card */
-        display: block;
-        border: 1px solid var(--color-border);
-        border-radius: var(--border-radius);
-        margin-bottom: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        background-color: var(--color-surface);
-    }
-
-    .data-table td {
-        /* Each cell stacks vertically */
-        display: block;
-        text-align: right; /* Aligns the data to the right */
-        padding-left: 50%; /* Creates space for the label on the left */
-        position: relative;
-        border-top: 1px solid var(--color-border);
-    }
-
-    .data-table td:first-child {
-        border-top: none;
-    }
-
-    /* This is the magic part: Add the column header as a label */
-    .data-table td::before {
-        content: attr(data-label); /* Reads the label from the data-label attribute */
-        position: absolute;
-        left: 16px;
-        width: calc(50% - 24px); /* Adjust width to fit */
-        text-align: left;
-        font-weight: 600;
-        color: var(--color-text-primary);
-    }
-}
-/* --- Context Menu Styles --- */
-.context-menu {
-    display: none; /* Mặc định ẩn menu */
-    position: absolute; /* Hiển thị tại vị trí của con trỏ chuột */
-    background-color: var(--color-surface);
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    padding: 8px 0;
-    z-index: 4000; /* Hiển thị trên mọi thứ khác */
-    min-width: 200px;
-}
-
-.context-menu.visible {
-    display: block; /* Hiện menu khi có class .visible */
-}
-
-.context-menu__list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.context-menu__item {
-    padding: 10px 16px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.context-menu__item:hover {
-    background-color: #f1f3f5; /* Màu nền khi di chuột qua */
-}
-/* --- CSS Mới cho Modal Điểm danh Rộng rãi --- */
-
-/* Làm cho modal rộng ra */
-/* Căn modal sang trái, không phải ra giữa */
-.modal {
-    display: flex;
-    justify-content: center; /* <-- Sửa lại thành center */
-    align-items: center;    /* <-- Sửa lại thành center */
-    position: fixed;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+    border-right: 1px solid var(--color-border);
+    position: sticky;
     top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-header.day {
+    border-bottom-width: 2px;
+}
+.time-label, .time-slot {
+    border-right: 2px solid var(--color-border);
+    position: sticky;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2000;
+    z-index: 15;
+    background-color: #f8f9fa;
 }
 
-/* Làm cho modal rộng ra và có chiều cao linh hoạt */
+.time-slot {
+    font-size: 11px; /* Giảm cỡ chữ */
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px dashed var(--color-border);
+}
+
+.grid-cell {
+    border-right: 1px solid var(--color-border);
+    border-top: 1px dashed var(--color-border);
+}
+.grid-cell:nth-child(2n) {
+    border-right: 2px solid var(--color-border);
+}
+
+.class-block {
+    position: relative;
+    border-radius: 4px; /* Giảm bo góc */
+    padding: 6px; /* Giảm padding */
+    color: white;
+    font-size: 12px; /* Giảm cỡ chữ */
+    cursor: pointer;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+/* ... các style .class-block:hover, .class-name, .teacher-name giữ nguyên ... */
+.class-block:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.class-name {
+    font-weight: 600;
+}
+.teacher-name {
+    font-size: 11px;
+    opacity: 0.9;
+}
+
+
+/* ==========================================================================
+   MODAL RỘNG (ĐÃ TỐI ƯU - QUAN TRỌNG)
+   ========================================================================== */
+
+/* THAY ĐỔI QUAN TRỌNG: Dùng % và vw để modal không bị tràn */
 .modal__content--full-width {
-    width: calc(100vw - 300px); 
-    max-width: 1400px;
-    max-height: 90vh; /* <-- Chiều cao TỐI ĐA */
-    /* Xóa bỏ 'height' để nó tự co giãn theo nội dung */
+    width: 95vw; /* Chiếm 95% chiều rộng màn hình */
+    max-width: 1200px; /* Nhưng không bao giờ rộng hơn 1200px */
+    max-height: 90vh;
 }
 
-/* Đảm bảo bảng bên trong có thể cuộn khi có nhiều học sinh */
-#class-attendance-scroll-container {
-    overflow-y: auto; /* Thêm thanh cuộn dọc khi cần */
+.modal__content--extra-large {
+    width: 90vw; /* Chiếm 90% chiều rộng màn hình */
+    max-width: 1100px; /* Nhưng không bao giờ rộng hơn 1100px */
 }
 
-/* Bảng điểm danh bên trong modal */
 .data-table--attendance th,
 .data-table--attendance td {
     text-align: center;
-    min-width: 150px; /* Đảm bảo các cột đủ rộng */
+    min-width: 120px; /* Giảm chiều rộng tối thiểu cột điểm danh */
 }
 
-/* --- PHẦN QUAN TRỌNG NHẤT: GIỮ CỐ ĐỊNH CỘT ĐẦU TIÊN --- */
+/* Các phần CSS còn lại được giữ nguyên vì chúng đã xử lý tốt các vấn đề khác */
+/* ... (Dán phần còn lại của file CSS gốc vào đây) ... */
+.subject-ielts { background-color: #c82333; }
+.subject-chinese { background-color: #ffc107; color: #333; }
+.subject-english { background-color: #0066cc; }
+.subject-default { background-color: #6c757d; }
+.delete-temp-class {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 18px;
+    line-height: 1;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+.delete-temp-class:hover { opacity: 1; }
+.schedule-page__tooltip {
+    display: none;
+    position: fixed;
+    background-color: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    z-index: 5000;
+    pointer-events: none;
+}
 .data-table--attendance th:first-child,
 .data-table--attendance td:first-child {
-    position: -webkit-sticky; /* Dành cho Safari */
+    position: -webkit-sticky;
     position: sticky;
     left: 0;
     z-index: 2;
-    background-color: #f8f9fa; /* Màu nền để không bị trong suốt */
-    min-width: 200px;
+    background-color: #f8f9fa;
+    min-width: 180px; /* Giảm chiều rộng */
     text-align: left;
 }
-
 .data-table--attendance tbody td:first-child {
-    background-color: var(--color-surface); /* Màu nền cho ô tên học viên */
+    background-color: var(--color-surface);
     font-weight: 600;
 }
-/* --- Kết thúc phần giữ cố định --- */
-
-/* Nút Xóa buổi học */
 .delete-session-btn {
     position: absolute;
     top: 4px;
@@ -882,266 +738,230 @@ a:hover {
     background-color: #e64959;
     color: white;
 }
-/* --- Tinh chỉnh Giao diện Bảng Điểm danh --- */
-
-/* Tăng padding và cỡ chữ cho tiêu đề bảng */
 .data-table--attendance th {
-    padding: 14px 10px;
-    font-size: 15px;
+    padding: 12px 8px;
+    font-size: 14px;
 }
-
-/* Căn giữa và tăng padding cho các ô trong bảng */
 .data-table--attendance td {
-    padding: 12px 10px;
+    padding: 10px 8px;
     vertical-align: middle;
 }
-
-/* Thêm màu nền xen kẽ cho các hàng trong phần thân bảng */
 .data-table--attendance tbody tr:nth-child(even) {
-    background-color: #f8f9fa; 
+    background-color: #f8f9fa;
 }
-
-/* Làm cho checkbox to hơn và dễ nhấn hơn */
 .data-table--attendance input[type="checkbox"] {
-    transform: scale(1.3);
+    transform: scale(1.2);
     cursor: pointer;
 }
-/* Ẩn trường k quan trọng */
 .form-field--hidden {
     display: none !important;
 }
-/* Tinh chỉnh chiều rộng và căn lề cho cột số buổi */
 .th-sessions-attended,
 .td-sessions-attended,
 .th-sessions-remaining,
 .td-sessions-remaining {
-    width: 70px; /* Bạn có thể thay đổi số 120px thành giá trị khác nếu muốn */
-    text-align: center; /* Căn giữa nội dung cho dễ nhìn */
+    width: 70px;
+    text-align: center;
 }
-/* ==========================================================================
-   9. Cải tiến Giao diện Bảng (Table UI/UX Enhancements)
-   ========================================================================== */
-
-/* 1. Hiệu ứng màu xen kẽ cho các hàng (Zebra Striping) */
 .data-table__body tr:nth-child(even) {
-    background-color: #f8f9fa; /* Màu xám rất nhạt cho các hàng chẵn */
+    background-color: #f8f9fa;
 }
-
-/* 2. Thêm hiệu ứng chuyển động mượt mà cho các hàng */
 .data-table__body tr {
     position: relative;
     transition: all 0.2s ease-in-out;
 }
-
-/* 3. Hiệu ứng "nổi lên" khi di chuột qua (thay thế cho hiệu ứng cũ) */
 .data-table__body tr:hover {
     z-index: 10;
-    background-color: #ffffff; /* Luôn là màu trắng để nổi bật trên nền */
-    transform: translateY(-3px); /* Nhấc hàng lên một chút */
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); /* Thêm bóng đổ để tạo chiều sâu */
-    cursor: pointer; /* Đổi con trỏ chuột thành hình bàn tay */
+    background-color: #ffffff;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
 }
 
-/* 4. (Tùy chọn) Bỏ hiệu ứng hover trên mobile để tránh lỗi dính màu */
 @media (max-width: 768px) {
+    .app-layout { flex-direction: column; }
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100%;
+        z-index: 3000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+    }
+    .sidebar.visible { transform: translateX(0); }
+    .top-bar__title { display: none; }
+    .top-bar__hamburger { display: block; }
+    .main-content { padding: 16px; }
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .page-header__title { font-size: 24px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .dashboard__grid { grid-template-columns: 1fr; }
+    .modal__content { width: 95%; }
     .data-table__body tr:hover {
         transform: none;
         box-shadow: none;
     }
+    .data-table { border: none; box-shadow: none; }
+    .data-table thead { display: none; }
+    .data-table tr {
+        display: block;
+        border: 1px solid var(--color-border);
+        border-radius: var(--border-radius);
+        margin-bottom: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background-color: var(--color-surface);
+    }
+    .data-table td {
+        display: block;
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border-top: 1px solid var(--color-border);
+    }
+    .data-table td:first-child { border-top: none; }
+    .data-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 16px;
+        width: calc(50% - 24px);
+        text-align: left;
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
 }
-/* Style cho các nút trong trang Thùng rác */
+
+.dashboard__content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-align: center;
+}
+
+.dashboard__welcome-message {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.dashboard__clock {
+    font-size: 58px;
+    font-weight: 300;
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--color-primary);
+    margin-top: 16px;
+    letter-spacing: 2px;
+}
+.dashboard__charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 28px;
+    width: 100%;
+}
+.chart-container {
+    background-color: var(--color-surface);
+    padding: 24px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+.chart-title {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+@media (max-width: 992px) {
+    .dashboard__charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.dashboard__date {
+    font-size: 18px;
+    color: var(--color-text-secondary);
+    margin-top: 24px;
+}
+.dashboard__clock {
+    margin-top: 8px;
+}
+
+.context-menu {
+    display: none;
+    position: absolute;
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 8px 0;
+    z-index: 4000;
+    min-width: 200px;
+}
+.context-menu.visible { display: block; }
+.context-menu__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.context-menu__item {
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.context-menu__item:hover {
+    background-color: #f1f3f5;
+}
 .btn-restore {
-    background-color: #28a745; /* Màu xanh lá */
+    background-color: #28a745;
     color: white;
     border-color: #28a745 !important;
 }
-.btn-restore:hover {
-    background-color: #218838 !important;
-}
-
+.btn-restore:hover { background-color: #218838 !important; }
 .btn-delete-perm {
-    background-color: #c82333; /* Màu đỏ đậm */
+    background-color: #c82333;
     color: white;
     border-color: #c82333 !important;
 }
-.btn-delete-perm:hover {
-    background-color: #bd2130 !important;
-}
-
+.btn-delete-perm:hover { background-color: #bd2130 !important; }
 .section-subtitle {
     font-size: 20px;
     font-weight: 600;
     margin-bottom: 16px;
     color: var(--color-text-primary);
 }
-/* ==========================================================================
-   10. Class Info Tooltip Styles
-   ========================================================================== */
-
 #class-info-tooltip {
-    display: none; /* Mặc định ẩn tooltip */
-    position: fixed; /* Định vị theo màn hình, rất quan trọng để không bị lệch khi cuộn trang */
-    background-color: #2c3e50; /* Màu nền tối */
-    color: #ffffff; /* Chữ trắng */
+    display: none;
+    position: fixed;
+    background-color: #2c3e50;
+    color: #ffffff;
     padding: 12px 16px;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    z-index: 10000; /* Luôn nằm trên cùng */
+    z-index: 10000;
     font-size: 14px;
     line-height: 1.6;
     max-width: 300px;
-    transition: opacity 0.2s; /* Hiệu ứng mờ dần */
-
-    /* Thuộc tính quan trọng nhất:
-       Để tooltip không tự 'chặn' con trỏ chuột,
-       tránh tình trạng tooltip bị nhấp nháy liên tục. */
-    pointer-events: none; 
+    transition: opacity 0.2s;
+    pointer-events: none;
 }
-
 #class-info-tooltip strong {
-    color: #4eacff; /* Màu nhấn cho các tiêu đề */
+    color: #4eacff;
     display: inline-block;
     min-width: 120px;
 }
-/* ==========================================================================
-   11. Schedule Page Styles (Lịch học)
-   ========================================================================== */
 
-/* Khối bao bọc để có thể cuộn ngang trên màn hình nhỏ */
-.schedule-page__grid-wrapper {
-    overflow-x: auto;
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    background-color: var(--color-surface);
-}
-
-/* Lưới lịch học chính */
-.schedule-page__grid {
-    display: grid;
-    /* Cột đầu tiên cho giờ, 14 cột còn lại cho 7 ngày x 2 phòng */
-    grid-template-columns: 60px repeat(14, minmax(120px, 1fr));
-    /* Các hàng sẽ được tạo tự động bởi JS */
-}
-
-.grid-header {
-    background-color: #f8f9fa;
-    padding: 10px;
-    font-weight: 600;
-    text-align: center;
-    border-bottom: 1px solid var(--color-border); /* Nét mảnh hơn */
-    border-right: 1px solid var(--color-border);
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    display: flex; /* Thêm để căn giữa nội dung */
-    align-items: center; /* Thêm để căn giữa nội dung */
-    justify-content: center; /* Thêm để căn giữa nội dung */
-}
-
-/* Thêm định nghĩa riêng cho tiêu đề Thứ */
-.grid-header.day {
-    border-bottom-width: 2px; /* Nét đậm hơn cho hàng chứa các "Thứ" */
-}
-/* Cột hiển thị giờ */
-.time-label, .time-slot {
-    border-right: 2px solid var(--color-border);
-    position: sticky;
-    left: 0;
-    z-index: 15;
-    background-color: #f8f9fa;
-}
-
-.time-slot {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-top: 1px dashed var(--color-border);
-}
-
-/* Các ô trống trên lưới để tạo đường kẻ */
-.grid-cell {
-    border-right: 1px solid var(--color-border);
-    border-top: 1px dashed var(--color-border);
-}
-.grid-cell:nth-child(2n) { /* Kẻ đậm hơn giữa các ngày */
-    border-right: 2px solid var(--color-border);
-}
-
-
-/* Khối hiển thị thông tin lớp học */
-.class-block {
-    position: relative;
-    border-radius: 6px;
-    padding: 8px;
-    color: white;
-    font-size: 13px;
-    cursor: pointer;
-    overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.class-block:hover {
-    transform: scale(1.03);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    z-index: 10;
-}
-
-.class-name {
-    font-weight: 600;
-}
-.teacher-name {
-    font-size: 12px;
-    opacity: 0.9;
-}
-
-/* Các màu sắc cho từng môn học */
-.subject-ielts { background-color: #c82333; } /* Đỏ đậm */
-.subject-chinese { background-color: #ffc107; color: #333; } /* Vàng */
-.subject-english { background-color: #0066cc; } /* Xanh dương */
-.subject-default { background-color: #6c757d; } /* Xám */
-
-/* Nút xóa lớp tạm thời */
-.delete-temp-class {
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    font-size: 18px;
-    line-height: 1;
-    font-weight: bold;
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-.delete-temp-class:hover {
-    opacity: 1;
-}
-
-/* Tooltip cho lịch học */
-.schedule-page__tooltip {
-    display: none;
-    position: fixed; /* Dùng fixed để không bị ảnh hưởng bởi scroll */
-    background-color: #333;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    z-index: 5000;
-    pointer-events: none; /* Quan trọng: để không bị che mất sự kiện hover */
-}
-/* ==========================================================================
-   12. Tuition Management Styles
-   ========================================================================== */
-
+/* Các styles khác không cần thay đổi đáng kể */
+/* ... */
 .tuition-management__class-list {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
-
 .subject-header {
     font-size: 16px;
     font-weight: 600;
@@ -1151,7 +971,6 @@ a:hover {
     padding-bottom: 8px;
     border-bottom: 2px solid var(--color-border);
 }
-
 .tuition-class-item .class-header {
     display: flex;
     justify-content: space-between;
@@ -1163,21 +982,13 @@ a:hover {
     cursor: pointer;
     transition: background-color 0.2s, box-shadow 0.2s;
 }
-
 .tuition-class-item .class-header:hover {
     background-color: #e9ecef;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
-
-.modal__content--extra-large {
-    width: 95%;
-    max-width: 1200px;
-}
-
 .data-table--tuition td {
-    white-space: normal; /* Cho phép text xuống dòng */
+    white-space: normal;
 }
-
 .clickable-student-name {
     font-weight: 600;
     text-decoration: none;
@@ -1186,8 +997,6 @@ a:hover {
 .clickable-student-name:hover {
     text-decoration: underline;
 }
-
-/* --- Tuition Modal Specifics --- */
 .tuition-summary {
     display: flex;
     justify-content: space-around;
@@ -1208,8 +1017,6 @@ a:hover {
 }
 .tuition-summary__paid { color: #28a745; }
 .tuition-summary__remaining { color: #dc3545; }
-
-/* --- Tabs --- */
 .tabs {
     display: flex;
     border-bottom: 1px solid var(--color-border);
@@ -1235,7 +1042,6 @@ a:hover {
 .tabs__content.active {
     display: block;
 }
-
 .modal__form--inline {
     display: flex;
     gap: 10px;
@@ -1243,16 +1049,14 @@ a:hover {
     flex-wrap: wrap;
     margin-bottom: 20px;
 }
-.modal__form--inline input, 
+.modal__form--inline input,
 .modal__form--inline select {
     flex-grow: 1;
 }
-
 .data-table-wrapper--modal {
     max-height: 250px;
     overflow-y: auto;
 }
-
 .modal__button--secondary {
     background-color: #6c757d;
     color: white;
@@ -1262,14 +1066,11 @@ a:hover {
     cursor: pointer;
     margin-bottom: 15px;
 }
-
 .book-selector {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
 }
-
-/* Tuition Status Tags */
 .tuition-status {
     padding: 4px 8px;
     border-radius: 4px;
@@ -1277,19 +1078,13 @@ a:hover {
     font-weight: 600;
     color: white;
 }
-.status-paid { background-color: #28a745; } /* Green */
-.status-partial { background-color: #ffc107; color: #333; } /* Yellow */
-.status-unpaid { background-color: #dc3545; } /* Red */
-.status-default { background-color: #6c757d; } /* Gray */
-/* ==========================================================================
-   13. Z-Index Fixes
-   ========================================================================== */
-
-/* Đảm bảo các modal của thư viện SweetAlert2 luôn nằm trên các modal tự tạo */
+.status-paid { background-color: #28a745; }
+.status-partial { background-color: #ffc107; color: #333; }
+.status-unpaid { background-color: #dc3545; }
+.status-default { background-color: #6c757d; }
 .swal2-container {
-    z-index: 3000 !important; 
+    z-index: 3000 !important;
 }
-/* Style cho các nút radio chọn loại khóa học phổ thông */
 .radio-group {
     display: flex;
     gap: 10px;
@@ -1298,113 +1093,67 @@ a:hover {
     padding: 10px;
     border-radius: var(--border-radius);
 }
-
 .radio-group input[type="radio"] {
     margin-right: 5px;
 }
-
 .radio-group label {
-    margin-bottom: 0; /* Ghi đè margin mặc định của label */
+    margin-bottom: 0;
     cursor: pointer;
 }
-
-/* Đảm bảo class này tồn tại để ẩn/hiện các mục */
-.form-field--hidden {
-    display: none !important;
-}
-/* Thêm vào cuối file style(test).css */
 .tabs__content h4 {
     margin-top: 20px;
     margin-bottom: 10px;
     font-weight: 600;
 }
-
 #tuition-management .tabs__content {
-    padding: 20px 0; /* Bỏ padding mặc định của tab */
+    padding: 20px 0;
 }
-/* Thêm vào cuối file style.css */
 .modal__button--danger {
-    background-color: #dc3545; /* Màu đỏ */
+    background-color: #dc3545;
     color: white;
     border-color: #dc3545;
 }
 .modal__button--danger:hover {
     background-color: #c82333;
 }
-/* ==========================================================================
-   14. Collapsible List Styles
-   ========================================================================== */
-
-/* Làm cho tiêu đề môn học có thể bấm vào */
 .collapsible-header {
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    user-select: none; /* Ngăn người dùng vô tình bôi đen chữ khi bấm */
+    user-select: none;
     transition: background-color 0.2s;
 }
-
 .collapsible-header:hover {
-    background-color: #e9ecef; /* Thêm hiệu ứng hover nhẹ */
+    background-color: #e9ecef;
 }
-
-/* Style cho icon mũi tên */
 .collapsible-header .lucide-chevron-down {
     transition: transform 0.3s ease-in-out;
 }
-
-/* Xoay mũi tên khi mục được mở (có class 'active') */
 .collapsible-header.active .lucide-chevron-down {
     transform: rotate(180deg);
 }
-
-/* Mặc định ẩn nội dung bên trong */
 .collapsible-content {
     display: none;
-    padding-left: 15px; /* Thụt vào một chút để phân cấp */
+    padding-left: 15px;
     border-top: 1px solid var(--color-border);
 }
-/* ==========================================================================
-   15. Student Warning Styles
-   ========================================================================== */
-
-/* --- Keyframes cho hiệu ứng nhấp nháy --- */
-
-/* Hiệu ứng nhấp nháy màu vàng */
 @keyframes blinking-yellow {
     0%, 100% { color: var(--color-text-primary); }
     50% { color: #e0a800; font-weight: bold; }
 }
-
-/* Hiệu ứng nhấp nháy 7 sắc cầu vồng */
 @keyframes blinking-rainbow {
-    0%   { color: red; }
-    15%  { color: orange; }
-    30%  { color: yellow; }
-    45%  { color: green; }
-    60%  { color: blue; }
-    75%  { color: indigo; }
-    90%  { color: violet; }
-    100% { color: red; }
+    0%   { color: red; } 15%  { color: orange; } 30%  { color: yellow; } 45%  { color: green; } 60%  { color: blue; } 75%  { color: indigo; } 90%  { color: violet; } 100% { color: red; }
 }
-
-/* --- Các class để áp dụng hiệu ứng --- */
-
-/* Dành cho học viên còn 1-3 buổi */
 .student-warning-low {
     animation: blinking-yellow 1.5s infinite ease-in-out;
 }
-
-/* Dành cho học viên đã hết buổi */
 .student-warning-critical {
     animation: blinking-rainbow 2s infinite linear;
     font-weight: bold;
 }
-
-/* Icon dấu chấm than màu đỏ */
 .warning-icon {
-    color: #dc3545; /* Màu đỏ */
+    color: #dc3545;
     font-weight: bold;
     margin-right: 4px;
 }
