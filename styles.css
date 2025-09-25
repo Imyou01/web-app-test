@@ -1157,3 +1157,96 @@ a:hover {
     font-weight: bold;
     margin-right: 4px;
 }
+/* Thêm vào cuối file style.css */
+.pending-approval {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: var(--color-background);
+}
+.pending-approval__title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-primary);
+}
+.pending-approval__description {
+    max-width: 450px;
+    margin-bottom: 24px;
+    color: var(--color-text-secondary);
+}
+.pending-approval__button {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+/* Bố cục chung, tương tự .auth-form */
+.role-selection {
+    background-color: var(--color-surface);
+    padding: 32px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    width: 100%;
+    max-width: 450px; /* Rộng hơn một chút để chứa mô tả */
+    text-align: center;
+    margin: auto; /* Căn giữa màn hình */
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.role-selection__title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text-primary);
+}
+
+.role-selection__description {
+    font-size: 15px;
+    color: var(--color-text-secondary);
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+
+/* Dropdown chọn chức vụ, tương tự .auth-form__input */
+.role-selection__dropdown {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    font-family: var(--font-family-base);
+    margin-bottom: 24px;
+}
+
+.role-selection__dropdown:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+}
+
+/* Nút bấm, tương tự .auth-form__button */
+.role-selection__button {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: var(--color-primary);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.role-selection__button:hover {
+    background-color: var(--color-primary-dark);
+}
