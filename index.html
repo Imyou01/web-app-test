@@ -1,1134 +1,1264 @@
-<!-- index.html :contentReference[oaicite:0]{index=0} -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ứng dụng quản lý học viên</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <!-- CSS chính -->
-  <link rel="stylesheet" href="styles.css" />
-  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.5/dist/sweetalert2.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.309.0/bin/lucide.css">
-  
-  <!-- FullCalendar CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet" />
-
-  <!-- Firebase SDK (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
-
-  <!-- FullCalendar JS -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
-
-  <!-- SweetAlert2 -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      lucide.createIcons();
-    });
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Trung Tâm</title>
+    <link rel="stylesheet" href="style.css"> 
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+   <script src="https://unpkg.com/lucide-static@latest/dist/lucide.min.js"></script>
 </head>
 <body>
- <div id="schedule-tooltip"></div>
-  <!-- Loading Overlay -->
-  <div id="loading">
-  <div class="running-bear"></div>
-  <p>Đang tải...</p>
-</div>
-<div id="approve-account-modal" class="modal-overlay">
-    <div class="modal-content">
-        <button class="modal-close" onclick="hideApproveAccountModal()">×</button>
-        <h3 id="approve-account-title">Duyệt tài khoản: <span id="approve-account-name"></span></h3>
-        <p>Chọn chức vụ cho tài khoản này:</p>
-        <select id="approve-account-role-select">
-            <option value="">-- Chọn chức vụ --</option>
-            <option value="Admin">Admin</option>
-            <option value="Hội Đồng">Hội Đồng</option>
-            <option value="Giáo Viên">Giáo Viên</option>
-            <option value="Gia Sư">Gia Sư</option>
-            <option value="Trợ Giảng">Trợ Giảng</option>
-            <option value="Học viên">Học viên</option> </select>
-        <button onclick="approveAccount()">Lưu chức vụ</button>
-        <button type="button" onclick="hideApproveAccountModal()">Hủy</button>
+
+    <div class="loading" id="loading" style="display: none;">
+        <div class="loading__spinner"></div>
     </div>
-</div>
-  <!-- Popup Modal: Thêm/Sửa Học viên -->
-  <div id="student-form-modal" class="modal-overlay">
-  <div class="modal-content">
-    <button class="modal-close" onclick="hideStudentForm()">×</button>
-    <div id="student-form-container">
-      <h3 id="student-form-title">Tạo hồ sơ học viên mới</h3>
-      <form id="student-form" onsubmit="event.preventDefault(); saveStudent()">
-        <input type="hidden" id="student-index" />
-
-        <div style="display: flex; gap: 20px;">
-          <div style="flex: 1;">
-            <label>Họ và Tên: <span style="color: red;">*</span><br />
-              <input type="text" id="student-name" required />
-            </label><br />
-
-            <label>Năm sinh: <span style="color: red;">*</span><br />
-              <input type="number" id="student-dob" min="1900" max="2100" placeholder="Nhập năm sinh" required onchange="handleAgeChange()" />
-            </label><br />
-
-            <div id="contact-info-container">
-              </div>
-
-            <label>Địa chỉ:<br />
-              <input type="text" id="student-address" placeholder="Nhập địa chỉ" />
-            </label><br />
-
-            <label>Nghề nghiệp bố mẹ:<br />
-              <select id="student-parent-job" onchange="parentJobChange(this.value)">
-                <option value="">-- Chọn nghề nghiệp --</option>
-                <option value="Công nhân">Công nhân</option>
-                <option value="Giáo viên">Giáo viên</option>
-                <option value="Kinh doanh">Kinh doanh</option>
-                <option value="Bác sĩ">Bác sĩ</option>
-                <option value="Nông dân">Nông dân</option>
-                <option value="Kỹ sư">Kỹ sư</option>
-                <option value="Nhân viên văn phòng">Nhân viên văn phòng</option>
-                <option value="Tài xế">Tài xế</option>
-                <option value="Nội trợ">Nội trợ</option>
-                <option value="Cán bộ nhà nước">Cán bộ nhà nước</option>
-                <option value="Công an/Quân đội">Công an/Quân đội</option>
-                <option value="Freelancer">Freelancer</option>
-                <option value="Học sinh/Sinh viên">Học sinh/Sinh viên</option>
-                <option value="Đã nghỉ hưu">Đã nghỉ hưu</option>
-                <option value="Buôn bán nhỏ">Buôn bán nhỏ</option>
-                <option value="Dịch vụ">Dịch vụ</option>
-                <option value="Nghệ sĩ">Nghệ sĩ</option>
-                <option value="Công nghệ thông tin">Công nghệ thông tin</option>
-                <option value="Khác">Khác</option>
-              </select>
-              <input type="text" id="student-parent-job-other" placeholder="Nhập nghề nghiệp khác" style="display:none;" />
-            </label><br />
-          </div>
-
-          <div style="flex: 1;">
-            <label>
-              Gói đăng ký: <span style="font-weight: normal; color: #555;">(Không bắt buộc)</span>
-             <button type="button" id="btn-reset-package" class="reset-button" onclick="promptResetPackage()">Reset Gói Đăng Ký</button>
-            </label>
-           <div style="margin-top: 8px;">
-              <select id="student-package-type" onchange="handlePackageTypeChange()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                <option value="">-- Chọn loại gói --</option>
-                <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
-                <option value="Luyện thi chứng chỉ">Luyện thi chứng chỉ</option>
-              </select>
-            </div>
-
-            <div id="package-options-container" style="margin-top: 10px;">
-              <div id="general-english-options-container" style="display: none;">
-                <label>Khóa học:</label>
-                <select id="general-english-course" onchange="updateStudentPackageName()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;"></select>
-              </div>
-
-              <div id="certificate-options-container" style="display: none; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background-color: #f9f9f9;">
-                <label>Loại chứng chỉ:</label>
-                <select id="student-certificate-type" onchange="populateCourseDropdown()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;">
-                  <option value="">-- Chọn chứng chỉ --</option>
-                  <option value="IELTS">IELTS</option>
-                  <option value="TOEIC">TOEIC</option>
-                  <option value="HSK">HSK</option>
-                  <option value="YCT">YCT</option>
-                </select>
-
-                <div id="certificate-course-wrapper" style="display: none; margin-top: 10px;">
-                  <label>Khóa học cụ thể:</label>
-                  <select id="student-certificate-course" onchange="handleCourseSelection()" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px;"></select>
-                  <div id="combo-selection-container" style="display: none; margin-top: 15px; padding: 10px; border: 1px dashed #0066cc; border-radius: 6px;">
-                    <p id="combo-selection-title" style="margin: 0 0 10px 0; font-weight: bold; color: #0066cc;"></p>
-                    <div id="combo-checkboxes-list" style="max-height: 150px; overflow-y: auto;"></div>
-                  </div>
+        <div class="auth-container" id="auth-container">
+            <div class="auth-form auth-form--login active" id="login-form">
+                <h2 class="auth-form__title">Đăng Nhập</h2>
+                <div class="auth-form__field">
+                    <label for="login-email" class="auth-form__label">Email</label>
+                    <input type="email" id="login-email" class="auth-form__input" required>
                 </div>
-              </div>
+                <div class="auth-form__field">
+                    <label for="login-password" class="auth-form__label">Mật khẩu</label>
+                    <input type="password" id="login-password" class="auth-form__input" required>
+                </div>
+                <button onclick="login()" class="auth-form__button">Đăng Nhập</button>
+                <p class="auth-form__switch">Chưa có tài khoản? <a href="#" onclick="showForm('register')">Đăng ký</a></p>
+                <p class="auth-form__switch"><a href="#" onclick="showForm('forgot')">Quên mật khẩu?</a></p>
             </div>
 
-            <div style="margin-top: 15px;">
-              <label>Tên gói đầy đủ (Tự động):</label>
-              <input type="text" id="student-package" placeholder="Chọn khóa học để tạo tên gói..." readonly style="width: 100%; padding: 8px; background-color: #eee; margin-top: 5px;" />
+            <div class="auth-form auth-form--register" id="register-form">
+                <h2 class="auth-form__title">Đăng Ký</h2>
+                <div class="auth-form__field">
+                    <label for="register-name" class="auth-form__label">Họ và Tên</label>
+                    <input type="text" id="register-name" class="auth-form__input" required>
+                </div>
+                <div class="auth-form__field">
+                    <label for="register-email" class="auth-form__label">Email</label>
+                    <input type="email" id="register-email" class="auth-form__input" required>
+                </div>
+                <div class="auth-form__field">
+                    <label for="register-password" class="auth-form__label">Mật khẩu</label>
+                    <input type="password" id="register-password" class="auth-form__input" required>
+                </div>
+                <button onclick="register()" class="auth-form__button">Đăng Ký</button>
+                <p class="auth-form__switch">Đã có tài khoản? <a href="#" onclick="showForm('login')">Đăng nhập</a></p>
             </div>
-
-            <label>Mã giảm giá (%):<br />
-               <input type="number" id="student-discount-percent" min="0" max="100" value="0" oninput="calculateFinalPrice()" />
-            </label><br />
-
-            <label>Khuyến mại (%):<br />
-              <input type="number" id="student-promotion-percent" min="0" max="100" value="0" oninput="calculateFinalPrice()" />
-            </label><br />
-
-            <label>Tổng tiền gốc:<br />
-              <input type="number" id="student-original-price" readonly value="0" style="background-color: #eee;" />
-            </label><br />
-
-            <label>Tổng tiền phải đóng:<br />
-              <input type="number" id="student-total-due" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
-            </label><br />
-            <label>Tổng tiền sách phải đóng:<br />
-              <input type="number" id="student-book-fee-due" value="0" placeholder="Nhập tổng tiền sách..." />
-            </label><br />
-           <label>Số buổi còn lại (Đã đóng):<br />
-             <input type="number" id="student-remaining-sessions-display" readonly value="0" style="background-color: #eee; font-weight: bold; color: #0066cc;" />
-           </label><br />
-           <label>Tổng số buổi đã học:<br />
-             <input type="number" id="student-total-attended-sessions" readonly value="0" style="background-color: #eee;" />
-           </label><br />
-              <input type="hidden" id="student-new-package-sessions" value="0" />
-          </div>
+            
+            <div class="auth-form auth-form--forgot" id="forgot-form">
+                <h2 class="auth-form__title">Quên Mật Khẩu</h2>
+                <div class="auth-form__field">
+                    <label for="forgot-email" class="auth-form__label">Nhập Email của bạn</label>
+                    <input type="email" id="forgot-email" class="auth-form__input" required>
+                </div>
+                <button onclick="forgotPassword()" class="auth-form__button">Gửi Link Reset</button>
+                <p class="auth-form__switch"><a href="#" onclick="showForm('login')">Quay lại Đăng nhập</a></p>
+            </div>
         </div>
 
-        <button type="submit" style="margin-top: 20px;">Lưu</button>
-        <button type="button" onclick="hideStudentForm()">Hủy</button>
-      </form>
+        <div class="role-selection" id="role-selection" style="display: none;">
+            <h2 class="role-selection__title">Chọn Chức Vụ Của Bạn</h2>
+            <p class="role-selection__description">Vui lòng chọn chức vụ để tiếp tục. Lựa chọn này sẽ được gửi đến quản trị viên để duyệt.</p>
+            <select id="select-role" class="role-selection__dropdown">
+                <option value="">-- Chọn chức vụ --</option>
+                <option value="Admin">Admin</option>
+                <option value="Hội Đồng">Hội Đồng</option>
+                <option value="Giáo Viên">Giáo Viên</option>
+                <option value="Trợ Giảng">Trợ Giảng</option>
+            </select>
+            <button onclick="saveUserRole()" class="role-selection__button">Lưu và Tiếp Tục</button>
+        </div>
+
+<div class="app-layout" id="app-layout" style="display: none;"> 
+    <aside class="sidebar">
+        <div class="sidebar__profile">
+            <img id="avatar-img" src="default-avatar.png" alt="Avatar" class="sidebar__avatar" onclick="openProfile()">
+            <span id="display-name-hello" class="sidebar__username">Username</span>
+        </div>
+
+        <nav class="sidebar__nav">
+            <ul class="sidebar__nav-list">
+                <li class="sidebar__nav-item">
+                    <a href="#dashboard" class="sidebar__nav-link">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Bảng Điều Khiển</span>
+                    </a>
+                </li>
+                <li class="sidebar__nav-item">
+                    <a href="#student-management" class="sidebar__nav-link">
+                        <i data-lucide="users"></i>
+                        <span>Quản Lý Học Viên</span>
+                    </a>
+                </li>
+                <li class="sidebar__nav-item">
+                    <a href="#class-management" class="sidebar__nav-link">
+                        <i data-lucide="book-copy"></i>
+                        <span>Quản Lý Lớp Học</span>
+                    </a>
+                </li>
+                <li class="sidebar__nav-item">
+                    <a href="#new-schedule-page" class="sidebar__nav-link">
+                        <i data-lucide="calendar-days"></i>
+                        <span>Quản Lý Lịch Học</span>
+                    </a>
+                </li>
+                <li class="sidebar__nav-item">
+                    <a href="#personnel-management" class="sidebar__nav-link">
+                        <i data-lucide="user-cog"></i>
+                        <span>Quản Lý Nhân Sự</span>
+                    </a>
+                </li>
+                 <li class="sidebar__nav-item">
+                    <a href="#account-management" class="sidebar__nav-link">
+                        <i data-lucide="shield-check"></i>
+                        <span>Quản Lý Tài Khoản</span>
+                    </a>
+                </li>
+                <li class="sidebar__nav-item">
+                    <a href="#tuition-management" class="sidebar__nav-link">
+                        <i data-lucide="dollar-sign"></i>
+                        <span>Quản Lý Học Phí</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <div class="content-wrapper">
+        <header class="top-bar">
+            <h1 class="top-bar__title">Quản Lý Trung Tâm</h1>
+            <button onclick="logout()" class="top-bar__logout-button">
+                <i data-lucide="log-out"></i>
+                <span>Đăng Xuất</span>
+            </button>
+        </header>
+
+        <main class="main-content">
+            <section class="dashboard" id="dashboard">
+                <div class="dashboard__content">
+                 <h1 class="dashboard__welcome-message" id="welcome-message"></h1>
+                 <div class="dashboard__date" id="live-date"></div> 
+                 <div class="dashboard__clock" id="live-clock"></div>
+                </div>
+                <div class="dashboard__charts-grid">
+    <div class="chart-container">
+        <h3 class="chart-title">Sĩ số 5 lớp đông nhất</h3>
+        <canvas id="class-size-chart"></canvas>
     </div>
-  </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Học viên mới trong 6 tháng qua</h3>
+        <canvas id="new-students-chart"></canvas>
+    </div>
+    <a href="#trash-management" class="dashboard__card">
+    <h3 class="dashboard__card-title">
+        <i data-lucide="trash-2"></i> Thùng rác
+    </h3>
+    <p class="dashboard__card-description">
+        Xem lại và quản lý các học viên, lớp học đã bị xóa.
+    </p>
+</a>
 </div>
-
-  <!-- Popup Modal: Thêm/Sửa Lớp học -->
-  <div id="class-form-modal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="modal-close" onclick="hideClassForm()">×</button>
-      <div id="class-form-container">
-  <h3 id="class-form-title">Tạo lớp học mới</h3>
-  <form id="class-form">
-    <input type="hidden" id="class-index" />
-
-    <label>Chọn loại lớp học:</label>
-    <select id="class-type-select" onchange="handleClassTypeChange()">
-        <option value="">-- Vui lòng chọn --</option>
-        <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
-        <option value="Lớp chứng chỉ">Lớp chứng chỉ</option>
-    </select>
-
-    <div id="class-certificate-options-container" class="form-field-hidden">
-        <label>Loại chứng chỉ:</label>
-        <select id="class-certificate-type-select" onchange="populateClassCertificateCourseDropdown()"></select>
-
-        <label>Khóa học đơn (không combo):</label>
-        <select id="class-course-select"></select>
+            </section>
+            <section class="student-management" id="student-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Quản Lý Học Viên</h2>
+        <button class="page-header__button" onclick="showStudentForm()">Thêm Học Viên Mới</button>
     </div>
-    <label>Tên lớp học:<br />
-      <input type="text" id="class-name" required />
-    </label><br />
-
-    <div class="form-group">
-      <label for="class-teacher">Giáo viên đứng lớp:</label>
-      <select id="class-teacher" class="form-control" required>
-      <option value="">-- Chọn giáo viên --</option>
-      </select>
+    <div class="student-management__controls">
+        <input type="text" id="student-search" class="student-management__search" placeholder="Tìm kiếm theo tên, SĐT..." oninput="filterStudentsBySearch()">
+        <select id="student-filter-class" class="student-management__filter" onchange="applyStudentFilters()"></select>
+        <button class="student-management__reset-button" onclick="resetStudentFilters()">Reset</button>
     </div>
-
-    <div class="form-group">
-      <label for="class-assistant-teacher">Trợ Giảng đứng lớp:</label>
-      <select id="class-assistant-teacher" class="form-control">
-      <option value="">-- Không có trợ giảng --</option>
-      </select>
+     <div class="student-management__summary">
+        <span id="total-students-display"></span>
+        <span id="paid-students-display"></span>
     </div>
-
-    <label>Lịch học cố định (tuần):</label>
-   <label>Phòng học:</label>
-    <select id="class-room">
-        <option value="Phòng 301">Phòng 301</option>
-        <option value="Phòng 302">Phòng 302</option>
-    </select>
-    <br/>
-<fieldset id="fieldset-fixed-schedule" style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-top: 15px;">
-    <legend>Lịch học cố định (tuần):</legend>
-    <div id="class-fixed-schedule">
-      <div>
-        <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday" />
-        <label for="schedule-sun">Chủ Nhật</label>
-        <select class="hour-select" id="hour-sun"></select> : <select class="minute-select" id="minute-sun"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday" />
-        <label for="schedule-mon">Thứ 2</label>
-        <select class="hour-select" id="hour-mon"></select> : <select class="minute-select" id="minute-mon"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday" />
-        <label for="schedule-tue">Thứ 3</label>
-        <select class="hour-select" id="hour-tue"></select> : <select class="minute-select" id="minute-tue"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday" />
-        <label for="schedule-wed">Thứ 4</label>
-        <select class="hour-select" id="hour-wed"></select> : <select class="minute-select" id="minute-wed"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday" />
-        <label for="schedule-thu">Thứ 5</label>
-        <select class="hour-select" id="hour-thu"></select> : <select class="minute-select" id="minute-thu"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday" />
-        <label for="schedule-fri">Thứ 6</label>
-        <select class="hour-select" id="hour-fri"></select> : <select class="minute-select" id="minute-fri"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday" />
-        <label for="schedule-sat">Thứ 7</label>
-        <select class="hour-select" id="hour-sat"></select> : <select class="minute-select" id="minute-sat"></select>
-      </div>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead class="data-table__head">
+                <tr class="data-table__row">
+                    <th class="data-table__header">Họ và tên</th>
+                    <th class="data-table__header">Năm sinh</th>
+                    <th class="data-table__header">Số điện thoại</th>
+                    <th class="data-table__header">Gói đăng ký</th>
+                    <th class="data-table__header data-table__header--sortable" onclick="sortStudentsBy('createdAt')">
+                        Ngày tạo <span id="sort-icon-createdAt"></span>
+                    </th>
+                    <th class="data-table__header data-table__header--sortable" onclick="sortStudentsBy('updatedAt')">
+                        Ngày sửa đổi <span id="sort-icon-updatedAt"></span>
+                    </th>
+                    <th class="data-table__header">Học phí</th>
+                    <th class="data-table__header th-sessions-attended">Số buổi đã học</th>
+                    <th class="data-table__header th-sessions-remaining">Buổi còn lại</th>
+                    <th class="data-table__header">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="student-list" class="data-table__body">
+                </tbody>
+        </table>
     </div>
-     </fieldset>
-     <button type="button" id="btn-change-schedule" onclick="showChangeScheduleModal()" style="display:none; width: 100%; margin: 15px 0; background-color: #ffc107; color: #212529;">
-        <i data-lucide="calendar-plus"></i> Thay đổi Lịch học từ ngày...
-    </button>
-    <label>Ngày bắt đầu lớp học:<br />
-    <input type="date" id="class-start-date" required />
-    </label><br />
-    <div id="class-add-wrapper">
-      <label>Danh sách học viên thêm vào lớp:</label>
-
-      <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; margin-bottom: 8px;">
-          <input
-              type="text"
-              id="class-add-student-search"
-              placeholder="Tìm học viên..."
-              list="class-add-student-datalist"
-              oninput="filterClassStudentOptions()"
-              style="flex-grow: 1; padding: 8px;" />
-          <datalist id="class-add-student-datalist"></datalist>
-
-          <button type="button" class="small-add-button" onclick="showStudentForm()">
-              + Thêm mới
-          </button>
-      </div>
-
-      <button type="button" id="add-student-btn" onclick="addStudentToClass()">Thêm vào lớp</button>
-
-      <ul id="class-student-list" style="margin-top: 15px;"></ul>
+     <div class="student-management__pagination">
+        <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trước</button>
+        <span id="page-info"></span>
+        <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Sau</button>
     </div>
-    <button type="submit">Lưu lớp học</button>
-    <button type="button" onclick="hideClassForm()">Hủy</button>
-  </form>
-</div>
+</section>
+        <section class="class-management" id="class-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Quản Lý Lớp Học</h2>
+        <button class="page-header__button" onclick="showClassForm()">Tạo Lớp Học Mới</button>
     </div>
-  </div>
-   <div id="change-schedule-modal" class="modal-overlay">
-  <div class="modal-content" style="max-width: 500px;">
-    <button class="modal-close" onclick="hideChangeScheduleModal()">×</button>
-    <h3>Thay đổi Lịch học</h3>
-    <p>Lịch học mới sẽ được áp dụng từ ngày bạn chọn. Các buổi học cũ chưa diễn ra sẽ bị xóa.</p>
-
-    <input type="hidden" id="change-schedule-class-id">
-
-    <label for="change-schedule-date"><b>Áp dụng từ ngày:</b></label>
-    <input type="date" id="change-schedule-date" required style="width: 100%; padding: 10px; margin-bottom: 15px;">
-
-    <label><b>Lịch học cố định MỚI:</b></label>
-    <div id="new-fixed-schedule-container">
-      <div>
-        <input type="checkbox" id="new-schedule-sun" name="new-schedule-day" value="Sunday" />
-        <label for="new-schedule-sun">Chủ Nhật</label>
-        <select class="hour-select" id="new-hour-sun"></select> : <select class="minute-select" id="new-minute-sun"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="new-schedule-mon" name="new-schedule-day" value="Monday" />
-        <label for="new-schedule-mon">Thứ 2</label>
-        <select class="hour-select" id="new-hour-mon"></select> : <select class="minute-select" id="new-minute-mon"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="new-schedule-tue" name="new-schedule-day" value="Tuesday" />
-        <label for="new-schedule-tue">Thứ 3</label>
-        <select class="hour-select" id="new-hour-tue"></select> : <select class="minute-select" id="new-minute-tue"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="new-schedule-wed" name="new-schedule-day" value="Wednesday" />
-        <label for="new-schedule-wed">Thứ 4</label>
-        <select class="hour-select" id="new-hour-wed"></select> : <select class="minute-select" id="new-minute-wed"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="new-schedule-thu" name="new-schedule-day" value="Thursday" />
-        <label for="new-schedule-thu">Thứ 5</label>
-        <select class="hour-select" id="new-hour-thu"></select> : <select class="minute-select" id="new-minute-thu"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="new-schedule-fri" name="new-schedule-day" value="Friday" />
-        <label for="new-schedule-fri">Thứ 6</label>
-        <select class="hour-select" id="new-hour-fri"></select> : <select class="minute-select" id="new-minute-fri"></select>
-      </div>
-      <div>
-        <input type="checkbox" id="new-schedule-sat" name="new-schedule-day" value="Saturday" />
-        <label for="new-schedule-sat">Thứ 7</label>
-        <select class="hour-select" id="new-hour-sat"></select> : <select class="minute-select" id="new-minute-sat"></select>
-      </div>
+    <div class="personnel-management__controls">
+        <button id="btn-active-classes" class="personnel-management__toggle-button active" onclick="showClassView('active')">Lớp còn hoạt động</button>
+        <button id="btn-completed-classes" class="personnel-management__toggle-button" onclick="showClassView('completed')">Lớp đã hoàn thành</button>
     </div>
-
-    <button type="button" onclick="confirmScheduleChange()" style="margin-top: 20px;">Lưu Thay Đổi</button>
-    <button type="button" class="delete-btn" onclick="hideChangeScheduleModal()">Hủy</button>
-  </div>
-</div>
-<div id="class-attendance-modal-overlay" class="modal-overlay">
-  <div class="modal-content" style="max-width: 90vw; width: auto;">
-    <button class="modal-close" onclick="hideClassAttendanceModal()">×</button>
-    <h3 id="class-attendance-modal-title"> <span id="current-class-attendance-name"></span></h3>
-
-    <div style="text-align: right; margin-bottom: 6px;">
-      <button onclick="scrollClassAttendanceBySessions(-1)">←</button>
-      <button onclick="scrollClassAttendanceBySessions(1)">→</button>
-    </div>
-
-    <div id="class-attendance-scroll-container" style="overflow-x: auto; max-height: 80vh;">
-      <table id="class-attendance-table" style="border-collapse: collapse; min-width: max-content;">
-        <thead>
-          <tr id="class-attendance-table-head"></tr>
-        </thead>
-        <tbody id="class-attendance-table-body"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<div id="staff-classes-salary-modal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 700px;">
-        <button class="modal-close" onclick="hideStaffClassesSalaryModal()">×</button>
-        <h3 id="staff-classes-salary-title">Quản lý lương lớp: <span id="staff-classes-salary-name"></span></h3>
-
-        <p>Chọn lớp để cập nhật mức lương cho nhân sự này:</p>
-        <div class="table-scroll-wrapper">
-            <table id="staff-individual-class-salary-table">
-                <thead>
-                    <tr>
-                        <th>Tên lớp</th>
-                        <th>Vai trò</th>
-                        <th>Mức lương (VNĐ/buổi)</th>
-                        <th>Hành động</th>
+    <div class="class-management__layout">
+    <div class="class-management__layout">
+        <div class="class-management__list-container">
+             <input type="text" id="class-search" class="class-management__search" placeholder="Tìm kiếm lớp, giáo viên..." oninput="filterClassesBySearch()">
+            <table class="data-table">
+                <thead class="data-table__head">
+                    <tr class="data-table__row">
+                        <th class="data-table__header">Tên lớp</th>
+                        <th class="data-table__header">Sĩ số</th>
+                        <th class="data-table__header">Giáo viên</th>
+                        <th class="data-table__header">Hành động</th>
                     </tr>
                 </thead>
-                <tbody id="staff-individual-class-salary-list">
-                    </tbody>
+                <tbody id="class-list" class="data-table__body">
+                </tbody>
             </table>
         </div>
-
-        <button onclick="hideStaffClassesSalaryModal()" style="margin-top: 20px;">Đóng</button>
     </div>
-</div>
-  <!-- Lưu modal styles -->
-  <style>
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.4);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: #e6f0ff;
-      padding: 25px 25px 30px;
-      border-radius: 12px;
-      max-width: 600px;
-      width: 100%;
-      position: relative;
-      animation: scale-up 0.3s ease-in-out;
-    }
-    .modal-close {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: none;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-    }
-    @keyframes scale-up {
-      0% {
-        transform: scale(0.8);
-        opacity: 0;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-    #student-form-container, #class-form-container {
-      display: none;
-    }
-  </style>
+</section>
 
-  <!-- Container chính: Authentication -->
-  <div id="auth-container">
-    <div id="login-form" class="auth-form active">
-      <h2>Đăng nhập</h2>
-      <input type="email" id="login-email" placeholder="Email" />
-      <input type="password" id="login-password" placeholder="Mật khẩu" />
-      <button onclick="login()">Đăng nhập</button>
-      <p>
-   <a href="#" data-show-form="register" onclick="showForm('register'); return false;">Đăng ký</a>
-   <span style="margin: 0 10px;">|</span>
-   <a href="#" data-show-form="forgot" onclick="showForm('forgot'); return false;">Quên mật khẩu?</a>
-</p>
+<section class="management-page" id="new-schedule-page" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title" id="schedule-week-title">Thời Khóa Biểu</h2>
+        <div class="page-header__controls">
+            <button id="schedule-prev-week" class="page-header__button">&lt; Tuần Trước</button>
+            <button id="schedule-next-week" class="page-header__button">Tuần Sau &gt;</button>
+        </div>
     </div>
-
-    <div id="register-form" class="auth-form">
-      <h2>Đăng ký</h2>
-      <input type="email" id="register-email" placeholder="Email" />
-      <input type="text" id="register-name" placeholder="Họ và tên" />
-      <input type="password" id="register-password" placeholder="Mật khẩu" />
-      <button onclick="register()">Đăng ký</button>
-      <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
-    </div>
-
-    <div id="forgot-form" class="auth-form">
-      <h2>Quên mật khẩu</h2>
-      <input type="email" id="forgot-email" placeholder="Email" />
-      <button onclick="forgotPassword()">Gửi yêu cầu</button>
-      <p><a href="#" onclick="showForm('login')">Quay lại đăng nhập</a></p>
-    </div>
-  </div>
-
-  <!-- Chọn chức vụ (ẩn mặc định) -->
-  <div id="role-selection" class="auth-form" style="display:none;">
-    <h2>Chọn chức vụ</h2>
-    <p>Vui lòng chọn chức vụ của bạn:</p>
-    <form id="role-form" onsubmit="event.preventDefault(); saveUserRole();">
-      <select id="select-role" required>
-        <option value="">-- Chọn chức vụ --</option>
-        <option value="Admin">Admin</option>
-        <option value="Hội Đồng">Hội Đồng</option>
-        <option value="Giáo Viên">Giáo Viên</option>
-        <option value="Gia Sư">Gia Sư</option>
-        <option value="Trợ Giảng">Trợ Giảng</option>
-      </select>
-      <button type="submit">Xác nhận</button>
-    </form>
-  </div>
-
-  <!-- Dashboard chính (ẩn khi chưa login) -->
-  <div id="dashboard" style="display:none;">
-    <!-- Thanh điều hướng -->
-    <nav id="main-nav">
-      <button id="hamburger-btn" class="hamburger">&#9776;</button>
-      <div id="nav-links">
-        <a href="#dashboard" class="active">Dashboard</a>
-        <a href="#account-management">Quản lý tài khoản</a>
-        <a href="#student-management">Quản lý học viên</a>
-        <a href="#class-management">Quản lý lớp học</a>
-        <a href="#new-schedule-page">Lịch học mới</a>
-        <a href="#profile-page">Trang cá nhân</a>
-        <a href="#" onclick="logout(); return false;" style="color:#cc0000;">Đăng xuất</a>
-      </div>
-    </nav>
-<!-- Chèn ngay dưới <body> hoặc dưới <nav> nào đó -->
-<button id="sticky-back" onclick="backToDashboard()" style="display:none; position:fixed; top:20px; left:20px; z-index:1000;">
-  ← Quay lại
-</button>
-
-    <!-- Header -->
-    <header onclick="openProfile()">
-      <div class="avatar-container">
-        <img id="avatar-img" src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" alt="Avatar" />
-        <span id="display-name"></span>
-        <p>Chào mừng ngài trở lại, thưa <span id="display-name-hello"></span>!</p>
-      </div>
-    </header>
-    <div class="back-to-school-banner">
-  <img src="images/studentsgroup.png" class="banner-deco deco-1" alt="deco">
-  <img src="images/book-vector.png" class="banner-deco deco-2" alt="deco">
-
-  <div class="banner-main-content">
-    <h1>BACK TO SCHOOL!</h1>
-    <p>Chào mừng năm học mới 2025</p>
-  </div>
-
-  <img src="/path/to/your/students-group.png" class="banner-students" alt="Học sinh">
-</div>
-
-    <!-- Các ô chức năng (grid cards) -->
-    <main class="grid-container">
-      <a class="card" href="#account-management">
-        <div class="icon lucide" data-lucide="users"></div>
-        <div>Quản lý tài khoản</div>
-      </a>
-      <a class="card" href="#student-management">
-        <div class="icon lucide" data-lucide="graduation-cap"></div>
-        <div>Quản lý học viên</div>
-      </a>
-      <a class="card" href="#class-management">
-        <div class="icon lucide" data-lucide="school"></div>
-        <div>Quản lý lớp học</div>
-      </a>
-      <a class="card" href="#new-schedule-page">
-      <div class="icon lucide" data-lucide="calendar-check"></div>
-     <div>Lịch học mới</div>
-      </a>
-     <a class="card" href="#personnel-management" id="personnel-management-card">
-            <div class="icon lucide" data-lucide="users-round"></div>
-            <div>Quản lý nhân sự</div>
-        </a>
-        <a class="card" href="#tuition-management" id="tuition-management-card">
-          <div class="icon lucide" data-lucide="dollar-sign"></div>
-          <div>Quản lý Học phí</div>
-        </a>
-    </main>
-  </div>
-
-  <!-- Trang Quản lý Tài khoản -->
-  <div id="account-management" class="management-page" style="display:none;">
-    <h2>Quản lý tài khoản</h2>
-<button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
-<div class="table-scroll-wrapper">
-    <table>
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>Họ và tên</th>
-          <th>Tên đăng nhập</th>
-          <th>Chức vụ</th>
-          <th>Trạng thái</th>
-        </tr>
-      </thead>
-      <tbody id="account-list"></tbody>
-    </table>
-    </div>
-  </div>
-
-  <!-- Trang Quản lý Học viên -->
-  <div id="student-management" class="management-page" style="display:none;">
-  <h2>Quản lý học viên</h2>
-  <button onclick="backToDashboard()">
-    <i data-lucide="arrow-left"></i>
-  </button>
-  <button onclick="showStudentForm()">Tạo hồ sơ học viên mới</button>
-  <!--<button onclick="backfillCreatedAtTimestamp()" style="background-color: #f0ad4e; color: white;">Cập nhật 'Ngày tạo' cho dữ liệu cũ</button>
- <button onclick="recalculateAllStudentTuition()" style="background-color: #d9534f; color: white; font-weight: bold;">
-      ⚠️ Cập nhật lại toàn bộ học phí 
-  </button> -->
-  <div class="student-page-controls">
-    <div class="student-stats">
-      <span id="total-students-display">Tổng số: <strong>0</strong></span>
-      <span id="paid-students-display">Đã đóng tiền: <strong>0</strong></span>
-    </div>
-    <div class="filter-controls-group">
-      <input type="text" id="student-search" placeholder="Tìm học viên..." oninput="filterStudentsBySearch()" />
-      <select id="student-filter-class" onchange="applyStudentFilters()">
-        <option value="">-- Lọc theo lớp --</option>
-      </select>
-      <button onclick="resetStudentFilters()">Xóa bộ lọc & sắp xếp</button>
-    </div>
-  </div>
-
-  <div class="table-scroll-wrapper">
-    <table>
-  <thead>
-  <tr>
-    <th>Họ và tên</th>
-    <th>Năm sinh</th>
-    <th>Số điện thoại</th>
-    <th>Gói đăng ký</th>
-    <th class="sortable" onclick="sortStudentsBy('createdAt')">
-      Ngày tạo <i id="sort-icon-createdAt"></i>
-    </th>
-    <th class="sortable" onclick="sortStudentsBy('updatedAt')">
-      Ngày sửa đổi <i id="sort-icon-updatedAt"></i>
-    </th>
     
-    <th>Học phí</th>
-    
-    <th>Số buổi còn lại</th>
-    <th>Hành động</th>
-  </tr>
-</thead>
-      <tbody id="student-list"></tbody>
-    </table>
-  </div>
-  <div id="student-pagination">
-    <button id="prev-page" onclick="changeStudentPage(currentStudentPage - 1)">Trang trước</button>
-    <span id="page-info">Trang 1 / 1</span>
-    <button id="next-page" onclick="changeStudentPage(currentStudentPage + 1)">Trang sau</button>
-  </div>
-</div>
-  <!-- Trang Quản lý Lớp học -->
-  <div id="class-management" class="management-page" style="display:none;">
-    <h2>Quản lý lớp học</h2>
- <button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
-<button id="btn-migrate-attendance" onclick="migrateAttendanceData()" style="background-color: #f0ad4e; color: white;">
-        (Một lần) Chuẩn hóa Điểm danh cũ
-    </button>
-    <button id="btn-gen-exam-general" onclick="generateExamsForGeneralClasses()" style="background-color: #ffc107; color: #212529; font-weight: bold;">
-        Tạo bù KT cho Lớp Phổ Thông
-    </button>
-    <button id="btn-gen-exam-cert" onclick="generateExamsForCertificateClasses()" style="background-color: #17a2b8; color: white; font-weight: bold;">
-        Tạo bù KT cho Lớp Chứng Chỉ
-    </button>
-<!-- Thanh tìm kiếm cho lớp học -->
-  <input type="text"
-          id="class-search"
-          placeholder="Tìm lớp học..."
-          oninput="filterClassesBySearch()"
-          style="margin: 10px 0; padding: 8px; width: 100%; max-width: 300px;" />
-    <div id="class-management-container">
-      <div id="class-table-container">
-        <button onclick="showClassForm()">Tạo lớp học mới</button>
-        <div class="table-scroll-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Tên lớp</th>
-              <th>Số lượng học viên</th>
-              <th>Giáo viên</th>
-              <th>Hành động</th>
-            </tr>
-          </thead>
-          <tbody id="class-list"></tbody>
+    <div class="schedule-page__grid-wrapper">
+        <div class="schedule-page__grid" id="schedule-grid-container">
+            </div>
+    </div>
+
+    <div class="schedule-page__tooltip" id="schedule-tooltip"></div>
+</section>
+
+<section class="personnel-management" id="personnel-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Quản Lý Nhân Sự</h2>
+    </div>
+    <div class="personnel-management__controls personnel-controls">
+        <button id="btn-show-personnel-classes" class="personnel-management__toggle-button active" onclick="showPersonnelSection('classes')">Danh sách lớp (Chấm công)</button>
+        <button id="btn-show-personnel-staff" class="personnel-management__toggle-button" onclick="showPersonnelSection('staff')">Danh sách nhân sự (Lương)</button>
+    </div>
+    <div id="personnel-classes-section" class="personnel-management__section">
+    </div>
+    <div id="personnel-staff-section" class="personnel-management__section" style="display: none;">
+        <div class="data-table-wrapper">
+            <table class="data-table">
+                <thead class="data-table__head">
+                    <tr class="data-table__row">
+                        <th class="data-table__header">Tên nhân sự</th>
+                        <th class="data-table__header">Email</th>
+                        <th class="data-table__header">Lương Giáo Viên (theo lớp)</th>
+                        <th class="data-table__header">Lương Trợ Giảng (theo lớp)</th>
+                        <th class="data-table__header">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="staff-salary-list" class="data-table__body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section class="account-management" id="account-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Quản Lý Tài Khoản</h2>
+    </div>
+    <div class="data-table-wrapper">
+         <table class="data-table">
+            <thead class="data-table__head">
+                <tr class="data-table__row">
+                    <th class="data-table__header">Email</th>
+                    <th class="data-table__header">Họ và Tên</th>
+                    <th class="data-table__header">Username</th>
+                    <th class="data-table__header">Chức vụ</th>
+                    <th class="data-table__header">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="account-list" class="data-table__body">
+            </tbody>
         </table>
+    </div>
+</section>
+
+<section class="management-page" id="tuition-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Quản Lý Tài Chính</h2>
+    </div>
+
+  <div class="tabs" id="tuition-page-tabs">
+    <button class="tabs__button active" onclick="openPageTab(event, 'fee-management', 'tuition-management')">Quản lý Học phí</button>
+    <button class="tabs__button" onclick="openPageTab(event, 'book-management', 'tuition-management')">Quản lý Tiền sách</button>
+</div>
+
+    <div id="fee-management" class="tabs__content active">
+        <div class="tuition-management__controls">
+            <input type="text" id="tuition-class-search" class="tuition-management__search" placeholder="Tìm kiếm lớp học..." oninput="renderTuitionView(this.value)">
         </div>
-      </div>
-      <div id="class-schedule-preview">
-        <h4>Lịch học cố định</h4>
-        <ul id="schedule-preview-list">
-          <li>Di chuột vào lớp để xem lịch học cố định.</li>
-        </ul>
-      </div>
+        <div id="tuition-class-list" class="tuition-management__class-list">
+            </div>
     </div>
-    <div id="class-schedule-display">
-      <h4>Lịch học cố định của lớp</h4>
-      <ul id="schedule-list"></ul>
+
+    <div id="book-management" class="tabs__content">
+         <div class="tuition-management__controls">
+            <input type="text" id="book-class-search" class="tuition-management__search" placeholder="Tìm kiếm lớp học..." oninput="renderTuitionView(this.value, 'book')">
+        </div>
+        <div id="book-class-list" class="tuition-management__class-list">
+            </div>
     </div>
-  </div>
-<!-- Lịch học mới -->
-<div id="new-schedule-page" class="management-page" style="display:none; max-width: 1200px;">
-    <div class="schedule-header">
-        <button id="schedule-prev-week">Tuần trước</button>
-        <h2 id="schedule-week-title"></h2>
-        <button id="schedule-next-week">Tuần sau</button>
+</section>
+
+<section class="profile-page" id="profile-page" style="display: none;">
+    <h2 class="profile-page__title">Thông Tin Cá Nhân</h2>
+    <div class="profile-page__card">
+        <div class="profile-page__avatar-wrapper">
+            <img src="default-avatar.png" alt="Avatar" id="profile-avatar" class="profile-page__avatar">
+            <input type="file" id="avatar-file" accept="image/*" class="profile-page__file-input">
+            <label for="avatar-file" class="profile-page__upload-label">Thay đổi ảnh</label>
+        </div>
+        <div class="profile-page__details">
+            <p><strong>Họ và tên:</strong> <span id="profile-name"></span></p>
+            <p><strong>Email:</strong> <span id="profile-email"></span></p>
+            <p><strong>Chức vụ:</strong> <span id="profile-role"></span></p>
+        </div>
     </div>
-    <button onclick="backToDashboard()" class="back-btn" style="margin-bottom: 15px;">
-        <i data-lucide="arrow-left"></i> Quay lại Dashboard
-    </button>
+</section>
+            <section class="management-page" id="trash-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Thùng rác</h2>
+    </div>
+
+    <h3 class="section-subtitle">Học viên đã xóa</h3>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="data-table__header">Họ và tên</th>
+                    <th class="data-table__header">Năm sinh</th>
+                    <th class="data-table__header">Gói đăng ký</th>
+                    <th class="data-table__header">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="deleted-student-list">
+                </tbody>
+        </table>
+    </div>
+
+    <h3 class="section-subtitle" style="margin-top: 30px;">Lớp học đã xóa</h3>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="data-table__header">Tên lớp</th>
+                    <th class="data-table__header">Giáo viên</th>
+                    <th class="data-table__header">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="deleted-class-list">
+                </tbody>
+        </table>
+    </div>
+</section>
+            </main>
+    </div>
+</div>
+
     
-    <div id="schedule-grid-container">
+    <div class="modal modal--student-form" id="student-form-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideStudentForm()"></div>
+        <div class="modal__content" id="student-form-container">
+    <div class="modal__header">
+        <h3 class="modal__title" id="student-form-title">Tạo hồ sơ học viên mới</h3>
+        <button class="modal__close-btn" onclick="hideStudentForm()">&times;</button>
     </div>
-     <div id="schedule-context-menu" class="context-menu">
-            <ul>
-                <li id="menu-add-class"><i data-lucide="book-plus"></i> Thêm lớp chính thức</li>
-                <li id="menu-add-temp-class"><i data-lucide="clipboard-plus"></i> Thêm lớp tạm thời</li>
-            </ul>
+    <form id="student-form" class="modal__form" onsubmit="event.preventDefault(); saveStudent();">
+        <input type="hidden" id="student-index">
+        <input type="hidden" id="student-new-package-sessions">
+        
+        <div class="form-grid">
+            <div class="form-grid__field">
+                <label for="student-name">Họ và tên học viên *</label>
+                <input type="text" id="student-name" required>
+            </div>
+            <div class="form-grid__field">
+                 <label for="student-dob">Năm sinh *</label>
+                <input type="number" id="student-dob" oninput="handleAgeChange()" required>
+            </div>
+            <div class="form-grid__field form-grid__field--full">
+                 <label for="student-address">Địa chỉ</label>
+                <input type="text" id="student-address">
+            </div>
+            <div id="contact-info-container" class="form-grid__field form-grid__field--full"></div>
+            <div class="form-grid__field">
+                <label for="student-parent-job">Nghề nghiệp phụ huynh</label>
+                <select id="student-parent-job" onchange="parentJobChange(this.value)">
+                    <option value="">-- Chọn --</option>
+                    <option value="Bác sĩ">Bác sĩ</option>
+                    <option value="Giáo viên">Giáo viên</option>
+                    <option value="Kinh doanh">Kinh doanh</option>
+                    <option value="Công nhân">Công nhân</option>
+                    <option value="Khác">Khác</option>
+                </select>
+                <input type="text" id="student-parent-job-other" style="display:none;" placeholder="Nhập nghề nghiệp khác">
+            </div>
         </div>
+        
+        <hr class="form__divider">
+        
+        <div class="form-grid">
+            <div class="form-grid__field">
+                <label for="student-package-type">Loại gói học *</label>
+                <select id="student-package-type" onchange="handlePackageTypeChange()" required>
+    <option value="">-- Chọn loại gói --</option>
+    <option value="Phổ thông">Phổ thông</option>
+    <option value="Chứng chỉ">Chứng chỉ</option>
+    <option value="Các môn trên trường">Các môn trên trường</option> </select>
+            </div>
 
-    <div id="class-action-context-menu" class="context-menu">
-        <ul>
-         <li id="menu-edit-class"><i data-lucide="edit-3"></i> Sửa lớp học</li>
+            <div id="general-course-type-container" class="form-grid__field form-grid__field--full form-field--hidden">
+                <label>Chọn chương trình học phổ thông</label>
+                <div class="radio-group">
+                    <input type="radio" id="radio-general-en" name="general-type" value="english" onchange="handleGeneralCourseTypeChange()">
+                    <label for="radio-general-en">Tiếng Anh Phổ thông</label>
+                    <input type="radio" id="radio-general-zh" name="general-type" value="chinese" onchange="handleGeneralCourseTypeChange()">
+                    <label for="radio-general-zh">Tiếng Trung Phổ thông</label>
+                </div>
+            </div>
+
+            <div id="general-english-options-container" class="form-grid__field form-grid__field--full form-field--hidden">
+                <label for="general-english-course">Chọn khóa học Tiếng Anh</label>
+                <select id="general-english-course" onchange="updateStudentPackageName()"></select>
+            </div>
+
+            <div id="general-chinese-options-container" class="form-grid__field form-grid__field--full form-field--hidden">
+                <div class="form-grid">
+                    <div class="form-grid__field">
+                        <label for="general-chinese-combo-select">Chọn Combo</label>
+                        <select id="general-chinese-combo-select" onchange="updateStudentPackageName()"></select>
+                    </div>
+                    <div class="form-grid__field">
+                        <label for="general-chinese-age-select">Chọn Lứa tuổi</label>
+                        <select id="general-chinese-age-select" onchange="updateStudentPackageName()"></select>
+                    </div>
+                </div>
+            </div>
+        <div id="school-subject-options-container" class="form-grid__field form-grid__field--full form-field--hidden">
+                <div class="form-grid">
+                    <div class="form-grid__field">
+                        <label for="school-subject-select">Chọn Môn học</label>
+                        <select id="school-subject-select" onchange="updateStudentPackageName()"></select>
+                    </div>
+                    <div class="form-grid__field">
+                        <label for="school-grade-select">Chọn Khối lớp</label>
+                        <select id="school-grade-select" onchange="updateStudentPackageName()"></select>
+                    </div>
+                    <div class="form-grid__field">
+                        <label for="school-combo-select">Chọn Combo</label>
+                        <select id="school-combo-select" onchange="updateStudentPackageName()"></select>
+                    </div>
+                </div>
+            </div>
+            <div id="certificate-options-container" class="form-grid__field form-grid__field--full form-field--hidden">
+                </div>
+            <div id="certificate-options-container" class="form-grid__field form-grid__field--full form-field--hidden">
+    <label for="student-certificate-type">Chọn loại chứng chỉ</label>
+    <select id="student-certificate-type" onchange="populateCourseDropdown()">
+        <option value="">-- Chọn --</option>
+        <option value="IELTS">IELTS</option>
+        <option value="TOEIC">TOEIC</option>
+        <option value="HSK">HSK</option>
+        <option value="YCT">YCT</option>
+    </select>
+    
+    <div id="certificate-course-wrapper" class="form-field--hidden" style="margin-top: 10px;">
+        <label for="student-certificate-course">Chọn khóa học</label>
+        <select id="student-certificate-course"></select>
+    </div>
+    
+    <div id="combo-selection-container" class="form-field--hidden" style="margin-top: 10px;">
+        <h4 id="combo-selection-title"></h4>
+        <div id="combo-checkboxes-list"></div>
+    </div>
+</div>
+
+            <div class="form-grid__field form-grid__field--full">
+                <label>Tên gói đăng ký (tự động)</label>
+                <input type="text" id="student-package" readonly>
+            </div>
+        </div>
+        
+        <hr class="form__divider">
+        
+        <div class="form-grid">
+            <div class="form-grid__field">
+                <label>Giá gốc</label>
+                <input type="number" id="student-original-price" readonly>
+            </div>
+             <div class="form-grid__field">
+                <label>Mã giảm giá (%)</label>
+                <input type="number" id="student-discount-percent" value="0" oninput="calculateFinalPrice()">
+            </div>
+             <div class="form-grid__field">
+                <label>Khuyến mại (%)</label>
+                <input type="number" id="student-promotion-percent" value="0" oninput="calculateFinalPrice()">
+            </div>
+            <div class="form-grid__field">
+                <label>Tổng học phí</label>
+                <input type="number" id="student-total-due" readonly>
+            </div>
+            <div class="form-grid__field">
+                <label>Tiền sách</label>
+                <input type="number" id="student-book-fee-due" value="0">
+            </div>
+        </div>
+         <div class="form-grid form-grid--readonly-info">
+            <div class="form-grid__field">
+                <label>Số buổi đã học</label>
+                <input type="number" id="student-total-attended-sessions" readonly>
+            </div>
+             <div class="form-grid__field">
+                <label>Số buổi còn lại</label>
+                <input type="number" id="student-remaining-sessions-display" readonly>
+            </div>
+         </div>
+        <div class="modal__footer">
+            <button type="button" class="modal__button modal__button--cancel" onclick="hideStudentForm()">Hủy</button>
+            <button type="button" class="modal__button modal__button--reset" onclick="promptResetPackage()">Reset Gói</button>
+            <button type="submit" class="modal__button modal__button--save">Lưu</button>
+        </div>
+    </form>
+</div>
+    </div>
+    
+    <div class="modal modal--class-form" id="class-form-modal" style="display: none;">
+     <div class="modal__overlay" onclick="hideClassForm()"></div>
+    <div class="modal__content" id="class-form-container">
+        <div class="modal__header">
+            <h3 class="modal__title" id="class-form-title">Tạo Lớp Học Mới</h3>
+            <button class="modal__close-btn" onclick="hideClassForm()">&times;</button>
+        </div>
+        
+        <form id="class-form" class="modal__form">
+            <input type="hidden" id="class-index">
+            <div class="form-grid">
+                 <div class="form-grid__field">
+                    <label for="class-name">Tên lớp</label>
+                    <input type="text" id="class-name" required>
+                </div>
+                <div class="form-grid__field">
+                    <label for="class-start-date">Ngày khai giảng</label>
+                    <input type="date" id="class-start-date" required>
+                </div>
+                 <div class="form-grid__field">
+                    <label for="class-teacher">Giáo viên</label>
+                    <select id="class-teacher" required></select>
+                </div>
+                <div class="form-grid__field">
+                    <label for="class-assistant-teacher">Trợ giảng</label>
+                    <select id="class-assistant-teacher"></select>
+                </div>
+                <div class="form-grid__field">
+                    <label for="class-room">Phòng học</label>
+                     <select id="class-room">
+                        <option value="Phòng 301">Phòng 301</option>
+                        <option value="Phòng 302">Phòng 302</option>
+                    </select>
+                </div>
+            </div>
+            
+             <div class="form-grid">
+                <div class="form-grid__field">
+                    <label for="class-type-select">Loại lớp học</label>
+                    <select id="class-type-select" onchange="handleClassTypeChange()">
+                        <option value="">-- Chọn loại lớp --</option>
+                        <option value="Lớp tiếng Anh phổ thông">Lớp tiếng Anh phổ thông</option>
+                        <option value="Lớp chứng chỉ">Lớp chứng chỉ</option>
+                    </select>
+                </div>
+               <div id="class-certificate-options-container" class="form-grid__field form-field--hidden">
+                    <label for="class-certificate-type-select">Loại chứng chỉ</label>
+                    <select id="class-certificate-type-select" onchange="populateClassCertificateCourseDropdown()">
+                        </select>
+                    <label for="class-course-select" style="margin-top:10px;">Khóa học</label>
+                    <select id="class-course-select">
+                        </select>
+                </div>
+            </div>
+
+            <fieldset id="fieldset-fixed-schedule" class="form__fieldset">
+                <legend>Lịch học cố định</legend>
+                 <div class="schedule-picker">
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="schedule-mon" name="schedule-day" value="Monday">
+                        <label for="schedule-mon">Thứ 2</label>
+                        <select id="hour-mon" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-mon" class="minute-select"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                         <input type="checkbox" id="schedule-tue" name="schedule-day" value="Tuesday">
+                        <label for="schedule-tue">Thứ 3</label>
+                        <select id="hour-tue" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-tue" class="minute-select"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="schedule-wed" name="schedule-day" value="Wednesday">
+                        <label for="schedule-wed">Thứ 4</label>
+                        <select id="hour-wed" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-wed" class="minute-select"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                         <input type="checkbox" id="schedule-thu" name="schedule-day" value="Thursday">
+                        <label for="schedule-thu">Thứ 5</label>
+                        <select id="hour-thu" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-thu" class="minute-select"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                         <input type="checkbox" id="schedule-fri" name="schedule-day" value="Friday">
+                        <label for="schedule-fri">Thứ 6</label>
+                        <select id="hour-fri" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-fri" class="minute-select"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="schedule-sat" name="schedule-day" value="Saturday">
+                        <label for="schedule-sat">Thứ 7</label>
+                        <select id="hour-sat" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-sat" class="minute-select"></select>
+                    </div>
+                     <div class="schedule-picker__day">
+                         <input type="checkbox" id="schedule-sun" name="schedule-day" value="Sunday">
+                        <label for="schedule-sun">Chủ Nhật</label>
+                        <select id="hour-sun" class="hour-select"></select>
+                        <span>:</span>
+                        <select id="minute-sun" class="minute-select"></select>
+                    </div>
+                 </div>
+            </fieldset>
+            <button type="button" id="btn-change-schedule" onclick="showChangeScheduleModal()" style="display:none; margin-top:10px;">Thay đổi lịch học</button>
+
+             <div id="class-add-wrapper" style="display: block;">
+                <fieldset class="form__fieldset">
+                     <legend>Thêm học viên vào lớp</legend>
+                     <div class="student-adder">
+                        <input type="text" id="class-add-student-search" class="student-adder__search" list="class-add-student-datalist" placeholder="Gõ tên để tìm học viên...">
+                         <datalist id="class-add-student-datalist"></datalist>
+                         <button type="button" class="student-adder__button" onclick="addStudentToClass()">Thêm</button>
+                     </div>
+                     <ul id="class-student-list" class="student-adder__list"></ul>
+                </fieldset>
+            </div>
+            </form>
+        <div class="modal__footer">
+                <button type="button" class="modal__button modal__button--cancel" onclick="hideClassForm()">Hủy</button>
+                <button type="submit" form="class-form" class="modal__button modal__button--save">Lưu Lớp</button>
+        </div>
+    </div>
+</div>
+     <div class="modal modal--attendance" id="class-attendance-modal-overlay" style="display: none;">
+        <div class="modal__content modal__content--full-width">
+            <div class="modal__header">
+                <h3 class="modal__title" id="class-attendance-modal-title">Bảng điểm danh</h3>
+                <div class="modal__controls">
+                    <button onclick="scrollClassAttendanceBySessions(-1)">&lt;</button>
+                    <button onclick="scrollClassAttendanceBySessions(1)">&gt;</button>
+                </div>
+                <button class="modal__close-btn" onclick="hideClassAttendanceModal()">&times;</button>
+            </div>
+            <div class="data-table-wrapper data-table-wrapper--scrollable" id="class-attendance-scroll-container">
+    <table class="data-table data-table--attendance" id="class-attendance-table">
+        <thead id="class-attendance-table-head" class="data-table__head"></thead>
+        <tbody id="class-attendance-table-body" class="data-table__body"></tbody>
+    </table>
+</div>
+        </div>
+    </div>
+
+    <div class="modal" id="approve-account-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideApproveAccountModal()"></div>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 class="modal__title">Duyệt/Sửa Tài Khoản</h3>
+                 <button class="modal__close-btn" onclick="hideApproveAccountModal()">&times;</button>
+            </div>
+            <p>Tài khoản: <strong id="approve-account-name"></strong></p>
+            <div class="modal__form">
+                <label for="approve-account-role-select">Chọn chức vụ:</label>
+                <select id="approve-account-role-select">
+                     <option value="">-- Chọn chức vụ --</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Hội Đồng">Hội Đồng</option>
+                    <option value="Giáo Viên">Giáo Viên</option>
+                    <option value="Trợ Giảng">Trợ Giảng</option>
+                </select>
+            </div>
+            <div class="modal__footer">
+                 <button type="button" class="modal__button modal__button--cancel" onclick="hideApproveAccountModal()">Hủy</button>
+                 <button type="button" class="modal__button modal__button--save" onclick="approveAccount()">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="context-menu" id="schedule-context-menu">
+        <ul class="context-menu__list">
+            <li class="context-menu__item" id="menu-add-class">Tạo lớp học chính thức</li>
+            <li class="context-menu__item" id="menu-add-temp-class">Tạo lớp học tạm thời</li>
         </ul>
-     </div>
+    </div>
+     <div class="context-menu" id="class-action-context-menu">
+        <ul class="context-menu__list">
+            <li class="context-menu__item" id="menu-edit-class">Sửa thông tin lớp</li>
+        </ul>
+    </div>
+    
+     <div class="modal" id="temp-class-form-modal" style="display: none;">
+    <div class="modal__overlay" onclick="closeModal('temp-class-form-modal')"></div>
+    <div class="modal__content">
+        <div class="modal__header">
+            <h3 class="modal__title" id="temp-class-form-title">Tạo Lớp Học Tạm Thời</h3>
+            <button class="modal__close-btn" onclick="closeModal('temp-class-form-modal')">&times;</button>
+        </div>
+        
+        <form id="temp-class-form" class="modal__form" onsubmit="saveTempClass(event)">
+            <input type="hidden" id="temp-class-id">
+            <input type="hidden" id="temp-class-room">
+            
+            <div class="form-grid">
+                <div class="form-grid__field">
+                    <label for="temp-class-name">Tên lớp</label>
+                    <input type="text" id="temp-class-name" required>
+                </div>
+                <div class="form-grid__field">
+                    <label for="temp-class-start-date">Ngày bắt đầu</label>
+                    <input type="date" id="temp-class-start-date" required>
+                </div>
+                <div class="form-grid__field">
+                    <label for="temp-class-teacher">Giáo viên</label>
+                    <select id="temp-class-teacher" required></select>
+                </div>
+                <div class="form-grid__field">
+                    <label for="temp-class-assistant">Trợ giảng</label>
+                    <select id="temp-class-assistant"></select>
+                </div>
+            </div>
 
-    <div id="temp-class-form-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeModal('temp-class-form-modal')">&times;</button>
-            <h2 id="temp-class-form-title">Tạo lớp học tạm thời</h2>
-             <div id="temp-class-info" style="margin-bottom: 15px; background: #f0f8ff; padding: 10px; border-radius: 8px; border: 1px solid #d1e7fd; font-size: 14px; color: #0c5460;"></div>
-            <form id="temp-class-form" onsubmit="saveTempClass(event)">
-                <input type="hidden" id="temp-class-date">
-                <input type="hidden" id="temp-class-time">
-                <input type="hidden" id="temp-class-room">
-
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                   <div style="flex: 1; min-width: 250px;">
-                        <div class="form-row">
-                            <div class="form-group" style="flex: 2;"> <label for="temp-class-name">Tên sự kiện/lớp học:</label>
-                                <input type="text" id="temp-class-name" required>
-                            </div>
-                    
-                            <div class="form-group" style="flex: 1;">
-                                <label for="temp-class-teacher">Giáo viên:</label>
-                                <select id="temp-class-teacher"></select>
-                            </div>
-                    
-                            <div class="form-group" style="flex: 1;">
-                                <label for="temp-class-assistant">Trợ giảng:</label>
-                                <select id="temp-class-assistant"></select>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label for="temp-class-start-date">Ngày bắt đầu:</label>
-                            <input type="date" id="temp-class-start-date" required style="width: 100%; padding: 8px;">
-                        </div>
+            <fieldset class="form__fieldset">
+                <legend>Lịch học</legend>
+                <div class="schedule-picker">
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-mon" name="temp-schedule-day" value="Monday"><label for="temp-schedule-mon">T2</label>
+                        <select class="hour-select" id="temp-hour-mon"></select>:<select class="minute-select" id="temp-minute-mon"></select>
                     </div>
-
-                    <div style="flex: 1; min-width: 250px;">
-                        <label>Lịch học cố định (tuần):</label>
-                        <div id="temp-class-fixed-schedule">
-                            <div>
-                                <input type="checkbox" id="temp-schedule-sun" name="temp-schedule-day" value="Sunday" />
-                                <label for="temp-schedule-sun">Chủ Nhật</label>
-                                <select class="hour-select" id="temp-hour-sun"></select> : <select class="minute-select" id="temp-minute-sun"></select>
-                            </div>
-                            <div>
-                                <input type="checkbox" id="temp-schedule-mon" name="temp-schedule-day" value="Monday" />
-                                <label for="temp-schedule-mon">Thứ 2</label>
-                                <select class="hour-select" id="temp-hour-mon"></select> : <select class="minute-select" id="temp-minute-mon"></select>
-                            </div>
-                            <div>
-                                <input type="checkbox" id="temp-schedule-tue" name="temp-schedule-day" value="Tuesday" />
-                                <label for="temp-schedule-tue">Thứ 3</label>
-                                <select class="hour-select" id="temp-hour-tue"></select> : <select class="minute-select" id="temp-minute-tue"></select>
-                            </div>
-                            <div>
-                                <input type="checkbox" id="temp-schedule-wed" name="temp-schedule-day" value="Wednesday" />
-                                <label for="temp-schedule-wed">Thứ 4</label>
-                                <select class="hour-select" id="temp-hour-wed"></select> : <select class="minute-select" id="temp-minute-wed"></select>
-                            </div>
-                            <div>
-                                <input type="checkbox" id="temp-schedule-thu" name="temp-schedule-day" value="Thursday" />
-                                <label for="temp-schedule-thu">Thứ 5</label>
-                                <select class="hour-select" id="temp-hour-thu"></select> : <select class="minute-select" id="temp-minute-thu"></select>
-                            </div>
-                            <div>
-                                <input type="checkbox" id="temp-schedule-fri" name="temp-schedule-day" value="Friday" />
-                                <label for="temp-schedule-fri">Thứ 6</label>
-                                <select class="hour-select" id="temp-hour-fri"></select> : <select class="minute-select" id="temp-minute-fri"></select>
-                            </div>
-                            <div>
-                                <input type="checkbox" id="temp-schedule-sat" name="temp-schedule-day" value="Saturday" />
-                                <label for="temp-schedule-sat">Thứ 7</label>
-                                <select class="hour-select" id="temp-hour-sat"></select> : <select class="minute-select" id="temp-minute-sat"></select>
-                            </div>
-                        </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-tue" name="temp-schedule-day" value="Tuesday"><label for="temp-schedule-tue">T3</label>
+                        <select class="hour-select" id="temp-hour-tue"></select>:<select class="minute-select" id="temp-minute-tue"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-wed" name="temp-schedule-day" value="Wednesday"><label for="temp-schedule-wed">T4</label>
+                        <select class="hour-select" id="temp-hour-wed"></select>:<select class="minute-select" id="temp-minute-wed"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-thu" name="temp-schedule-day" value="Thursday"><label for="temp-schedule-thu">T5</label>
+                        <select class="hour-select" id="temp-hour-thu"></select>:<select class="minute-select" id="temp-minute-thu"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-fri" name="temp-schedule-day" value="Friday"><label for="temp-schedule-fri">T6</label>
+                        <select class="hour-select" id="temp-hour-fri"></select>:<select class="minute-select" id="temp-minute-fri"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-sat" name="temp-schedule-day" value="Saturday"><label for="temp-schedule-sat">T7</label>
+                        <select class="hour-select" id="temp-hour-sat"></select>:<select class="minute-select" id="temp-minute-sat"></select>
+                    </div>
+                    <div class="schedule-picker__day">
+                        <input type="checkbox" id="temp-schedule-sun" name="temp-schedule-day" value="Sunday"><label for="temp-schedule-sun">CN</label>
+                        <select class="hour-select" id="temp-hour-sun"></select>:<select class="minute-select" id="temp-minute-sun"></select>
                     </div>
                 </div>
-                
-                <hr style="margin: 20px 0;">
+            </fieldset>
             
-                <label>Thêm học viên (tùy chọn):</label>
-                <div class="search-student-container">
-                    <input type="text" id="temp-class-student-search" placeholder="Tìm và thêm học viên...">
-                    <div id="temp-class-student-results" class="search-results"></div>
+            <fieldset class="form__fieldset">
+                <legend>Học viên</legend>
+                <div class="student-adder">
+                    <input type="text" id="temp-class-student-search" class="student-adder__search" placeholder="Gõ tên để tìm...">
+                    <div class="student-adder__results" id="temp-class-student-results"></div>
                 </div>
-                <div id="temp-class-selected-students" class="selected-items"></div>
-            
-                <button type="submit">Lưu lớp học</button>
-                <button type="button" onclick="closeModal('temp-class-form-modal')">Hủy</button>
+                <div class="student-adder__selected-list" id="temp-class-selected-students"></div>
+            </fieldset>
+
+            <div class="modal__footer">
+                <button type="button" class="modal__button modal__button--cancel" onclick="closeModal('temp-class-form-modal')">Hủy</button>
+                <button type="submit" class="modal__button modal__button--save">Lưu Lớp</button>
+            </div>
+        </form>
+        </div>
+</div>
+    
+    <div class="modal" id="change-schedule-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideChangeScheduleModal()"></div>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 class="modal__title">Thay Đổi Lịch Học</h3>
+                <button class="modal__close-btn" onclick="hideChangeScheduleModal()">&times;</button>
+            </div>
+            <form id="change-schedule-form" class="modal__form" onsubmit="event.preventDefault(); confirmScheduleChange();">
+                <input type="hidden" id="change-schedule-class-id">
+                <div class="form-grid__field">
+                    <label for="change-schedule-date">Áp dụng từ ngày</label>
+                    <input type="date" id="change-schedule-date" required>
+                </div>
+                 <fieldset class="form__fieldset">
+                    <legend>Lịch học cố định MỚI</legend>
+                    <div id="new-fixed-schedule-container" class="schedule-picker">
+                       <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-mon" name="new-schedule-day"><label for="new-schedule-mon">T2</label>
+                            <select class="hour-select" id="new-hour-mon"></select>:<select class="minute-select" id="new-minute-mon"></select>
+                        </div>
+                        <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-tue" name="new-schedule-day"><label for="new-schedule-tue">T3</label>
+                            <select class="hour-select" id="new-hour-tue"></select>:<select class="minute-select" id="new-minute-tue"></select>
+                        </div>
+                         <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-wed" name="new-schedule-day" value="Wednesday"><label for="new-schedule-wed">T4</label>
+                            <select class="hour-select" id="new-hour-wed"></select>:<select class="minute-select" id="new-minute-wed"></select>
+                        </div>
+                         <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-thu" name="new-schedule-day" value="Thursday"><label for="new-schedule-thu">T5</label>
+                            <select class="hour-select" id="new-hour-thu"></select>:<select class="minute-select" id="new-minute-thu"></select>
+                        </div>
+                         <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-fri" name="new-schedule-day" value="Friday"><label for="new-schedule-fri">T6</label>
+                            <select class="hour-select" id="new-hour-fri"></select>:<select class="minute-select" id="new-minute-fri"></select>
+                        </div>
+                         <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-sat" name="new-schedule-day" value="Saturday"><label for="new-schedule-sat">T7</label>
+                            <select class="hour-select" id="new-hour-sat"></select>:<select class="minute-select" id="new-minute-sat"></select>
+                        </div>
+                         <div class="schedule-picker__day">
+                            <input type="checkbox" id="new-schedule-sun" name="new-schedule-day" value="Sunday"><label for="new-schedule-sun">CN</label>
+                            <select class="hour-select" id="new-hour-sun"></select>:<select class="minute-select" id="new-minute-sun"></select>
+                        </div>
+                    </div>
+                 </fieldset>
+                <div class="modal__footer">
+                    <button type="button" class="modal__button modal__button--cancel" onclick="hideChangeScheduleModal()">Hủy</button>
+                    <button type="submit" class="modal__button modal__button--save">Xác Nhận Thay Đổi</button>
+                </div>
             </form>
         </div>
     </div>
-</div>
-<!-- Quản lí nhân sự -->
-<div id="personnel-management" class="management-page" style="display:none;">
-    <h2>Quản lý Nhân sự</h2>
-    <button onclick="backToDashboard()">
-        <i data-lucide="arrow-left"></i>
-    </button>
-    <div class="personnel-controls" style="margin-top: 20px; margin-bottom: 20px;">
-        <button onclick="showPersonnelSection('classes')" id="btn-show-personnel-classes" style="margin-right: 10px;">
-            <i data-lucide="book-open"></i> Danh sách lớp (Chấm công)
-        </button>
-        <button onclick="showPersonnelSection('staff')" id="btn-show-personnel-staff">
-            <i data-lucide="users-round"></i> Danh sách nhân sự (Lương)
-        </button>
-    </div>
-
-    <div id="personnel-classes-section" style="display:none;">
-        <h3>Chọn lớp để chấm công</h3>
-        <input type="text" id="personnel-class-search" placeholder="Tìm lớp..." oninput="filterPersonnelClassesBySearch()" style="width: 100%; padding: 8px; margin-bottom: 10px;"/>
-        <ul id="personnel-class-list" class="styled-list"></ul>
-    </div>
-
-    <div id="personnel-staff-section" style="display:none;">
-        <h3>Danh sách Nhân sự & Lương</h3>
-        <div class="table-scroll-wrapper">
-            <table id="staff-salary-table">
-                <thead>
-                    <tr>
-                        <th>Tên Nhân sự</th>
-                        <th>Email</th>
-                        <th>Lương Giáo viên (VNĐ/buổi)</th>
-                        <th>Lương Trợ giảng (VNĐ/buổi)</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="staff-salary-list">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<div id="personnel-attendance-modal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 90vw; width: auto;">
-        <button class="modal-close" onclick="hidePersonnelAttendanceModal()">×</button>
-        <h3 id="personnel-attendance-modal-title">Chấm công lớp: <span id="current-personnel-class-name"></span></h3>
-
-        <div style="text-align: right; margin-bottom: 6px;">
-            <button onclick="scrollPersonnelAttendanceBySessions(-1)">←</button>
-            <button onclick="scrollPersonnelAttendanceBySessions(1)">→</button>
-        </div>
-
-        <div id="personnel-attendance-scroll-container" style="overflow-x: auto; max-height: 80vh;">
-            <table id="personnel-attendance-table" style="border-collapse: collapse; min-width: max-content;">
-                <thead>
-                    <tr id="personnel-attendance-table-head"></tr>
-                </thead>
-                <tbody id="personnel-attendance-table-body"></tbody>
-            </table>
-        </div>
-        <button onclick="hidePersonnelAttendanceModal()" style="margin-top: 20px;">Đóng</button>
-    </div>
-</div>
-
-<div id="salary-detail-modal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 800px;">
-        <button class="modal-close" onclick="hideSalaryDetailModal()">×</button>
-        <h3 id="salary-detail-name">Chi tiết lương và chấm công: <span></span></h3>
-        
-        <div class="salary-summary" style="margin-bottom: 20px;">
-            <p><strong>Tổng lương tháng <span id="summary-month-year"></span>:</strong> <span id="total-monthly-salary"></span> VNĐ</p>
-            <p><strong>Tổng số ca Giáo viên:</strong> <span id="total-teacher-shifts"></span> ca</p>
-            <p><strong>Tổng số ca Trợ giảng:</strong> <span id="total-assistant-shifts"></span> ca</p>
-        </div>
-         <p id="salary-period-note" style="font-size: 13px; color: #555; text-align: center; margin-top: -10px; margin-bottom: 20px; font-style: italic;"></p>
-        <label for="salary-month-select">Chọn tháng:</label>
-        <input type="month" id="salary-month-select" style="margin-bottom: 15px;" onchange="renderPersonnelSalaryChart()">
-
-        <div id="chart-container" style="height: 300px; width: 100%;">
-            <canvas id="personnel-daily-chart"></canvas>
-        </div>
-        
-        <div id="daily-shifts-details" style="margin-top: 20px;">
-            <h4>Chi tiết chấm công theo ngày:</h4>
-            <ul id="daily-shifts-list" style="list-style: none; padding: 0;">
-                </ul>
-        </div>
-
-        <button onclick="hideSalaryDetailModal()" style="margin-top: 20px;">Đóng</button>
-    </div>
-</div>
-<!--Trang quản lí học phí-->
-<div id="tuition-management" class="management-page" style="display:none;">
-    <h2>Quản lý Học phí</h2>
-    <button onclick="backToDashboard()">
-        <i data-lucide="arrow-left"></i>
-    </button>
-    <input type="text" id="tuition-class-search" placeholder="Tìm kiếm lớp học..." oninput="renderTuitionView(this.value)" style="width: 100%; max-width: 400px; padding: 10px; margin: 15px 0; border-radius: 8px; border: 1px solid #ccc;">
-
-    <div id="tuition-class-list">
-        </div>
-</div>
-
-<div id="class-tuition-modal" class="modal-overlay">
-  <div class="modal-content" style="max-width: 850px;">
-    <button class="modal-close" onclick="hideElement('class-tuition-modal')">×</button>
-    <h3>Tổng quan học phí - Lớp <span id="class-tuition-name"></span></h3>
-    <div class="table-scroll-wrapper" style="max-height: 70vh;">
-      <table>
-        <thead>
-          <tr>
-            <th>Họ và Tên</th>
-            <th>Loại</th> <th>Tổng Phải Đóng</th>
-            <th>Đã Thanh Toán</th>
-            <th>Còn Lại</th>
-            <th>Trạng Thái</th>
-            <th>Hành Động</th>
-          </tr>
-        </thead>
-        <tbody id="class-tuition-student-list">
-          </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<div id="tuition-modal" class="modal-overlay">
-  <div class="modal-content" style="max-width: 700px;">
-    <button class="modal-close" onclick="hideTuitionModal()">×</button>
-    <h3>Quản lý học phí - <span id="tuition-student-name"></span></h3>
-    <input type="hidden" id="tuition-modal-class-id" />
-    <hr>
-    <div class="tuition-summary">
-      <div>
-        <p>Tổng phải đóng</p>
-        <strong id="tuition-total-due">0 VNĐ</strong>
-      </div>
-      <div>
-        <p>Đã thanh toán</p>
-        <strong id="tuition-total-paid">0 VNĐ</strong>
-      </div>
-      <div>
-        <p>Còn lại</p>
-        <strong id="tuition-remaining-balance">0 VNĐ</strong>
-      </div>
-    </div>
-    <hr>
-    <h4>Lịch sử thanh toán</h4>
-    <div class="table-scroll-wrapper" style="max-height: 200px; overflow-y: auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>Ngày TT</th>
-            <th>Số tiền</th>
-            <th>Phương thức</th>
-            <th>Ghi chú</th>
-            <th>Người ghi nhận</th>
-            <th>Hành động</th>
-          </tr>
-        </thead>
-        <tbody id="tuition-history-list">
-          </tbody>
-      </table>
-    </div>
-    <h4 style="margin-top: 25px;">Ghi nhận thanh toán mới</h4>
-    <form id="tuition-payment-form" onsubmit="event.preventDefault(); savePayment()">
-      <input type="hidden" id="tuition-student-id">
-      <div style="display: flex; gap: 15px; align-items: flex-end;">
-        <div style="flex: 2;">
-          <label for="tuition-amount-input">Số tiền (VNĐ)</label>
-          <input type="number" id="tuition-amount-input" required style="width: 100%; padding: 8px;">
-        </div>
-        <div style="flex: 1;">
-          <label for="tuition-method-select">Phương thức</label>
-          <select id="tuition-method-select" style="width: 100%; padding: 8px;">
-            <option>Tiền mặt</option>
-            <option>Chuyển khoản</option>
-            <option>Quẹt thẻ</option>
-          </select>
-        </div>
-      </div>
-       <div style="margin-top: 10px;">
-        <label for="tuition-holder-input">Người cầm tiền</label>
-        <select id="tuition-holder-input" style="width: 100%; padding: 8px;" required>
-            <option value="">-- Chọn người cầm tiền --</option>
-            <option value="Dương Trung Kiên">Dương Trung Kiên</option>
-            <option value="Nguyễn Văn Hùng">Nguyễn Văn Hùng</option>
-            <option value="Thành Long">Thành Long</option>
-            <option value="Vũ Gia Huy">Vũ Gia Huy</option>
-        </select>
-      </div>
-      <div style="margin-top: 10px;">
-        <label for="tuition-note-input">Ghi chú</label>
-        <input type="text" id="tuition-note-input" placeholder="Ví dụ: Phụ huynh đóng lần 1" style="width: 100%; padding: 8px;">
-      </div>
-      <button type="submit" style="margin-top: 15px; width: 100%; padding: 10px;">Lưu Thanh Toán</button>
-    </form>
-
-    <hr style="margin: 30px 0; border-top: 2px solid #aac0db;">
-
-    <h3 style="color: #004a99;">Quản lý Tiền sách</h3>
-
-    <h4>Lịch sử đóng tiền sách</h4>
-    <div class="table-scroll-wrapper" style="max-height: 200px; overflow-y: auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>Ngày TT</th>
-            <th>Số tiền</th>
-            <th>Tên sách/Giáo trình</th>
-            <th>Ghi chú</th>
-            <th>Người ghi nhận</th>
-            <th>Hành động</th>
-          </tr>
-        </thead>
-        <tbody id="book-fee-history-list"></tbody>
-      </table>
-    </div>
-  
-<h4 style="margin-top: 25px;">Ghi nhận đóng tiền sách mới</h4>
-    <form id="book-fee-payment-form" onsubmit="event.preventDefault(); saveBookFeePayment()">
-      <div style="margin-bottom: 10px;">
-        <label>Tên sách / Giáo trình</label>
-        
-        <div id="book-selection-container" style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;"></div>
-
-        <label for="book-fee-title-final" style="margin-top: 10px;">Tên sách đầy đủ (Tự động):</label>
-        <input type="text" id="book-fee-title-final" readonly style="width: 100%; padding: 8px; background-color: #eee; border: 1px solid #ccc;">
-      </div>
-
-      <div style="display: flex; gap: 15px; align-items: flex-end;">
-        <div style="flex: 2;">
-          <label for="book-fee-amount-input">Số tiền (VNĐ)</label>
-          <input type="number" id="book-fee-amount-input" required style="width: 100%; padding: 8px;">
-        </div>
-        <div style="flex: 1;">
-          <label for="book-fee-method-select">Phương thức</label>
-          <select id="book-fee-method-select" style="width: 100%; padding: 8px;">
-            <option>Tiền mặt</option>
-            <option>Chuyển khoản</option>
-            <option>Quẹt thẻ</option>
-          </select>
-        </div>
-      </div>
-      <div style="margin-top: 10px;">
-        <label for="book-fee-holder-input">Người cầm tiền</label>
-        <select id="book-fee-holder-input" style="width: 100%; padding: 8px;" required>
-            <option value="">-- Chọn người cầm tiền --</option>
-            <option value="Dương Trung Kiên">Dương Trung Kiên</option>
-            <option value="Nguyễn Văn Hùng">Nguyễn Văn Hùng</option>
-            <option value="Thành Long">Thành Long</option>
-            <option value="Vũ Gia Huy">Vũ Gia Huy</option>
-        </select>
-      </div>
-      <div style="margin-top: 10px;">
-        <label for="book-fee-note-input">Ghi chú</label>
-        <input type="text" id="book-fee-note-input" placeholder="Ghi chú thêm (nếu có)" style="width: 100%; padding: 8px;">
-      </div>
-      <button type="submit" style="margin-top: 15px; width: 100%; padding: 10px; background-color: #28a745;">Lưu Tiền Sách</button>
-    </form>
-
-    </div>
-</div>
-    </form>
-  </div>
-</div>
-  <!-- Trang Cá nhân -->
-  <div id="profile-page" class="management-page" style="display:none;">
-    <h2>Trang cá nhân</h2>
-   <button onclick="backToDashboard()">
-  <i data-lucide="arrow-left"></i>
-</button>
-    <img id="profile-avatar" src="https://app.gak.vn/storage/uploads/LrM51pfHB8QKWFNsncWPmR4CSLtliO45rU1BT7LG.jpg" alt="Avatar" />
-    <p><strong>Họ và tên:</strong> <span id="profile-name"></span></p>
-    <p><strong>Email:</strong> <span id="profile-email"></span></p>
-    <p><strong>Chức vụ:</strong> <span id="profile-role"></span></p>
-    <input type="file" id="avatar-file" style="margin-top:15px;" />
-  </div>
-<!-- modal điểm danh -->
-<div id="student-sessions-modal" class="modal-overlay" style="display:none;">
-  <div class="modal-content" style="max-width:800px; width:100%;">
-    <button class="modal-close" onclick="hideStudentSessions()">×</button>
-    <h3>Buổi học của <span id="student-sessions-name"></span> trong lớp <span id="student-sessions-class"></span></h3>
-    <div id="sessions-slider-container">
-      <div id="sessions-slider" class="sessions-slider"></div>
-    </div>
-    <button onclick="hideStudentSessions()">Đóng</button>
-  </div>
-</div>
-<div id="progress-modal" class="modal-overlay">
-  <div class="modal-content" style="max-width: 800px;">
-    <button class="modal-close" onclick="hideElement('progress-modal')">&times;</button>
-    <h3>Phân tích sự tiến bộ - <span id="progress-student-name"></span></h3>
-    <hr>
     
-    <div id="progress-summary" style="display: flex; justify-content: space-around; text-align: center; margin: 15px 0;">
+     <div class="modal modal--attendance" id="personnel-attendance-modal" style="display: none;">
+        <div class="modal__content modal__content--full-width">
+            <div class="modal__header">
+                <h3 class="modal__title">Chấm Công Nhân Sự: <span id="current-personnel-class-name"></span></h3>
+                <div class="modal__controls">
+                    <button onclick="scrollPersonnelAttendanceBySessions(-1)">&lt;</button>
+                    <button onclick="scrollPersonnelAttendanceBySessions(1)">&gt;</button>
+                </div>
+                <button class="modal__close-btn" onclick="hidePersonnelAttendanceModal()">&times;</button>
+            </div>
+            <div class="data-table-wrapper data-table-wrapper--scrollable" id="personnel-attendance-scroll-container">
+                <table class="data-table data-table--attendance">
+                    <thead id="personnel-attendance-table-head" class="data-table__head"></thead>
+                    <tbody id="personnel-attendance-table-body" class="data-table__body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="staff-classes-salary-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideStaffClassesSalaryModal()"></div>
+        <div class="modal__content modal__content--large">
+            <div class="modal__header">
+                <h3 class="modal__title">Quản lý lương theo lớp cho: <span id="staff-classes-salary-name"></span></h3>
+                <button class="modal__close-btn" onclick="hideStaffClassesSalaryModal()">&times;</button>
+            </div>
+            <div class="data-table-wrapper">
+                 <table class="data-table">
+                     <thead class="data-table__head">
+                        <tr class="data-table__row">
+                            <th class="data-table__header">Tên lớp</th>
+                            <th class="data-table__header">Vai trò</th>
+                            <th class="data-table__header">Lương/Buổi (VNĐ)</th>
+                            <th class="data-table__header">Hành động</th>
+                        </tr>
+                     </thead>
+                     <tbody id="staff-individual-class-salary-list" class="data-table__body">
+                         </tbody>
+                 </table>
+            </div>
+        </div>
     </div>
 
-    <div id="progress-charts-container" style="width: 100%; margin-top: 20px;">
-      <canvas id="progress-over-time-chart" style="margin-bottom: 25px;"></canvas>
-      <canvas id="progress-breakdown-chart"></canvas>
+    <div class="modal" id="salary-detail-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideSalaryDetailModal()"></div>
+        <div class="modal__content modal__content--large">
+            <div class="modal__header">
+                <h3 class="modal__title">Chi Tiết Lương: <span id="salary-detail-name"></span></h3>
+                <button class="modal__close-btn" onclick="hideSalaryDetailModal()">&times;</button>
+            </div>
+            <div class="salary-detail">
+                <div class="salary-detail__controls">
+                    <label for="salary-month-select">Xem lương tháng:</label>
+                    <input type="month" id="salary-month-select">
+                </div>
+                <div class="salary-detail__summary">
+                    <h4>Tổng kết tháng <span id="summary-month-year"></span></h4>
+                    <p>Tổng lương: <strong id="total-monthly-salary">0</strong> VNĐ</p>
+                    <p>Tổng ca dạy (GV): <span id="total-teacher-shifts">0</span></p>
+                    <p>Tổng ca dạy (TG): <span id="total-assistant-shifts">0</span></p>
+                    <small id="salary-period-note"></small>
+                </div>
+                <div class="salary-detail__chart-container">
+                    <canvas id="personnel-daily-chart"></canvas>
+                </div>
+                <div class="salary-detail__details-list">
+                    <h4>Chi tiết chấm công</h4>
+                    <ul id="daily-shifts-list">
+                        </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal" id="class-book-fee-modal" style="display: none;">
+        <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+        <div class="modal__content modal__content--extra-large">
+            <div class="modal__header">
+                <h3 class="modal__title">Tổng Quan Tiền Sách: <span id="class-book-fee-name"></span></h3>
+                <div> <button class="modal__button modal__button--save" onclick="showUpdateClassBookModal()">Cập nhật Sách</button>
+                       <button class="modal__button modal__button--danger" onclick="promptResetClassBookFee()">Reset Tiền sách Lớp</button>
+                 </div>
+                <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+            </div>
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead class="data-table__head">
+                        <tr class="data-table__row">
+                            <th class="data-table__header">Học viên</th>
+                            <th class="data-table__header">Tên sách</th>
+                            <th class="data-table__header">Tổng tiền</th>
+                            <th class="data-table__header">Trạng thái Đóng</th>
+                            <th class="data-table__header">Lịch sử</th>
+                        </tr>
+                    </thead>
+                    <tbody id="class-book-fee-student-list" class="data-table__body"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <div id="progress-data-table" style="margin-top: 25px; max-height: 200px; overflow-y: auto;">
+    <div class="modal" id="update-class-book-modal" style="display: none;">
+        <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h3 class="modal__title">Cập nhật Sách cho lớp</h3>
+                <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+            </div>
+            <form id="update-class-book-form" class="modal__form" onsubmit="event.preventDefault(); saveClassBookInfo();">
+                <input type="hidden" id="update-book-class-id">
+                <div class="form-grid__field form-grid__field--full">
+                    <label for="class-book-name">Tên sách</label>
+                    <input type="text" id="class-book-name" required>
+                </div>
+                <div class="form-grid__field form-grid__field--full">
+                    <label for="class-book-type">Loại sách (ví dụ: SGK + SBT)</label>
+                    <input type="text" id="class-book-type">
+                </div>
+                <div class="form-grid__field form-grid__field--full">
+                    <label for="class-book-fee">Tiền sách (VNĐ)</label>
+                    <input type="number" id="class-book-fee" required>
+                </div>
+                <div class="modal__footer">
+                    <button type="button" class="modal__button modal__button--cancel" onclick="this.closest('.modal').style.display='none'">Hủy</button>
+                    <button type="submit" class="modal__button modal__button--save">Lưu thông tin</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
-</div>
-  <!-- Script chính -->
-  <script src="script.js"></script>
+
+    <div class="modal" id="class-tuition-modal" style="display: none;">
+        <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+        <div class="modal__content modal__content--extra-large">
+            <div class="modal__header">
+                <h3 class="modal__title">Tổng Quan Học Phí Lớp: <span id="class-tuition-name"></span></h3>
+                <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+            </div>
+            <div class="data-table-wrapper">
+                <table class="data-table data-table--tuition">
+                    <thead class="data-table__head">
+                        <tr class="data-table__row">
+                            <th class="data-table__header">Học viên</th>
+                            <th class="data-table__header">Loại phí</th>
+                            <th class="data-table__header">Tổng phải đóng</th>
+                            <th class="data-table__header">Đã đóng</th>
+                            <th class="data-table__header">Còn lại</th>
+                            <th class="data-table__header">Trạng thái</th>
+                            <th class="data-table__header">Lịch sử</th>
+                        </tr>
+                    </thead>
+                    <tbody id="class-tuition-student-list" class="data-table__body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+        <div class="modal" id="tuition-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideTuitionModal()"></div>
+        <div class="modal__content modal__content--large">
+            <div class="modal__header">
+                <h3 class="modal__title">Lịch Sử Thanh Toán Học Phí: <span id="tuition-student-name"></span></h3>
+                <button class="modal__close-btn" onclick="hideTuitionModal()">&times;</button>
+            </div>
+            
+            <input type="hidden" id="tuition-student-id">
+            <input type="hidden" id="tuition-modal-class-id">
+
+            <div class="tuition-summary">
+                <div class="tuition-summary__item">
+                    <span>Tổng học phí:</span>
+                    <strong id="tuition-total-due">0 VNĐ</strong>
+                </div>
+                 <div class="tuition-summary__item">
+                    <span>Đã đóng:</span>
+                    <strong id="tuition-total-paid" class="tuition-summary__paid">0 VNĐ</strong>
+                </div>
+                 <div class="tuition-summary__item">
+                    <span>Còn lại:</span>
+                    <strong id="tuition-remaining-balance" class="tuition-summary__remaining">0 VNĐ</strong>
+                </div>
+            </div>
+            
+            <div class="tabs__content active" style="padding: 24px;">
+                <h4>Ghi nhận thanh toán học phí mới</h4>
+                <form id="tuition-payment-form" class="modal__form modal__form--inline" onsubmit="event.preventDefault(); savePayment();">
+                    <input type="number" id="tuition-amount-input" placeholder="Số tiền" required>
+                    <select id="tuition-method-select">
+                        <option value="Tiền mặt">Tiền mặt</option>
+                        <option value="Chuyển khoản">Chuyển khoản</option>
+                    </select>
+                    <input type="text" id="tuition-holder-input" placeholder="Tên người cầm tiền" required>
+                    <input type="text" id="tuition-note-input" placeholder="Ghi chú (tùy chọn)">
+                    <button type="submit" class="modal__button modal__button--save">Lưu</button>
+                </form>
+
+                <h4>Lịch sử đóng học phí</h4>
+                <div class="data-table-wrapper data-table-wrapper--modal">
+                    <table class="data-table">
+                        <thead class="data-table__head">
+                            <tr class="data-table__row">
+                                <th class="data-table__header">Ngày</th>
+                                <th class="data-table__header">Số tiền</th>
+                                <th class="data-table__header">Hình thức</th>
+                                <th class="data-table__header">Ghi chú</th>
+                                <th class="data-table__header">Người nhận</th>
+                                <th class="data-table__header">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tuition-history-list" class="data-table__body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="progress-modal" style="display: none;">
+        <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+        <div class="modal__content modal__content--extra-large">
+            <div class="modal__header">
+                <h3 class="modal__title">Phân Tích Tiến Bộ Học Tập: <span id="progress-student-name"></span></h3>
+                <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+            </div>
+            <div class="progress-container">
+                <div class="progress-container__summary" id="progress-summary">
+                    </div>
+                <div class="progress-container__charts">
+                    <div class="chart-wrapper">
+                        <canvas id="progress-over-time-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                         <canvas id="progress-breakdown-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal" id="class-tuition-modal" style="display: none;">
+        <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+        <div class="modal__content modal__content--extra-large">
+            <div class="modal__header">
+                <h3 class="modal__title">Tổng Quan Học Phí Lớp: <span id="class-tuition-name"></span></h3>
+                <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+            </div>
+            <div class="data-table-wrapper">
+                <table class="data-table data-table--tuition">
+                    <thead class="data-table__head">
+                        <tr class="data-table__row">
+                            <th class="data-table__header">Học viên</th>
+                            <th class="data-table__header">Loại phí</th>
+                            <th class="data-table__header">Tổng phải đóng</th>
+                            <th class="data-table__header">Đã đóng</th>
+                            <th class="data-table__header">Còn lại</th>
+                            <th class="data-table__header">Trạng thái</th>
+                            <th class="data-table__header">Chi tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody id="class-tuition-student-list" class="data-table__body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="tuition-modal" style="display: none;">
+        <div class="modal__overlay" onclick="hideTuitionModal()"></div>
+        <div class="modal__content modal__content--large">
+            <div class="modal__header">
+                <h3 class="modal__title">Lịch Sử Thanh Toán: <span id="tuition-student-name"></span></h3>
+                <button class="modal__close-btn" onclick="hideTuitionModal()">&times;</button>
+            </div>
+            
+            <input type="hidden" id="tuition-student-id">
+            <input type="hidden" id="tuition-modal-class-id">
+
+            <div class="tuition-summary">
+                <div class="tuition-summary__item">
+                    <span>Tổng học phí:</span>
+                    <strong id="tuition-total-due">0 VNĐ</strong>
+                </div>
+                 <div class="tuition-summary__item">
+                    <span>Đã đóng:</span>
+                    <strong id="tuition-total-paid" class="tuition-summary__paid">0 VNĐ</strong>
+                </div>
+                 <div class="tuition-summary__item">
+                    <span>Còn lại:</span>
+                    <strong id="tuition-remaining-balance" class="tuition-summary__remaining">0 VNĐ</strong>
+                </div>
+            </div>
+            
+           <div class="tabs">
+                 <button class="tabs__button active" onclick="openPageTab(event, 'fee-management', 'tuition-management')">Quản lý Học phí</button>
+                 <button class="tabs__button" onclick="openPageTab(event, 'book-management', 'tuition-management')">Quản lý Tiền sách</button>
+            </div>
+
+            <div id="payment-tab" class="tabs__content active">
+                <h4>Ghi nhận thanh toán học phí mới</h4>
+                <form id="tuition-payment-form" class="modal__form modal__form--inline" onsubmit="event.preventDefault(); savePayment();">
+                    <input type="number" id="tuition-amount-input" placeholder="Số tiền" required>
+                    <select id="tuition-method-select">
+                        <option value="Tiền mặt">Tiền mặt</option>
+                        <option value="Chuyển khoản">Chuyển khoản</option>
+                    </select>
+                    <input type="text" id="tuition-holder-input" placeholder="Tên người cầm tiền" required>
+                    <input type="text" id="tuition-note-input" placeholder="Ghi chú (tùy chọn)">
+                    <button type="submit" class="modal__button modal__button--save">Lưu</button>
+                </form>
+
+                <h4>Lịch sử đóng học phí</h4>
+                <div class="data-table-wrapper data-table-wrapper--modal">
+                    <table class="data-table">
+                        <thead class="data-table__head">
+                            <tr class="data-table__row">
+                                <th class="data-table__header">Ngày</th>
+                                <th class="data-table__header">Số tiền</th>
+                                <th class="data-table__header">Hình thức</th>
+                                <th class="data-table__header">Ghi chú</th>
+                                <th class="data-table__header">Người nhận</th>
+                                <th class="data-table__header">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tuition-history-list" class="data-table__body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="book-fee-tab" class="tabs__content">
+                 <h4>Ghi nhận thanh toán tiền sách mới</h4>
+                 <button onclick="promptSetBookFeeDue()" class="modal__button modal__button--secondary">Cập nhật Tổng nợ Tiền sách</button>
+                 
+                 <div id="book-selection-container" class="book-selector">
+                     </div>
+                 
+                <form id="book-fee-payment-form" class="modal__form modal__form--inline" onsubmit="event.preventDefault(); saveBookFeePayment();">
+                    <input type="text" id="book-fee-title-final" placeholder="Tên sách (tự động)" readonly>
+                    <input type="number" id="book-fee-amount-input" placeholder="Số tiền" required>
+                    <select id="book-fee-method-select">
+                        <option value="Tiền mặt">Tiền mặt</option>
+                        <option value="Chuyển khoản">Chuyển khoản</option>
+                    </select>
+                     <input type="text" id="book-fee-holder-input" placeholder="Tên người cầm tiền" required>
+                    <input type="text" id="book-fee-note-input" placeholder="Ghi chú (tùy chọn)">
+                    <button type="submit" class="modal__button modal__button--save">Lưu</button>
+                </form>
+
+                <h4>Lịch sử đóng tiền sách</h4>
+                 <div class="data-table-wrapper data-table-wrapper--modal">
+                    <table class="data-table">
+                        <thead class="data-table__head">
+                            <tr class="data-table__row">
+                                <th class="data-table__header">Ngày</th>
+                                <th class="data-table__header">Số tiền</th>
+                                <th class="data-table__header">Tên sách</th>
+                                <th class="data-table__header">Ghi chú</th>
+                                <th class="data-table__header">Người nhận</th>
+                                <th class="data-table__header">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="book-fee-history-list" class="data-table__body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+          <div id="class-info-tooltip"></div>
+<script src="https://unpkg.com/lucide-static@latest/dist/lucide.min.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Simple tab functionality for tuition modal
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabs__content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+                tabcontent[i].classList.remove("active");
+            }
+            tablinks = document.getElementsByClassName("tabs__button");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.className += " active";
+        }
+    </script>
+  
 </body>
 </html>
