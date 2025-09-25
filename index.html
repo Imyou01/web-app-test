@@ -68,12 +68,19 @@
             <p class="role-selection__description">Vui lòng chọn chức vụ để tiếp tục. Lựa chọn này sẽ được gửi đến quản trị viên để duyệt.</p>
             <select id="select-role" class="role-selection__dropdown">
                 <option value="">-- Chọn chức vụ --</option>
-                <option value="Admin">Admin</option>
+              <!--  <option value="Admin">Admin</option> -->
                 <option value="Hội Đồng">Hội Đồng</option>
                 <option value="Giáo Viên">Giáo Viên</option>
                 <option value="Trợ Giảng">Trợ Giảng</option>
             </select>
             <button onclick="saveUserRole()" class="role-selection__button">Lưu và Tiếp Tục</button>
+        </div>
+             <div class="pending-approval" id="pending-approval-screen" style="display: none;">
+            <h2 class="pending-approval__title">Tài khoản đang chờ duyệt</h2>
+            <p class="pending-approval__description">
+                Yêu cầu của bạn đã được gửi đến quản trị viên. Vui lòng quay lại sau khi tài khoản của bạn đã được phê duyệt.
+            </p>
+            <button onclick="logout()" class="pending-approval__button">Đăng Xuất</button>
         </div>
 
 <div class="app-layout" id="app-layout" style="display: none;"> 
@@ -127,6 +134,11 @@
                         <span>Quản Lý Học Phí</span>
                     </a>
                 </li>
+                <li class="sidebar__nav-item" id="nav-activity-log" style="display: none;"> <a href="#activity-log-page" class="sidebar__nav-link">
+            <i data-lucide="history"></i>
+            <span>Nhật ký Hoạt động</span>
+        </a>
+    </li>
             </ul>
         </nav>
     </aside>
@@ -380,6 +392,25 @@
                 </tr>
             </thead>
             <tbody id="deleted-class-list">
+                </tbody>
+        </table>
+    </div>
+</section>
+    <section class="management-page" id="activity-log-page" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Nhật ký Hoạt động Hệ thống</h2>
+    </div>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead class="data-table__head">
+                <tr class="data-table__row">
+                    <th class="data-table__header">Thời gian</th>
+                    <th class="data-table__header">Người thực hiện</th>
+                    <th class="data-table__header">Vai trò</th>
+                    <th class="data-table__header">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="activity-log-list" class="data-table__body">
                 </tbody>
         </table>
     </div>
