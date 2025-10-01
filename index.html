@@ -718,10 +718,11 @@
         <div class="modal__content modal__content--full-width">
             <div class="modal__header">
                 <h3 class="modal__title" id="class-attendance-modal-title">Bảng điểm danh</h3>
-                <div class="modal__controls">
-                    <button onclick="scrollClassAttendanceBySessions(-1)">&lt;</button>
-                    <button onclick="scrollClassAttendanceBySessions(1)">&gt;</button>
-                </div>
+              <div class="modal__controls">
+    <button class="page-header__button" onclick="promptCreateMakeupSession()">Tạo Buổi Bù</button>
+    <button onclick="scrollClassAttendanceBySessions(-1)">&lt;</button>
+    <button onclick="scrollClassAttendanceBySessions(1)">&gt;</button>
+</div>
                 <button class="modal__close-btn" onclick="hideClassAttendanceModal()">&times;</button>
             </div>
             <div class="data-table-wrapper data-table-wrapper--scrollable" id="class-attendance-scroll-container">
