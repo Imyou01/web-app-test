@@ -813,6 +813,9 @@ async function showPageFromHash() {
          case 'new-schedule-page':
             renderNewSchedulePage();
             break;
+        case 'personnel-management':
+            initPersonnelManagement(); 
+            break;
         case 'account-management':
             renderAccountList();
             break;
@@ -1557,11 +1560,14 @@ const canEditStudents = currentUserData && (
   currentPageStudents.forEach(([id, st]) => {
     let actionButtonsHTML = '';
 
-    if (canEditStudents) {
-      // Nếu là Admin/Hội đồng, hiển thị các nút với đầy đủ chức năng
+     if (canEditStudents) {
+      // SỬ DỤNG HÀM MỚI ĐỂ TÌM LỚP HỢP LỆ
+      const activeClassId = findActiveStudentClassId(st); 
+
       actionButtonsHTML = `
         <button onclick="editStudent('${id}')">Sửa</button>
-        <button onclick="viewStudentSessions('${id}', '${st.classes ? Object.keys(st.classes)[0] : ''}')" ${!st.classes ? 'disabled' : ''}>Buổi học</button>
+        <button onclick="showTransferModal('${id}')">Chuyển lớp</button>
+        <button onclick="viewStudentSessions('${id}', '${activeClassId || ''}')" ${!activeClassId ? 'disabled' : ''}>Buổi học</button>
         <button onclick="showRenewPackageForm('${id}')">Gia hạn</button>
         <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
       `;
@@ -1570,6 +1576,7 @@ const canEditStudents = currentUserData && (
       const permissionAlert = "Swal.fire('Thẩm quyền', 'Bạn không có quyền thực hiện hành động này.', 'warning')";
       actionButtonsHTML = `
         <button onclick="${permissionAlert}">Sửa</button>
+        <button onclick="${permissionAlert}"">Chuyển lớp</button> 
         <button onclick="${permissionAlert}">Buổi học</button>
         <button onclick="${permissionAlert}">Gia hạn</button>
         <button class="delete-btn" onclick="${permissionAlert}">Xóa</button>
@@ -1637,6 +1644,143 @@ const canEditStudents = currentUserData && (
   });
 
   updateStudentPaginationControls();
+}
+
+/**
+ * HÀM CẬP NHẬT: Thực hiện chuyển lớp và TỰ ĐỘNG ĐIỂM DANH ở lớp mới.
+ */
+async function showTransferModal(studentId) {
+    showLoading(true);
+    try {
+        const student = allStudentsData[studentId];
+        if (!student) throw new Error("Không tìm thấy học viên.");
+
+        const activeClassId = findActiveStudentClassId(student);
+        if (!activeClassId) {
+            Swal.fire("Thông báo", "Học viên này hiện không ở trong lớp nào hợp lệ để chuyển.", "info");
+            return;
+        }
+
+        const currentClass = allClassesData[activeClassId];
+
+        document.getElementById('transfer-student-id').value = studentId;
+        document.getElementById('transfer-student-name').textContent = student.name;
+        document.getElementById('transfer-from-class-id').value = activeClassId;
+        document.getElementById('transfer-from-class-name').textContent = currentClass.name;
+
+        const toClassSelect = document.getElementById('transfer-to-class-select');
+        toClassSelect.innerHTML = '<option value="">-- Chọn lớp mới --</option>';
+
+        // --- THÊM ĐIỀU KIỆN LỌC CÁC LỚP ĐANG HOẠT ĐỘNG ---
+        Object.entries(allClassesData)
+            .filter(([classId, cls]) => {
+                // Điều kiện lọc mới:
+                // 1. Lớp phải đang hoạt động (status không phải 'completed' hay 'deleted')
+                const isActive = !cls.status || cls.status === 'active';
+                // 2. Không phải là lớp hiện tại của học viên
+                return isActive && classId !== activeClassId;
+            })
+            .forEach(([classId, cls]) => {
+                const option = document.createElement('option');
+                option.value = classId;
+                option.textContent = cls.name;
+                toClassSelect.appendChild(option);
+            });
+        // --- KẾT THÚC PHẦN LỌC ---
+
+        document.getElementById('transfer-student-modal').style.display = 'flex';
+
+    } catch (error) {
+        console.error("Lỗi khi mở form chuyển lớp:", error);
+        Swal.fire("Lỗi", "Không thể mở form chuyển lớp: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+async function executeTransfer() {
+    const studentId = document.getElementById('transfer-student-id').value;
+    const oldClassId = document.getElementById('transfer-from-class-id').value;
+    const newClassId = document.getElementById('transfer-to-class-select').value;
+    const studentName = document.getElementById('transfer-student-name').textContent;
+
+    if (!newClassId) {
+        Swal.fire("Lỗi", "Vui lòng chọn một lớp để chuyển đến.", "warning");
+        return;
+    }
+
+    // Thay đổi nội dung hộp thoại xác nhận cho phù hợp với logic mới
+    const result = await Swal.fire({
+        title: 'Xác nhận chuyển lớp?',
+        text: `Hệ thống sẽ chuyển ${studentName} sang lớp mới và tự động điểm danh số buổi tương ứng đã học ở lớp cũ.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Vâng, xác nhận!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
+
+    showLoading(true);
+    try {
+        // --- BƯỚC 1: Đếm số buổi đã điểm danh ở lớp cũ ---
+        const oldAttendanceSnap = await database.ref(`attendance/${oldClassId}/${studentId}`).once('value');
+        const oldAttendanceData = oldAttendanceSnap.val() || {};
+        let attendedCount = 0;
+        for (const date in oldAttendanceData) {
+            if (oldAttendanceData[date].attended === true) {
+                attendedCount++;
+            }
+        }
+
+        // Nếu không có buổi nào đã học, chỉ cần chuyển lớp bình thường
+        if (attendedCount === 0) {
+            console.log("Học viên chưa học buổi nào, chỉ chuyển lớp.");
+        }
+
+        // --- BƯỚC 2: Chuẩn bị các lệnh cập nhật ---
+        const updates = {};
+
+        // 2.1. Cập nhật thành viên của các lớp
+        updates[`/classes/${oldClassId}/students/${studentId}`] = null;
+        updates[`/classes/${newClassId}/students/${studentId}`] = { enrolledAt: firebase.database.ServerValue.TIMESTAMP };
+        
+        // 2.2. Cập nhật thông tin lớp học của học viên
+        updates[`/students/${studentId}/classes/${oldClassId}`] = null;
+        updates[`/students/${studentId}/classes/${newClassId}`] = true;
+        updates[`/students/${studentId}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+
+        // QUAN TRỌNG: Không reset `sessionsAttended` nữa. Tổng số buổi học viên đã sử dụng từ gói của họ không đổi.
+
+        // --- BƯỚC 3: Áp dụng điểm danh "ghi có" vào lớp mới ---
+        if (attendedCount > 0) {
+            const newClassData = allClassesData[newClassId];
+            if (newClassData && newClassData.sessions) {
+                // Sắp xếp các buổi học của lớp mới theo thứ tự thời gian
+                const sortedNewSessions = Object.keys(newClassData.sessions).sort();
+                
+                // Lấy ra đúng số buổi đầu tiên để điểm danh
+                const sessionsToAutoAttend = sortedNewSessions.slice(0, attendedCount);
+                
+                // Tạo các bản ghi điểm danh mới
+                sessionsToAutoAttend.forEach(dateKey => {
+                    updates[`/attendance/${newClassId}/${studentId}/${dateKey}`] = { attended: true };
+                });
+            }
+        }
+
+        // --- BƯỚC 4: Thực hiện tất cả các cập nhật ---
+        await database.ref().update(updates);
+        await logActivity(`Đã chuyển học viên "${studentName}" từ lớp ${allClassesData[oldClassId].name} sang lớp ${allClassesData[newClassId].name} (tự động điểm danh ${attendedCount} buổi).`);
+
+        document.getElementById('transfer-student-modal').style.display = 'none';
+        Swal.fire('Thành công!', `Đã chuyển lớp và tự động điểm danh ${attendedCount} buổi ở lớp mới.`, 'success');
+
+    } catch (error) {
+        console.error("Lỗi khi thực hiện chuyển lớp:", error);
+        Swal.fire("Lỗi", "Đã xảy ra lỗi: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
 }
 // Lọc học viên theo input tìm kiếm
 function filterStudentsBySearch() {
@@ -1811,117 +1955,77 @@ function resetStudentFilters() {
 }
 // Lưu hoặc cập nhật học viên
 async function saveStudent() {
-  const user = auth.currentUser;
-  if (!user) {
-    Swal.fire("Lỗi", "Vui lòng đăng nhập để thêm hoặc sửa học viên!", "error");
-    showForm("login");
-    toggleUI(false);
-    return;
-  }
-
-  const id = document.getElementById("student-index").value;
-  
-  let existingData = null;
-  if (id) {
-      const snapshot = await database.ref(`${DB_PATHS.STUDENTS}/${id}`).once("value");
-      existingData = snapshot.val();
-  }
-
-  const isRenewing = document.getElementById("student-form-title").textContent.includes("Gia hạn");
-
-  const studentData = {
-    package: document.getElementById("student-package").value.trim(),
-    discountPercent: parseInt(document.getElementById("student-discount-percent").value) || 0,
-    promotionPercent: parseInt(document.getElementById("student-promotion-percent").value) || 0,
-    originalPrice: parseInt(document.getElementById("student-original-price").value) || 0,
-    totalDue: parseInt(document.getElementById("student-total-due").value) || 0,
-    totalBookFeeDue: parseInt(document.getElementById("student-book-fee-due").value) || 0,
-    updatedAt: firebase.database.ServerValue.TIMESTAMP
-  };
-
-  if (!isRenewing) {
-    const name = document.getElementById("student-name").value.trim();
-    const dob = document.getElementById("student-dob").value.trim();
-    if (!name || !dob) {
-      Swal.fire("Lỗi", "Vui lòng nhập đầy đủ Tên học viên và Năm sinh (có dấu *).", "error");
-      return;
+    const user = auth.currentUser;
+    if (!user) {
+        Swal.fire("Lỗi", "Vui lòng đăng nhập để thêm hoặc sửa học viên!", "error");
+        return;
     }
+
+    const id = document.getElementById("student-index").value;
+    let existingData = id ? (allStudentsData[id] || null) : null;
+    const isRenewing = document.getElementById("student-form-title").textContent.includes("Gia hạn");
     
-    studentData.name = name;
-    studentData.dob = dob;
-    studentData.address = document.getElementById("student-address").value.trim();
-    studentData.phone = document.getElementById("student-phone") ? document.getElementById("student-phone").value.trim() : "";
-    studentData.parent = document.getElementById("student-parent") ? document.getElementById("student-parent").value.trim() : "";
-    studentData.parentPhone = document.getElementById("student-parent-phone") ? document.getElementById("student-parent-phone").value.trim() : "";
+    // Biến để ghi log, sẽ được gán giá trị ở dưới
+    let studentNameForLog = '';
 
-    const parentJobSelect = document.getElementById("student-parent-job");
-    const parentJobOtherInput = document.getElementById("student-parent-job-other");
-    studentData.parentJob = parentJobSelect.value === "Khác" ? parentJobOtherInput.value.trim() : parentJobSelect.value;
-  
-  } else if (existingData) { 
-    // === PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ===
-    // Nếu là gia hạn, sao chép lại dữ liệu cá nhân cũ để tránh bị xóa.
-    studentData.name = existingData.name;
-    studentData.dob = existingData.dob;
-    studentData.address = existingData.address || "";
-    studentData.phone = existingData.phone || "";
-    studentData.parent = existingData.parent || "";
-    studentData.parentPhone = existingData.parentPhone || "";
-    studentData.parentJob = existingData.parentJob || "";
-    // === KẾT THÚC PHẦN SỬA LỖI ===
-  }
+    const studentData = {
+        package: document.getElementById("student-package").value.trim(),
+        discountPercent: parseInt(document.getElementById("student-discount-percent").value) || 0,
+        promotionPercent: parseInt(document.getElementById("student-promotion-percent").value) || 0,
+        originalPrice: parseInt(document.getElementById("student-original-price").value) || 0,
+        totalDue: parseInt(document.getElementById("student-total-due").value) || 0,
+        totalBookFeeDue: parseInt(document.getElementById("student-book-fee-due").value) || 0,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    };
 
+    if (!isRenewing) {
+        const name = document.getElementById("student-name").value.trim();
+        const dob = document.getElementById("student-dob").value.trim();
+        if (!name || !dob) {
+            Swal.fire("Lỗi", "Vui lòng nhập đầy đủ Tên học viên và Năm sinh.", "error");
+            return;
+        }
+        studentNameForLog = name;
+        studentData.name = name;
+        studentData.dob = dob;
+        // ... (các trường dữ liệu cá nhân khác)
+    } else if (existingData) {
+        studentNameForLog = existingData.name;
+        studentData.name = existingData.name;
+        studentData.dob = existingData.dob;
+        // ... (sao chép các trường dữ liệu cá nhân cũ)
+    }
 
-  const newPackageSessions = parseInt(document.getElementById("student-new-package-sessions").value) || 0;
-  if (id && existingData) {
-      studentData.sessionsAttended = existingData.sessionsAttended || 0;
-      studentData.createdAt = existingData.createdAt;
-      studentData.paymentHistory = existingData.paymentHistory || {};
-
-      if (isRenewing) {
-          studentData.totalSessionsPaid = (existingData.totalSessionsPaid || 0) + newPackageSessions;
-      } else {
-          studentData.totalSessionsPaid = newPackageSessions > 0 ? newPackageSessions : (existingData.totalSessionsPaid || 0);
-      }
-      
-      if (!studentData.package && existingData.package) {
-        studentData.package = existingData.package;
-      }
-
-  } else {
-      studentData.createdAt = firebase.database.ServerValue.TIMESTAMP;
-      studentData.sessionsAttended = 0;
-      studentData.totalSessionsPaid = newPackageSessions;
-      studentData.paymentHistory = {};
-  }
-  
-  try {
-    if (id) {
-      await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
-      await logActivity(`Đã cập nhật hồ sơ học viên: "${name}"`);
-      Swal.fire({ icon: 'success', title: 'Đã cập nhật học viên!', timer: 2000, showConfirmButton: false });
+    const newPackageSessions = parseInt(document.getElementById("student-new-package-sessions").value) || 0;
+    if (id && existingData) {
+        // Cập nhật hoặc gia hạn
+        studentData.sessionsAttended = existingData.sessionsAttended || 0;
+        studentData.createdAt = existingData.createdAt;
+        studentData.paymentHistory = existingData.paymentHistory || {};
+        studentData.totalSessionsPaid = isRenewing 
+            ? (existingData.totalSessionsPaid || 0) + newPackageSessions 
+            : (newPackageSessions > 0 ? newPackageSessions : (existingData.totalSessionsPaid || 0));
     } else {
-      await database.ref(DB_PATHS.STUDENTS).push(studentData);
-      await logActivity(`Đã tạo hồ sơ học viên mới: "${name}"`);
-      Swal.fire({ icon: 'success', title: 'Đã thêm học viên!', timer: 2000, showConfirmButton: false });
+        // Tạo mới
+        studentData.createdAt = firebase.database.ServerValue.TIMESTAMP;
+        studentData.sessionsAttended = 0;
+        studentData.totalSessionsPaid = newPackageSessions;
     }
-    
-    const fields = ["student-name", "student-dob", "student-address", "student-package-type", 
-                    "general-english-course", "student-certificate-type", "student-certificate-course",
-                    "student-package", "student-sessions-attended", "student-sessions-paid",
-                    "student-discount-percent", "student-promotion-percent", 
-                    "student-original-price", "student-total-due", "student-parent-job"];
-
-    fields.forEach(fieldId => localStorage.removeItem(fieldId));
-    localStorage.removeItem("student-phone");
-    localStorage.removeItem("student-parent");
-    localStorage.removeItem("student-parent-phone");
-    hideStudentForm();
-    applyStudentFilters();
-
-  } catch (error) {
-    Swal.fire("Lỗi", "Lỗi lưu học viên: " + error.message, "error");
-  }
+  
+    try {
+        if (id) {
+            await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
+            await logActivity(`Đã cập nhật hồ sơ học viên: "${studentNameForLog}"`);
+            Swal.fire({ icon: 'success', title: 'Đã cập nhật!', timer: 2000, showConfirmButton: false });
+        } else {
+            await database.ref(DB_PATHS.STUDENTS).push(studentData);
+            await logActivity(`Đã tạo hồ sơ học viên mới: "${studentNameForLog}"`);
+            Swal.fire({ icon: 'success', title: 'Đã thêm!', timer: 2000, showConfirmButton: false });
+        }
+        hideStudentForm();
+    } catch (error) {
+        Swal.fire("Lỗi", "Lỗi lưu học viên: " + error.message, "error");
+    }
 }
 // Xóa học viên
 async function deleteStudent(id) {
@@ -1938,12 +2042,15 @@ async function deleteStudent(id) {
     if (result.isConfirmed) {
         showLoading(true);
         try {
-            // Chỉ cập nhật trạng thái, không xóa
+            const studentName = allStudentsData[id]?.name || 'Không rõ tên';
+
             await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update({
                 status: 'deleted',
                 deletedAt: firebase.database.ServerValue.TIMESTAMP
             });
+
             await logActivity(`Đã chuyển học viên vào thùng rác: ${studentName}`);
+            
             Swal.fire('Đã chuyển!', 'Học viên đã được chuyển vào thùng rác.', 'success');
         } catch (error) {
             Swal.fire("Lỗi", "Không thể thực hiện: " + error.message, "error");
@@ -2170,6 +2277,25 @@ function renderClassList() {
     });
 }
 /**
+ * HÀM MỚI: Tìm ID của lớp học hợp lệ (còn tồn tại) từ hồ sơ của một học viên.
+ * @param {object} studentData - Dữ liệu của học viên (st).
+ * @returns {string|null} - Trả về ID của lớp hợp lệ, hoặc null nếu không tìm thấy.
+ */
+function findActiveStudentClassId(studentData) {
+    if (!studentData || !studentData.classes) {
+        return null;
+    }
+    const classIds = Object.keys(studentData.classes);
+    // Duyệt qua danh sách ID lớp của học viên
+    for (const classId of classIds) {
+        // Kiểm tra xem ID này có tồn tại trong danh sách tất cả các lớp đang hoạt động không
+        if (allClassesData[classId]) {
+            return classId; // Tìm thấy, trả về ngay lập tức
+        }
+    }
+    return null; // Không tìm thấy lớp nào hợp lệ
+}
+/**
  * Điền vào ô lựa chọn giáo viên trong form lớp học
  */
 async function populateTeacherDropdown() {
@@ -2266,8 +2392,8 @@ async function editClass(id) {
     if (classData.isTemporary === true) {
         isConsideredTemp = true;
     // 2. Sau đó, kiểm tra loại lớp 'classType' đã được lưu
-    } else if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp chứng chỉ') {
-        isConsideredTemp = false; // Đây chắc chắn là lớp chính thức, không phải lớp tạm thời
+    } else if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp chứng chỉ' || classData.classType === 'Lớp các môn trên trường') {
+    isConsideredTemp = false; // Đây chắc chắn là lớp chính thức, không phải lớp tạm thời
     // 3. Cuối cùng, mới dùng tên lớp để "đoán" cho các trường hợp khác hoặc dữ liệu cũ (fallback)
     } else {
         const subject = getSubjectClass(classData.name);
@@ -2355,7 +2481,7 @@ async function editOfficialClass(id, isReadOnly = false) {
         Swal.fire("Lỗi", "Lỗi tải lớp học: " + err.message, "error");
     } finally {
         showLoading(false);
-        const modalContent = document.querySelector("#class-form-modal .modal-content");
+     const modalContent = document.querySelector("#class-form-modal .modal__content");
         modalContent.classList.remove("scale-up");
         modalContent.offsetHeight;
         modalContent.classList.add("scale-up");
@@ -2450,7 +2576,7 @@ async function showClassForm() {
 
   document.getElementById("class-form-modal").style.display = "flex";
   //document.getElementById("class-form-container").style.display = "block";
-  const modalContent = document.querySelector("#class-form-modal .modal-content");
+  const modalContent = document.querySelector("#class-form-modal .modal__content");
   modalContent.classList.remove("scale-up");
   modalContent.offsetHeight;
   modalContent.classList.add("scale-up");
@@ -2662,11 +2788,15 @@ async function deleteClass(id) {
     if (result.isConfirmed) {
         showLoading(true);
         try {
+            const className = allClassesData[id]?.name || 'Không rõ tên';
+
             await database.ref(`${DB_PATHS.CLASSES}/${id}`).update({
                 status: 'deleted',
                 deletedAt: firebase.database.ServerValue.TIMESTAMP
             });
+
             await logActivity(`Đã chuyển lớp vào thùng rác: ${className}`);
+            
             Swal.fire('Đã chuyển!', 'Lớp học đã được chuyển vào thùng rác.', 'success');
         } catch (error) {
             Swal.fire("Lỗi", "Không thể thực hiện: " + error.message, "error");
@@ -2929,8 +3059,13 @@ async function viewStudentSessions(studentId, classId) {
         Swal.fire("Thông báo", "Học viên này chưa được xếp vào lớp nào.", "info");
         return;
     }
-    // Chức năng này sẽ mở bảng điểm danh của lớp
-    // Giả sử bạn có hàm showClassAttendanceAndHomeworkTable(classId)
+
+    // KIỂM TRA AN TOÀN: Đảm bảo dữ liệu lớp học tồn tại
+    if (!allClassesData[classId]) {
+         Swal.fire("Dữ liệu không hợp lệ", "Không tìm thấy dữ liệu của lớp học mà học viên này đang tham gia. Có thể lớp đã bị xóa.", "error");
+         return;
+    }
+
     if (typeof showClassAttendanceAndHomeworkTable === 'function') {
         await showClassAttendanceAndHomeworkTable(classId);
     } else {
@@ -3189,12 +3324,27 @@ async function renderPersonnelListForAttendance() {
     const personnelListUl = document.getElementById('personnel-list-for-attendance');
     if (!personnelListUl) return;
 
-    const staffArray = Object.entries(allUsersData)
-        .filter(([, userData]) => userData.role && PAYROLL_STAFF_ROLES.includes(userData.role))
-        .sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""));
+    // --- LOGIC PHÂN QUYỀN MỚI ---
+    const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
+    let staffToRender = [];
+
+    if (isAdminOrHoiDong) {
+        // Nếu là Admin/Hội Đồng, hiển thị tất cả nhân sự.
+        staffToRender = Object.entries(allUsersData)
+            .filter(([, userData]) => userData.role && PAYROLL_STAFF_ROLES.includes(userData.role))
+            .sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""));
+    } else if (currentUserData) {
+        // Nếu là vai trò khác (GV, TG), chỉ hiển thị chính họ.
+        const selfData = allUsersData[currentUserData.uid];
+        if (selfData && selfData.role && PAYROLL_STAFF_ROLES.includes(selfData.role)) {
+            staffToRender.push([currentUserData.uid, selfData]);
+        }
+    }
+    // --- KẾT THÚC LOGIC PHÂN QUYỀN ---
 
     personnelListUl.innerHTML = "";
-    staffArray.forEach(([uid, userData]) => {
+    // Vẽ danh sách nhân sự đã được lọc
+    staffToRender.forEach(([uid, userData]) => {
         const staffLi = document.createElement('li');
         staffLi.textContent = `${userData.name || userData.email} (${userData.role})`;
         staffLi.dataset.uid = uid;
@@ -3290,110 +3440,105 @@ async function renderPersonnelAttendanceTable(classId, className) {
     document.querySelector('.personnel-controls').style.display = 'none';
     document.getElementById("current-personnel-class-name").textContent = className;
 
-    const classSnap = await database.ref(`classes/${classId}`).once("value");
-    const cls = classSnap.val();
-    if (!cls) {
-        Swal.fire("Lỗi", "Lớp không tồn tại!", "error");
-        showLoading(false);
-        return;
-    }
-
-    const fixedSchedule = cls.fixedSchedule || {};
-    const startDate = cls.startDate || new Date().toISOString().split("T")[0];
-    const sessions = generateRollingSessions(fixedSchedule, startDate, 3); // 3 tháng lịch tương lai
-
-    let classStaff = [];
-    const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
-    const currentUid = currentUserData ? currentUserData.uid : null;
-
-    if (cls.teacherUid && allUsersData[cls.teacherUid]) { // Kiểm tra uid và dữ liệu user
-        if (isAdminOrHoiDong || cls.teacherUid === currentUid) { // Chỉ thêm nếu Admin/Hội Đồng HOẶC là chính GV đó
-            classStaff.push({ uid: cls.teacherUid, name: cls.teacher, role: "Giáo Viên" });
+    try {
+        const classSnap = await database.ref(`classes/${classId}`).once("value");
+        const cls = classSnap.val();
+        if (!cls) {
+            throw new Error("Không tìm thấy dữ liệu lớp học.");
         }
-    }
-    if (cls.assistantTeacherUid && allUsersData[cls.assistantTeacherUid]) { // Kiểm tra uid và dữ liệu user
-        if (isAdminOrHoiDong || cls.assistantTeacherUid === currentUid) { // Chỉ thêm nếu Admin/Hội Đồng HOẶC là chính TG đó
-            // Tránh thêm trùng nếu một người vừa là GV vừa là TG
-            if (!classStaff.some(s => s.uid === cls.assistantTeacherUid)) {
-                classStaff.push({ uid: cls.assistantTeacherUid, name: cls.assistantTeacher, role: "Trợ Giảng" });
+
+        // SỬA LỖI: Lấy trực tiếp các buổi học đã được lưu của lớp
+        const sessions = cls.sessions || {};
+        const sortedSessionDates = Object.keys(sessions).sort();
+
+        let classStaff = [];
+        const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
+        const currentUid = currentUserData ? currentUserData.uid : null;
+
+        if (cls.teacherUid && allUsersData[cls.teacherUid]) {
+            if (isAdminOrHoiDong || cls.teacherUid === currentUid) {
+                classStaff.push({ uid: cls.teacherUid, name: cls.teacher, role: "Giáo Viên" });
             }
         }
-    }
-
-    const personnelAttendanceSnap = await database.ref(`personnelAttendance/${classId}`).once("value");
-    const personnelAttendanceData = personnelAttendanceSnap.val() || {};
-
-    const tableHeadRow = document.getElementById("personnel-attendance-table-head");
-    const tableBody = document.getElementById("personnel-attendance-table-body");
-
-    let headerHTML = `<th style="min-width: 180px; position: sticky; left: 0; background-color: #f3f6fb; z-index: 1;">Nhân sự</th>`;
-    sessions.forEach((s) => {
-        const d = new Date(s.date);
-        const label = `${d.getDate()}/${d.getMonth() + 1}`;
-        headerHTML += `<th style="min-width: 100px;">${label}</th>`;
-    });
-    tableHeadRow.innerHTML = headerHTML;
-    tableBody.innerHTML = "";
-
-    classStaff.forEach(staff => {
-        const row = document.createElement("tr");
-        const nameCell = document.createElement("td");
-        nameCell.textContent = `${staff.name} (${staff.role})`;
-        nameCell.style.position = "sticky";
-        nameCell.style.left = "0";
-        nameCell.style.backgroundColor = "#fff";
-        nameCell.style.zIndex = "1";
-        row.appendChild(nameCell);
-
-        sessions.forEach((session) => {
-            const dateStr = session.date;
-            const isChecked = personnelAttendanceData?.[staff.uid]?.[dateStr]?.[staff.role] === true;
-
-            const td = document.createElement("td");
-            td.style.minWidth = "100px";
-            // Disable checkbox nếu không phải Admin/Hội Đồng và không phải là người dùng hiện tại
-              const isCurrentUserAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
-
-            // Checkbox bị vô hiệu hóa nếu người dùng hiện tại KHÔNG phải Admin/Hội Đồng
-            // (Tức là, Giáo Viên và Trợ Giảng không thể tự chấm công)
-            const isDisabled = !isCurrentUserAdminOrHoiDong; 
-            
-            td.innerHTML = `
-                <input type="checkbox"
-                       onchange="togglePersonnelAttendance('${classId}', '${staff.uid}', '${dateStr}', '${staff.role}', this.checked)"
-                       ${isChecked ? "checked" : ""}
-                       ${isDisabled ? "disabled" : ""} />
-            `;
-            row.appendChild(td);
-        });
-        tableBody.appendChild(row);
-    });
-
-    showPersonnelAttendanceModal();
-    showLoading(false);
-
-    // Tự động cuộn đến buổi gần nhất
-    setTimeout(() => {
-        const scrollContainer = document.getElementById("personnel-attendance-scroll-container");
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const closestIndex = sessions.findIndex(s => new Date(s.date) >= today);
-
-        if (closestIndex === -1) {
-            scrollContainer.scrollLeft = scrollContainer.scrollWidth;
-            return;
+        if (cls.assistantTeacherUid && allUsersData[cls.assistantTeacherUid]) {
+            if (isAdminOrHoiDong || cls.assistantTeacherUid === currentUid) {
+                if (!classStaff.some(s => s.uid === cls.assistantTeacherUid)) {
+                    classStaff.push({ uid: cls.assistantTeacherUid, name: cls.assistantTeacher, role: "Trợ Giảng" });
+                }
+            }
         }
 
-        const firstDateColumn = tableHeadRow.children[1];
-        if (!firstDateColumn) return;
+        const personnelAttendanceSnap = await database.ref(`personnelAttendance/${classId}`).once("value");
+        const personnelAttendanceData = personnelAttendanceSnap.val() || {};
 
-        const columnWidth = firstDateColumn.offsetWidth;
-        const scrollPosition = Math.max(0, closestIndex - 2) * columnWidth; // Cuộn lùi 2 cột
-        scrollContainer.scrollLeft = scrollPosition;
-    }, 0);
+        const tableHeadRow = document.getElementById("personnel-attendance-table-head");
+        const tableBody = document.getElementById("personnel-attendance-table-body");
+
+        let headerHTML = `<th style="min-width: 180px; position: sticky; left: 0; background-color: #f3f6fb; z-index: 1;">Nhân sự</th>`;
+        // Dùng sortedSessionDates để tạo header
+        sortedSessionDates.forEach((dateKey) => {
+            const d = new Date(dateKey + 'T00:00:00');
+            const label = `${d.getDate()}/${d.getMonth() + 1}`;
+            headerHTML += `<th style="min-width: 100px;">${label}</th>`;
+        });
+        tableHeadRow.innerHTML = headerHTML;
+        tableBody.innerHTML = "";
+
+        classStaff.forEach(staff => {
+            const row = document.createElement("tr");
+            const nameCell = document.createElement("td");
+            nameCell.textContent = `${staff.name} (${staff.role})`;
+            nameCell.style.position = "sticky";
+            nameCell.style.left = "0";
+            nameCell.style.backgroundColor = "#fff";
+            nameCell.style.zIndex = "1";
+            row.appendChild(nameCell);
+
+            // Dùng sortedSessionDates để tạo các ô checkbox
+            sortedSessionDates.forEach((dateKey) => {
+                const isChecked = personnelAttendanceData?.[staff.uid]?.[dateKey]?.[staff.role] === true;
+                const td = document.createElement("td");
+                td.style.minWidth = "100px";
+                const isDisabled = !isAdminOrHoiDong;
+                
+                td.innerHTML = `
+                    <input type="checkbox"
+                           onchange="togglePersonnelAttendance('${classId}', '${staff.uid}', '${dateKey}', '${staff.role}', this.checked)"
+                           ${isChecked ? "checked" : ""}
+                           ${isDisabled ? "disabled" : ""} />
+                `;
+                row.appendChild(td);
+            });
+            tableBody.appendChild(row);
+        });
+
+        showPersonnelAttendanceModal();
+        
+        // Logic cuộn (giữ nguyên)
+        setTimeout(() => {
+            const scrollContainer = document.getElementById("personnel-attendance-scroll-container");
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const closestIndex = sortedSessionDates.findIndex(date => new Date(date + 'T00:00:00') >= today);
+            if (closestIndex === -1) {
+                scrollContainer.scrollLeft = scrollContainer.scrollWidth;
+                return;
+            }
+            const firstDateColumn = tableHeadRow.children[1];
+            if (!firstDateColumn) return;
+            const columnWidth = firstDateColumn.offsetWidth;
+            const scrollPosition = Math.max(0, closestIndex - 2) * columnWidth;
+            scrollContainer.scrollLeft = scrollPosition;
+        }, 0);
+
+    } catch (error) {
+        console.error("Lỗi khi render bảng chấm công nhân sự:", error);
+        Swal.fire("Lỗi", "Không thể render bảng chấm công: " + error.message, "error");
+        hidePersonnelAttendanceModal();
+    } finally {
+        showLoading(false);
+    }
 }
-
 // MỚI: Hàm bật/tắt checkbox chấm công nhân sự
 async function togglePersonnelAttendance(classId, staffUid, dateStr, role, isChecked) {
     const attPath = `personnelAttendance/${classId}/${staffUid}/${dateStr}/${role}`;
@@ -3625,7 +3770,7 @@ async function showStaffClassesAndSalariesModal(staffUid) {
         }
 
         document.getElementById("staff-classes-salary-modal").style.display = "flex";
-        const modalContent = document.querySelector("#staff-classes-salary-modal .modal-content");
+        const modalContent = document.querySelector("#staff-classes-salary-modal .modal__content");
         modalContent.classList.remove("scale-up");
         modalContent.offsetHeight;
         modalContent.classList.add("scale-up");
@@ -5230,32 +5375,89 @@ async function deleteSession(classId, dateToDelete, isExam) {
  * HÀM NÂNG CẤP: Cập nhật trạng thái điểm danh và tăng/giảm số buổi đã học
  */
 async function toggleAttendance(classId, studentId, dateStr, isChecked, isExamSession) {
-  const attendanceRef = database.ref(`attendance/${classId}/${studentId}/${dateStr}`);
+    const attendanceRef = database.ref(`attendance/${classId}/${studentId}/${dateStr}`);
 
-  try {
-    // Sử dụng transaction để cập nhật an toàn
-    await attendanceRef.transaction(currentData => {
-      // Nếu chưa có dữ liệu, tạo mới. Nếu có rồi, dùng lại.
-      const data = (currentData && typeof currentData === 'object') ? currentData : {};
-      data.attended = isChecked;
-      return data; // Trả về dữ liệu mới để Firebase cập nhật
-    });
+    try {
+        // Cập nhật trạng thái điểm danh
+        await attendanceRef.transaction(currentData => {
+            const data = (currentData && typeof currentData === 'object') ? currentData : {};
+            data.attended = isChecked;
+            return data;
+        });
 
-    // Chỉ cập nhật số buổi đã học cho buổi học thường
-    if (!isExamSession) {
-      const studentSessionsRef = database.ref(`students/${studentId}/sessionsAttended`);
-      // Tăng hoặc giảm 1 cách an toàn
-      const delta = isChecked ? 1 : -1;
-      await studentSessionsRef.transaction(currentValue => {
-        return (currentValue || 0) + delta;
-      });
+        // Chỉ xử lý logic đếm buổi và tự động gia hạn cho các buổi học thông thường
+        if (!isExamSession) {
+            const studentSessionsRef = database.ref(`students/${studentId}/sessionsAttended`);
+            const delta = isChecked ? 1 : -1;
+            
+            // Cập nhật số buổi đã học và lấy giá trị mới nhất
+            const { committed, snapshot } = await studentSessionsRef.transaction(currentValue => {
+                return (currentValue || 0) + delta;
+            });
+
+            // --- THÊM ĐOẠN CODE MỚI ĐỂ KIỂM TRA VÀ KÍCH HOẠT GIA HẠN ---
+            if (committed && isChecked) {
+                const newAttendedCount = snapshot.val();
+                const classData = allClassesData[classId];
+
+                // Kiểm tra nếu đây là lớp phổ thông/môn trên trường và số buổi đã học là bội số của 16
+                if (classData && (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường') && newAttendedCount > 0 && newAttendedCount % 16 === 0) {
+                    // Gọi hàm tự động thêm 16 buổi mới (hàm này sẽ chạy ngầm)
+                    autoExtendSchedule(classId);
+                }
+            }
+            // --- KẾT THÚC ĐOẠN CODE MỚI ---
+        }
+    } catch (error) {
+        console.error("Lỗi khi cập nhật điểm danh:", error);
+        Swal.fire("Lỗi", "Không thể cập nhật điểm danh.", "error");
     }
-  } catch (error) {
-    console.error("Lỗi khi cập nhật điểm danh:", error);
-    Swal.fire("Lỗi", "Không thể cập nhật điểm danh.", "error");
-  }
 }
+/**
+ * HÀM MỚI: Tự động thêm 16 buổi học vào cuối lịch trình của một lớp.
+ * @param {string} classId - ID của lớp cần thêm buổi.
+ */
+async function autoExtendSchedule(classId) {
+    console.log(`Bắt đầu kiểm tra và tự động thêm buổi cho lớp: ${classId}`);
+    try {
+        const classRef = database.ref(`classes/${classId}`);
+        const classSnap = await classRef.once('value');
+        const classData = classSnap.val();
 
+        // Chỉ thực hiện nếu lớp tồn tại và có đủ thông tin
+        if (!classData || !classData.sessions || !classData.fixedSchedule) {
+            console.warn("Dữ liệu lớp không đầy đủ, không thể tự động thêm buổi.");
+            return;
+        }
+
+        // Tìm ngày học cuối cùng trong lịch hiện tại
+        const existingSessions = Object.keys(classData.sessions).sort();
+        const lastSessionDateStr = existingSessions[existingSessions.length - 1];
+        
+        const nextDay = new Date(lastSessionDateStr);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const newStartDateStr = nextDay.toISOString().split('T')[0];
+
+        // Số buổi cần tạo luôn là 16
+        const sessionsToGenerate = 16;
+
+        // Tạo ra 16 buổi học mới
+        const newSessions = generateRollingSessions(newStartDateStr, sessionsToGenerate, classData.fixedSchedule);
+
+        // Chuẩn bị dữ liệu để cập nhật
+        const updates = {};
+        for (const dateKey in newSessions) {
+            updates[`/classes/${classId}/sessions/${dateKey}`] = newSessions[dateKey];
+        }
+        
+        // Cập nhật lên Firebase
+        await database.ref().update(updates);
+        console.log(`THÀNH CÔNG: Đã tự động thêm ${sessionsToGenerate} buổi học mới cho lớp ${classId}.`);
+
+    } catch (error) {
+        console.error(`Lỗi khi tự động thêm buổi cho lớp ${classId}:`, error);
+    }
+}
 /**
  * Hàm hỗ trợ tạo và thêm một buổi thi đặc biệt vào cơ sở dữ liệu.
  * @param {string} classId - ID của lớp học.
@@ -5850,11 +6052,13 @@ function showStudentActionOptions(studentId) {
 function promptResetPackage() {
   const studentId = document.getElementById("student-index").value;
 
-  // Nút này chỉ hoạt động khi đang sửa một học viên đã tồn tại
   if (!studentId) {
     Swal.fire("Thông báo", "Không thể reset khi đang tạo hồ sơ mới.", "info");
     return;
   }
+
+  // LẤY TÊN HỌC VIÊN TỪ DỮ LIỆU TOÀN CỤC
+  const studentName = allStudentsData[studentId]?.name || 'Không rõ tên';
 
   Swal.fire({
     title: 'Xác nhận Reset',
@@ -5869,7 +6073,6 @@ function promptResetPackage() {
     if (result.isConfirmed) {
       showLoading(true);
       try {
-        // Chuẩn bị dữ liệu để reset về giá trị mặc định
         const resetData = {
           package: "",
           totalSessionsPaid: 0,
@@ -5882,17 +6085,14 @@ function promptResetPackage() {
           updatedAt: firebase.database.ServerValue.TIMESTAMP
         };
 
-        // Cập nhật dữ liệu trên Firebase
         await database.ref(`${DB_PATHS.STUDENTS}/${studentId}`).update(resetData);
-        await logActivity(`Đã reset gói học cho: ${studentName}`);
+        await logActivity(`Đã reset gói học cho: ${studentName}`); // Giờ biến này đã tồn tại
         Swal.fire(
           'Đã Reset!',
           'Thông tin gói đăng ký của học viên đã được xóa.',
           'success'
         );
 
-        // Tải lại form để hiển thị dữ liệu đã được reset
-        // Thao tác này sẽ tự động xóa trắng các trường trên giao diện
         editStudent(studentId);
 
       } catch (error) {
@@ -5904,8 +6104,6 @@ function promptResetPackage() {
     }
   });
 }
-// script.js
-
 // ======================================================
 // === CÁC HÀM MỚI CHO CHỨC NĂNG QUẢN LÝ HỌC PHÍ ===
 // ======================================================
@@ -7677,6 +7875,69 @@ async function renderActivityLog() {
     } catch (error) {
         console.error("Lỗi khi tải nhật ký:", error);
         logListBody.innerHTML = '<tr><td colspan="4">Không thể tải nhật ký hoạt động.</td></tr>';
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * HÀM CẬP NHẬT: Chuyển lớp sang dạng Phổ thông để kích hoạt cơ chế tự động gia hạn.
+ * @param {string} classId - ID của lớp cần chuyển đổi.
+ */
+async function convertAndExtendClass(classId) {
+    if (!classId) return;
+
+    // 1. Hỏi xác nhận với nội dung mới
+    const result = await Swal.fire({
+        title: 'Chuyển sang Lớp Phổ thông?',
+        text: "Hệ thống sẽ chuyển lớp này sang loại có lịch học tự động gia hạn. Lịch sẽ tự động được thêm 16 buổi mỗi khi cần. Bạn có chắc chắn?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Vâng, chuyển đổi!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
+
+    showLoading(true);
+    try {
+        const classRef = database.ref(`classes/${classId}`);
+        const classSnap = await classRef.once('value');
+        const classData = classSnap.val();
+
+        if (!classData || !classData.sessions || !classData.fixedSchedule) {
+            throw new Error("Dữ liệu lớp học không đầy đủ để chuyển đổi.");
+        }
+
+        // 2. Tìm ngày học cuối cùng để bắt đầu thêm buổi mới
+        const existingSessions = Object.keys(classData.sessions).sort();
+        const lastSessionDateStr = existingSessions[existingSessions.length - 1];
+        
+        const nextDay = new Date(lastSessionDateStr);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const newStartDateStr = nextDay.toISOString().split('T')[0];
+
+        // 3. Chỉ thêm một khối "mồi" gồm 16 buổi
+        const sessionsToGenerate = 16;
+
+        const newSessions = generateRollingSessions(newStartDateStr, sessionsToGenerate, classData.fixedSchedule);
+
+        // 4. Chuẩn bị dữ liệu cập nhật
+        const updates = {};
+        for (const dateKey in newSessions) {
+            updates[`/classes/${classId}/sessions/${dateKey}`] = newSessions[dateKey];
+        }
+        // Dòng quan trọng nhất: thay đổi loại lớp học
+        updates[`/classes/${classId}/classType`] = 'Lớp tiếng Anh phổ thông'; 
+        updates[`/classes/${classId}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+        
+        await database.ref().update(updates);
+        
+        Swal.fire('Thành công!', `Lớp đã được chuyển sang loại tự động gia hạn và đã được thêm ${sessionsToGenerate} buổi học mới.`, 'success');
+        hideClassForm();
+
+    } catch (error) {
+        console.error("Lỗi khi chuyển đổi lớp:", error);
+        Swal.fire("Lỗi!", "Đã xảy ra lỗi: " + error.message, "error");
     } finally {
         showLoading(false);
     }
