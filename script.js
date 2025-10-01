@@ -5217,7 +5217,20 @@ async function renderClassAttendanceTable(classId) {
         let headerHTML = `<tr><th style="min-width: 200px;">Họ tên</th>`;
         allEventDates.forEach(dateKey => {
             const isExam = !!exams[dateKey];
-            const eventName = isExam ? (exams[dateKey].name || 'Bài KT') : 'Buổi học';
+            
+            // --- LOGIC MỚI ĐỂ HIỂN THỊ "BUỔI HỌC BÙ" ---
+            const sessionData = sessions[dateKey];
+            let eventName;
+
+            if (isExam) {
+                eventName = exams[dateKey].name || 'Bài KT';
+            } else if (sessionData && sessionData.type === 'makeup') {
+                eventName = 'Buổi học bù'; // Hiển thị tên mới
+            } else {
+                eventName = 'Buổi học'; // Mặc định như cũ
+            }
+            // --- KẾT THÚC LOGIC MỚI ---
+            
             const formattedDate = new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
             headerHTML += `<th class="${isExam ? 'exam-header' : ''}" style="position: relative;"><button class="delete-session-btn" onclick="deleteSession('${classId}', '${dateKey}', ${isExam})" title="Xóa buổi này">×</button>${eventName}<br><small>${formattedDate}</small></th>`;
         });
@@ -5251,14 +5264,11 @@ async function renderClassAttendanceTable(classId) {
         }
         tableBody.innerHTML = bodyHTML;
         
-        // --- PHẦN SỬA LỖI QUAN TRỌNG NHẤT ---
         const modalTitle = document.getElementById("class-attendance-modal-title");
         modalTitle.textContent = `Bảng điểm danh: ${classData.name}`;
-        // Gán ID của lớp vào đây, ngay trước khi hiển thị modal
         modalTitle.dataset.classId = classId; 
         
         document.getElementById("class-attendance-modal-overlay").style.display = "flex";
-        // --- KẾT THÚC PHẦN SỬA LỖI ---
 
         setTimeout(() => {
             const scrollContainer = document.getElementById("class-attendance-scroll-container");
