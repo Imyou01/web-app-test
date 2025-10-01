@@ -5080,9 +5080,115 @@ function scrollClassAttendanceBySessions(direction) {
 // script.js
 // MỚI: Hiển thị bảng điểm danh & bài tập khi click "Điểm Danh"
 async function showClassAttendanceAndHomeworkTable(classId) {
-  showLoading(true); // Hiển thị loading ở đây
-  await renderClassAttendanceTable(classId);
-  showLoading(false); // Ẩn loading sau khi render xong
+    showLoading(true);
+    try {
+        // --- BỔ SUNG LOGIC ĐỂ LƯU LẠI CLASS ID ---
+        const modalTitle = document.getElementById("class-attendance-modal-title");
+        if (modalTitle) {
+            // Gán ID của lớp vào thuộc tính data-class-id của tiêu đề modal
+            modalTitle.dataset.classId = classId;
+        }
+        // --- KẾT THÚC PHẦN BỔ SUNG ---
+
+        // Gọi hàm render bảng như cũ
+        await renderClassAttendanceTable(classId);
+
+    } catch (error) {
+        console.error("Lỗi khi hiển thị bảng điểm danh:", error);
+        Swal.fire("Lỗi", "Không thể hiển thị bảng điểm danh.", "error");
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * HÀM MỚI: Mở hộp thoại để tạo một buổi học bù thay thế cho một buổi học cũ.
+ */
+async function promptCreateMakeupSession() {
+    const classId = document.getElementById('class-attendance-modal-title').dataset.classId;
+    if (!classId) {
+        Swal.fire("Lỗi", "Không thể xác định được lớp học hiện tại.", "error");
+        return;
+    }
+
+    const classData = allClassesData[classId];
+    if (!classData || !classData.sessions) return;
+
+    // 1. Lọc ra những buổi học trong tương lai để cho phép thay thế
+    const todayStr = new Date().toISOString().split('T')[0];
+    const futureSessions = Object.keys(classData.sessions)
+        .filter(date => date >= todayStr)
+        .sort();
+
+    if (futureSessions.length === 0) {
+        Swal.fire("Thông báo", "Không có buổi học nào trong tương lai để thay thế.", "info");
+        return;
+    }
+
+    // 2. Tạo HTML cho các lựa chọn trong hộp thoại
+    const optionsHtml = futureSessions.map(date => `<option value="${date}">Buổi ngày: ${date}</option>`).join('');
+
+    // 3. Hiển thị hộp thoại Swal để nhập thông tin
+    const { value: formValues } = await Swal.fire({
+        title: 'Tạo buổi học bù',
+        html: `
+            <div style="text-align: left; margin-top: 20px;">
+                <label for="swal-new-date"><b>Ngày và giờ bù:</b></label>
+                <input type="date" id="swal-new-date" class="swal2-input" style="width: 100%;">
+                <input type="time" id="swal-new-time" class="swal2-input" style="width: 100%;">
+
+                <label for="swal-old-date" style="margin-top: 15px; display: block;"><b>Buổi học được thay thế:</b></label>
+                <select id="swal-old-date" class="swal2-select" style="width: 100%;">
+                    <option value="">-- Chọn buổi cần thay thế --</option>
+                    ${optionsHtml}
+                </select>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy',
+        preConfirm: () => {
+            const newDate = document.getElementById('swal-new-date').value;
+            const newTime = document.getElementById('swal-new-time').value;
+            const oldDate = document.getElementById('swal-old-date').value;
+            if (!newDate || !newTime || !oldDate) {
+                Swal.showValidationMessage('Vui lòng điền đầy đủ tất cả thông tin.');
+                return false;
+            }
+            if (classData.sessions[newDate] || (classData.exams && classData.exams[newDate])) {
+                 Swal.showValidationMessage('Ngày bù đã bị trùng với một buổi học/buổi thi khác.');
+                return false;
+            }
+            return { newDate, newTime, oldDate };
+        }
+    });
+
+    if (formValues) {
+        const { newDate, newTime, oldDate } = formValues;
+        showLoading(true);
+        try {
+            // 4. Chuẩn bị cập nhật lên Firebase
+            const updates = {};
+            // Xóa buổi học cũ
+            updates[`/classes/${classId}/sessions/${oldDate}`] = null;
+            // Thêm buổi học mới và đánh dấu là "buổi bù"
+            updates[`/classes/${classId}/sessions/${newDate}`] = { time: newTime, type: "makeup" };
+
+            await database.ref().update(updates);
+            await logActivity(`Đã tạo buổi bù ngày ${newDate} thay thế cho buổi ${oldDate} của lớp ${classData.name}`);
+
+            // Tải lại bảng điểm danh để hiển thị sự thay đổi
+            await renderClassAttendanceTable(classId);
+
+            Swal.fire('Thành công!', 'Đã cập nhật lịch học.', 'success');
+
+        } catch (error) {
+            console.error("Lỗi khi tạo buổi bù:", error);
+            Swal.fire("Lỗi", "Đã xảy ra lỗi: " + error.message, "error");
+        } finally {
+            showLoading(false);
+        }
+    }
 }
 async function renderClassAttendanceTable(classId) {
     showLoading(true);
@@ -5121,8 +5227,6 @@ async function renderClassAttendanceTable(classId) {
         let bodyHTML = "";
         for (const studentId in students) {
             const student = students[studentId];
-            
-            // === LOGIC CẢNH BÁO SỐ BUỔI ===
             const sessionsAttended = student.sessionsAttended || 0;
             const totalSessionsPaid = student.totalSessionsPaid || 0;
             const remainingSessions = totalSessionsPaid - sessionsAttended;
@@ -5134,8 +5238,7 @@ async function renderClassAttendanceTable(classId) {
                 warningClass = 'student-warning-low';
                 iconHtml = '<span class="warning-icon">&#9888;</span> ';
             }
-            // ================================
-
+            
             let rowHTML = `<tr><td class="${warningClass}">${iconHtml}${student.name}</td>`;
             allEventDates.forEach(dateKey => {
                 const isExam = !!exams[dateKey];
@@ -5147,9 +5250,15 @@ async function renderClassAttendanceTable(classId) {
             bodyHTML += rowHTML;
         }
         tableBody.innerHTML = bodyHTML;
-
-        document.getElementById("class-attendance-modal-title").textContent = `Bảng điểm danh: ${classData.name}`;
+        
+        // --- PHẦN SỬA LỖI QUAN TRỌNG NHẤT ---
+        const modalTitle = document.getElementById("class-attendance-modal-title");
+        modalTitle.textContent = `Bảng điểm danh: ${classData.name}`;
+        // Gán ID của lớp vào đây, ngay trước khi hiển thị modal
+        modalTitle.dataset.classId = classId; 
+        
         document.getElementById("class-attendance-modal-overlay").style.display = "flex";
+        // --- KẾT THÚC PHẦN SỬA LỖI ---
 
         setTimeout(() => {
             const scrollContainer = document.getElementById("class-attendance-scroll-container");
