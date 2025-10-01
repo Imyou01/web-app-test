@@ -709,6 +709,7 @@
             </form>
         <div class="modal__footer">
                 <button type="button" class="modal__button modal__button--cancel" onclick="hideClassForm()">Hủy</button>
+                <button type="button" class="modal__button modal__button--danger" onclick="convertAndExtendClass(document.getElementById('class-index').value)">Chuyển sang Lớp Phổ thông</button>
                 <button type="submit" form="class-form" class="modal__button modal__button--save">Lưu Lớp</button>
         </div>
     </div>
@@ -1139,6 +1140,7 @@
                 </div>
             </div>
         </div>
+        </div>
         <div class="modal" id="class-tuition-modal" style="display: none;">
         <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
         <div class="modal__content modal__content--extra-large">
@@ -1266,6 +1268,32 @@
 
         </div>
     </div>
+    <div class="modal" id="transfer-student-modal" style="display: none;">
+    <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+    <div class="modal__content">
+        <div class="modal__header">
+            <h3 class="modal__title">Chuyển lớp cho học viên</h3>
+            <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal__form">
+            <input type="hidden" id="transfer-student-id">
+            <p>Học viên: <strong id="transfer-student-name"></strong></p>
+            <p>Từ lớp: <strong id="transfer-from-class-name"></strong></p>
+            <input type="hidden" id="transfer-from-class-id">
+
+            <div class="form-grid__field" style="margin-top: 20px;">
+                <label for="transfer-to-class-select">Chuyển đến lớp:</label>
+                <select id="transfer-to-class-select" required>
+                    <option value="">-- Chọn lớp mới --</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal__footer">
+            <button type="button" class="modal__button modal__button--cancel" onclick="this.closest('.modal').style.display='none'">Hủy</button>
+            <button type="button" class="modal__button modal__button--save" onclick="executeTransfer()">Xác nhận chuyển lớp</button>
+        </div>
+    </div>
+</div>
     
           <div id="class-info-tooltip"></div>
 <script src="https://unpkg.com/lucide-static@latest/dist/lucide.min.js"></script>
