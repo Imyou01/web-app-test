@@ -1250,3 +1250,55 @@ a:hover {
 .role-selection__button:hover {
     background-color: var(--color-primary-dark);
 }
+/* CSS cho danh sách nhân sự trong trang Quản lý Nhân sự */
+.styled-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+}
+
+.styled-list > li {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-weight: 500;
+}
+
+.styled-list > li:last-child {
+    border-bottom: none;
+}
+
+.styled-list > li:hover {
+    background-color: #e9ecef;
+}
+
+.styled-list > li.active {
+    background-color: var(--color-primary);
+    color: white;
+    font-weight: 600;
+}
+
+.class-sublist {
+    padding-left: 20px;
+    margin-top: 10px;
+}
+
+.class-sublist ul {
+    list-style: none;
+    padding: 0;
+}
+
+.class-sublist li {
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.class-sublist li:hover {
+    background-color: #dee2e6;
+}
