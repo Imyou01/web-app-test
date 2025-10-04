@@ -270,7 +270,7 @@ const certificateCourses = {
   YCT_BASE: [], // Sẽ được tạo tự động
    HSK: [
     // Khóa lẻ
-    { name: "HSK1", sessions: 18 }, { name: "HSK2", sessions: 20 }, { name: "HSK3", sessions: 28 }, { name: "HSK4", sessions: 50 }, { name: "HSK5", sessions: 80 },
+    { name: "HSK1", sessions: 22 }, { name: "HSK2", sessions: 25 }, { name: "HSK3", sessions: 35 }, { name: "HSK4", sessions: 50 }, { name: "HSK5", sessions: 80 },
     { name: "HSKK sơ cấp", sessions: 10 }, { name: "HSKK trung cấp", sessions: 18 }, { name: "HSKK cao cấp", sessions: 25 },
     { name: "Sơ cấp A1-A2", sessions: 45 }, { name: "Trung cấp B1", sessions: 65 }, { name: "Trung-cao cấp B2", sessions: 75 },
     // Combo (Thêm thuộc tính selectionLimit)
@@ -5101,6 +5101,72 @@ async function showClassAttendanceAndHomeworkTable(classId) {
     }
 }
 /**
+ * HÀM MỚI: Mở hộp thoại để thêm một buổi học dự phòng/bổ sung.
+ */
+async function promptAddExtraSession() {
+    const classId = document.getElementById('class-attendance-modal-title').dataset.classId;
+    if (!classId) {
+        Swal.fire("Lỗi", "Không thể xác định được lớp học hiện tại.", "error");
+        return;
+    }
+
+    const classData = allClassesData[classId];
+    if (!classData) return;
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Thêm buổi học dự phòng',
+        html: `
+            <div style="text-align: left; margin-top: 20px;">
+                <label for="swal-new-date"><b>Ngày và giờ của buổi học mới:</b></label>
+                <input type="date" id="swal-new-date" class="swal2-input" style="width: 100%;">
+                <input type="time" id="swal-new-time" class="swal2-input" style="width: 100%;">
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Thêm Buổi',
+        cancelButtonText: 'Hủy',
+        preConfirm: () => {
+            const newDate = document.getElementById('swal-new-date').value;
+            const newTime = document.getElementById('swal-new-time').value;
+            if (!newDate || !newTime) {
+                Swal.showValidationMessage('Vui lòng nhập đầy đủ ngày và giờ.');
+                return false;
+            }
+            // Kiểm tra xem ngày mới có bị trùng không
+            if (classData.sessions?.[newDate] || classData.exams?.[newDate]) {
+                 Swal.showValidationMessage('Ngày này đã bị trùng với một buổi học/buổi thi khác.');
+                return false;
+            }
+            return { newDate, newTime };
+        }
+    });
+
+    if (formValues) {
+        const { newDate, newTime } = formValues;
+        showLoading(true);
+        try {
+            const updates = {};
+            // Thêm buổi học mới và đánh dấu là "buổi thêm"
+            updates[`/classes/${classId}/sessions/${newDate}`] = { time: newTime, type: "extra" };
+
+            await database.ref().update(updates);
+            await logActivity(`Đã thêm buổi học dự phòng ngày ${newDate} cho lớp ${classData.name}`);
+
+            // Tải lại bảng điểm danh để hiển thị buổi mới
+            await renderClassAttendanceTable(classId);
+
+            Swal.fire('Thành công!', 'Đã thêm buổi học mới thành công.', 'success');
+
+        } catch (error) {
+            console.error("Lỗi khi thêm buổi học:", error);
+            Swal.fire("Lỗi", "Đã xảy ra lỗi: " + error.message, "error");
+        } finally {
+            showLoading(false);
+        }
+    }
+}
+/**
  * HÀM MỚI: Mở hộp thoại để tạo một buổi học bù thay thế cho một buổi học cũ.
  */
 async function promptCreateMakeupSession() {
@@ -5217,20 +5283,20 @@ async function renderClassAttendanceTable(classId) {
         let headerHTML = `<tr><th style="min-width: 200px;">Họ tên</th>`;
         allEventDates.forEach(dateKey => {
             const isExam = !!exams[dateKey];
-            
-            // --- LOGIC MỚI ĐỂ HIỂN THỊ "BUỔI HỌC BÙ" ---
             const sessionData = sessions[dateKey];
             let eventName;
 
             if (isExam) {
                 eventName = exams[dateKey].name || 'Bài KT';
             } else if (sessionData && sessionData.type === 'makeup') {
-                eventName = 'Buổi học bù'; // Hiển thị tên mới
+                eventName = 'Buổi học bù';
+            } else if (sessionData && sessionData.type === 'extra') {
+                // THÊM LOGIC MỚI ĐỂ HIỂN THỊ TÊN BUỔI HỌC THÊM
+                eventName = 'Buổi học thêm';
             } else {
-                eventName = 'Buổi học'; // Mặc định như cũ
+                eventName = 'Buổi học';
             }
-            // --- KẾT THÚC LOGIC MỚI ---
-            
+
             const formattedDate = new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
             headerHTML += `<th class="${isExam ? 'exam-header' : ''}" style="position: relative;"><button class="delete-session-btn" onclick="deleteSession('${classId}', '${dateKey}', ${isExam})" title="Xóa buổi này">×</button>${eventName}<br><small>${formattedDate}</small></th>`;
         });
@@ -5251,7 +5317,7 @@ async function renderClassAttendanceTable(classId) {
                 warningClass = 'student-warning-low';
                 iconHtml = '<span class="warning-icon">&#9888;</span> ';
             }
-            
+
             let rowHTML = `<tr><td class="${warningClass}">${iconHtml}${student.name}</td>`;
             allEventDates.forEach(dateKey => {
                 const isExam = !!exams[dateKey];
@@ -5263,11 +5329,11 @@ async function renderClassAttendanceTable(classId) {
             bodyHTML += rowHTML;
         }
         tableBody.innerHTML = bodyHTML;
-        
+
         const modalTitle = document.getElementById("class-attendance-modal-title");
         modalTitle.textContent = `Bảng điểm danh: ${classData.name}`;
         modalTitle.dataset.classId = classId; 
-        
+
         document.getElementById("class-attendance-modal-overlay").style.display = "flex";
 
         setTimeout(() => {
