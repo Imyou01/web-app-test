@@ -5467,57 +5467,62 @@ async function promptAddSession(classId, afterDate) {
   }
 }
 async function deleteSession(classId, dateToDelete, isExam) {
-  const sessionType = isExam ? "buổi thi" : "buổi học";
-  const result = await Swal.fire({
-    title: `Bạn chắc chắn muốn xóa ${sessionType} ngày ${dateToDelete}?`,
-    text: "Hành động này sẽ xóa điểm danh và điểm của ngày này. Không thể hoàn tác!",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
-    confirmButtonText: 'Vâng, xóa nó!',
-    cancelButtonText: 'Hủy'
-  });
+    const sessionType = isExam ? "buổi thi" : "buổi học";
+    const result = await Swal.fire({
+        title: `Bạn chắc chắn muốn xóa ${sessionType} ngày ${dateToDelete}?`,
+        text: "Hành động này sẽ xóa điểm danh và điểm của ngày này. Không thể hoàn tác!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Vâng, xóa nó!',
+        cancelButtonText: 'Hủy'
+    });
 
-  if (result.isConfirmed) {
-    showLoading(true);
-    try {
-      const classSnap = await database.ref(`classes/${classId}`).once("value");
-      const cls = classSnap.val();
-      if (!cls) throw new Error("Không tìm thấy lớp học.");
+    if (result.isConfirmed) {
+        showLoading(true);
+        try {
+            const classSnap = await database.ref(`classes/${classId}`).once("value");
+            const cls = classSnap.val();
+            if (!cls) throw new Error("Không tìm thấy lớp học.");
 
-      const studentIds = Object.keys(cls.students || {});
-      const updates = {};
-      
-      // Sửa lỗi: Xóa trực tiếp bằng key là ngày tháng
-      if (isExam) {
-        updates[`/classes/${classId}/exams/${dateToDelete}`] = null;
-      } else {
-        updates[`/classes/${classId}/sessions/${dateToDelete}`] = null;
-      }
+            const studentIds = Object.keys(cls.students || {});
+            const updates = {};
+            
+            if (isExam) {
+                updates[`/classes/${classId}/exams/${dateToDelete}`] = null;
+            } else {
+                updates[`/classes/${classId}/sessions/${dateToDelete}`] = null;
+            }
 
-      for (const studentId of studentIds) {
-        updates[`/attendance/${classId}/${studentId}/${dateToDelete}`] = null;
-        updates[`/homeworkScores/${classId}/${studentId}/${dateToDelete}`] = null;
+            for (const studentId of studentIds) {
+                const attendanceRecordRef = database.ref(`attendance/${classId}/${studentId}/${dateToDelete}`);
+                const attendanceRecordSnap = await attendanceRecordRef.once("value");
 
-        const attendanceRecordSnap = await database.ref(`attendance/${classId}/${studentId}/${dateToDelete}`).once("value");
-        if (attendanceRecordSnap.val() === true && !isExam) {
-          const studentAttendedRef = database.ref(`students/${studentId}/sessionsAttended`);
-          await studentAttendedRef.transaction((currentValue) => (currentValue || 0) - 1);
+                // --- PHẦN SỬA LỖI QUAN TRỌNG NHẤT LÀ Ở ĐÂY ---
+                // Kiểm tra đúng định dạng dữ liệu { attended: true }
+                if (attendanceRecordSnap.val()?.attended === true && !isExam) {
+                    const studentAttendedRef = database.ref(`students/${studentId}/sessionsAttended`);
+                    // Thực hiện giảm số buổi đã học
+                    await studentAttendedRef.transaction((currentValue) => (currentValue || 0) - 1);
+                }
+                // --- KẾT THÚC PHẦN SỬA LỖI ---
+
+                updates[`/attendance/${classId}/${studentId}/${dateToDelete}`] = null;
+                updates[`/homeworkScores/${classId}/${studentId}/${dateToDelete}`] = null; // Vẫn xóa điểm nếu có
+            }
+
+            await database.ref().update(updates);
+            await renderClassAttendanceTable(classId);
+            Swal.fire('Đã xóa!', `${sessionType.charAt(0).toUpperCase() + sessionType.slice(1)} ngày ${dateToDelete} đã được xóa.`, 'success');
+
+        } catch (error) {
+            console.error("Lỗi xóa buổi học:", error);
+            Swal.fire('Lỗi', 'Không thể xóa buổi học: ' + error.message, 'error');
+        } finally {
+            showLoading(false);
         }
-      }
-
-      await database.ref().update(updates);
-      await renderClassAttendanceTable(classId);
-      Swal.fire('Đã xóa!', `${sessionType.charAt(0).toUpperCase() + sessionType.slice(1)} ngày ${dateToDelete} đã được xóa.`, 'success');
-
-    } catch (error) {
-      console.error("Lỗi xóa buổi học:", error);
-      Swal.fire('Lỗi', 'Không thể xóa buổi học: ' + error.message, 'error');
-    } finally {
-      showLoading(false);
     }
-  }
 }
 /*
   // Ẩn danh sách lớp, hiện bảng modal
@@ -8123,6 +8128,215 @@ async function convertAndExtendClass(classId) {
     } catch (error) {
         console.error("Lỗi khi chuyển đổi lớp:", error);
         Swal.fire("Lỗi!", "Đã xảy ra lỗi: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * HÀM CUỐI CÙNG: Áp dụng logic tính toán đã được kiểm chứng cho TOÀN BỘ học viên.
+ * 1. Tìm lớp học đang hoạt động mới nhất của mỗi học viên.
+ * 2. Đếm lại số buổi đã học (bao gồm cả KT định kỳ của lớp phổ thông) CHỈ trong lớp đó.
+ * 3. Ghi đè lại kết quả cho tất cả học viên.
+ */
+async function finalRecalculateAllStudentSessions() {
+    const result = await Swal.fire({
+        title: 'Bạn chắc chắn muốn đồng bộ lại toàn bộ?',
+        text: "Hệ thống sẽ thực hiện đợt quét sâu cuối cùng để GHI ĐÈ lại 'số buổi đã học' cho TẤT CẢ học viên. Đây là phương pháp chính xác nhất dựa trên logic đã kiểm tra.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Vâng, thực hiện ngay!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) {
+        console.log("Hành động đã bị hủy.");
+        return;
+    }
+
+    console.log("Bắt đầu quá trình đồng bộ cuối cùng...");
+    showLoading(true);
+
+    try {
+        const [studentsSnap, attendanceSnap, classesSnap] = await Promise.all([
+            database.ref('students').once('value'),
+            database.ref('attendance').once('value'),
+            database.ref('classes').once('value')
+        ]);
+        
+        const allStudents = studentsSnap.val() || {};
+        const allAttendance = attendanceSnap.val() || {};
+        const allClasses = classesSnap.val() || {};
+
+        const updates = {};
+        let studentsProcessed = 0;
+
+        for (const studentId in allStudents) {
+            studentsProcessed++;
+            const studentData = allStudents[studentId];
+            
+            // --- BƯỚC A: TÌM LỚP HỌC HIỆN TẠI DUY NHẤT CỦA HỌC VIÊN ---
+            let newestActiveClassId = null;
+            let latestEnrollment = 0;
+
+            if (studentData.classes) {
+                for (const classId in studentData.classes) {
+                    const classData = allClasses[classId];
+                    if (classData && (classData.status === 'active' || !classData.status)) {
+                        const enrollmentTime = classData.students?.[studentId]?.enrolledAt || 0;
+                        if (enrollmentTime >= latestEnrollment) { // Dùng >= để xử lý trường hợp chỉ có 1 lớp
+                            latestEnrollment = enrollmentTime;
+                            newestActiveClassId = classId;
+                        }
+                    }
+                }
+            }
+            
+            // --- BƯỚC B: CHỈ ĐẾM SỐ BUỔI TRONG LỚP HỌC ĐÓ ---
+            let correctAttendedCount = 0;
+            if (newestActiveClassId && allAttendance[newestActiveClassId]?.[studentId]) {
+                const studentAttendanceInClass = allAttendance[newestActiveClassId][studentId];
+                const classData = allClasses[newestActiveClassId];
+                const isGeneralTypeClass = classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường';
+
+                for (const date in studentAttendanceInClass) {
+                    if (studentAttendanceInClass[date]?.attended === true) {
+                        const isExam = classData.exams?.[date];
+                        if (!isExam || (isExam && isGeneralTypeClass)) {
+                            // Đếm nếu là buổi học thường, HOẶC là buổi thi của lớp phổ thông
+                            correctAttendedCount++;
+                        }
+                    }
+                }
+            }
+            
+            // --- BƯỚC C: GHI ĐÈ trực tiếp, không cần so sánh ---
+            updates[`/students/${studentId}/sessionsAttended`] = correctAttendedCount;
+        }
+
+        await database.ref().update(updates);
+        Swal.fire('Hoàn tất!', `Đã quét và ghi đè lại số buổi đã học cho ${studentsProcessed} học viên.`, 'success');
+
+    } catch (error) {
+        console.error("Lỗi trong quá trình tính lại:", error);
+        Swal.fire("Lỗi!", "Đã xảy ra lỗi: " + error.message, "error");
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * HÀM GỠ LỖI CUỐI CÙNG: Áp dụng logic tính toán chính xác cho một học viên
+ * và in ra chi tiết quá trình để kiểm tra.
+ * @param {string} studentName - Tên chính xác của học viên cần gỡ lỗi.
+ */
+async function debugFinalRecalculation(studentName) {
+    if (!studentName) {
+        console.error("Vui lòng nhập tên học viên. Ví dụ: debugFinalRecalculation('Nguyễn Văn A')");
+        return;
+    }
+
+    console.clear();
+    console.log(`--- BẮT ĐẦU GỠ LỖI CHO HỌC VIÊN: ${studentName} ---`);
+    showLoading(true);
+
+    try {
+        let studentId = null;
+        let studentData = null;
+        let foundCount = 0;
+        for (const id in allStudentsData) {
+            if (allStudentsData[id].name === studentName) {
+                studentId = id;
+                studentData = allStudentsData[id];
+                foundCount++;
+            }
+        }
+        if (!studentId) throw new Error(`Không tìm thấy học viên nào có tên "${studentName}".`);
+        if (foundCount > 1) throw new Error(`Tìm thấy ${foundCount} học viên cùng tên. Vui lòng kiểm tra lại.`);
+
+        const [attendanceSnap, classesSnap] = await Promise.all([
+            database.ref('attendance').once('value'),
+            database.ref('classes').once('value')
+        ]);
+        const allAttendance = attendanceSnap.val() || {};
+        const allClasses = classesSnap.val() || {};
+
+        const detailedLogs = [];
+
+        // --- BƯỚC A: TÌM LỚP HỌC ĐANG HOẠT ĐỘNG MỚI NHẤT ---
+        detailedLogs.push("--- BƯỚC A: TÌM LỚP HỌC ĐANG HOẠT ĐỘNG MỚI NHẤT ---");
+        let newestActiveClassId = null;
+        let latestEnrollment = 0;
+
+        if (studentData.classes) {
+            for (const classId in studentData.classes) {
+                const classData = allClasses[classId];
+                if (classData && (classData.status === 'active' || !classData.status)) {
+                    const enrollmentTime = classData.students?.[studentId]?.enrolledAt || 0;
+                    detailedLogs.push(`[LỚP: ${classData.name}] - Trạng thái: active. Thời gian nhập học: ${enrollmentTime}`);
+                    if (enrollmentTime >= latestEnrollment) {
+                        latestEnrollment = enrollmentTime;
+                        newestActiveClassId = classId;
+                        detailedLogs.push(`  -> Được chọn là lớp mới nhất (tạm thời).`);
+                    }
+                } else {
+                     detailedLogs.push(`[LỚP: ${classData?.name || classId}] - Trạng thái: ${classData?.status || 'không tồn tại'}. Bỏ qua.`);
+                }
+            }
+        }
+        
+        const finalClassName = newestActiveClassId ? allClasses[newestActiveClassId].name : "Không tìm thấy";
+        detailedLogs.push(`=> KẾT LUẬN: Lớp học mới nhất đang hoạt động là: "${finalClassName}"`);
+        
+        // --- BƯỚC B: ĐẾM SỐ BUỔI ĐIỂM DANH TRONG LỚP TÌM ĐƯỢC ---
+        detailedLogs.push("\n--- BƯỚC B: ĐẾM SỐ BUỔI ĐIỂM DANH TRONG LỚP TRÊN ---");
+        let correctAttendedCount = 0;
+        if (newestActiveClassId && allAttendance[newestActiveClassId]?.[studentId]) {
+            const studentAttendanceInClass = allAttendance[newestActiveClassId][studentId];
+            const classData = allClasses[newestActiveClassId];
+            const isGeneralTypeClass = classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường';
+
+            for (const date in studentAttendanceInClass) {
+                if (studentAttendanceInClass[date]?.attended === true) {
+                    const isExam = classData.exams?.[date];
+                    if (!isExam) {
+                        detailedLogs.push(`  -> [${date}]: Buổi học thường. ĐẾM +1.`);
+                        correctAttendedCount++;
+                    } else if (isGeneralTypeClass) {
+                        detailedLogs.push(`  -> [${date}]: Buổi KT định kỳ (lớp phổ thông). ĐẾM +1.`);
+                        correctAttendedCount++;
+                    } else {
+                        detailedLogs.push(`  -> [${date}]: Buổi thi (lớp chứng chỉ). KHÔNG ĐẾM.`);
+                    }
+                }
+            }
+        } else {
+            detailedLogs.push("Không tìm thấy dữ liệu điểm danh nào trong lớp này.");
+        }
+        
+        console.log("%c--- KẾT QUẢ ---", "font-weight: bold; font-size: 18px; color: blue;");
+        console.log(`Số buổi đã học (hiện đang lưu trong DB): %c${studentData.sessionsAttended || 0}`, "font-weight: bold; color: red;");
+        console.log(`Số buổi đếm được (kết quả tính toán lại): %c${correctAttendedCount}`, "font-weight: bold; color: green;");
+        
+        console.groupCollapsed("Xem chi tiết quá trình gỡ lỗi");
+        detailedLogs.forEach(log => console.log(log));
+        console.groupEnd();
+        
+        const updateResult = await Swal.fire({
+            title: 'Gỡ lỗi hoàn tất',
+            html: `Số buổi đếm được là <b>${correctAttendedCount}</b>. Bạn có muốn cập nhật lại con số này cho <b>${studentName}</b> không?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Có, cập nhật!',
+            cancelButtonText: 'Không, chỉ xem thôi'
+        });
+
+        if (updateResult.isConfirmed) {
+            await database.ref(`students/${studentId}/sessionsAttended`).set(correctAttendedCount);
+            Swal.fire('Đã cập nhật!', `Số buổi đã học của ${studentName} đã được sửa thành ${correctAttendedCount}.`, 'success');
+        }
+
+    } catch (error) {
+        console.error("Lỗi khi gỡ lỗi:", error);
+        Swal.fire("Lỗi!", error.message, "error");
     } finally {
         showLoading(false);
     }
