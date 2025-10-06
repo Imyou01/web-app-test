@@ -1615,7 +1615,7 @@ function renderStudentList(dataset) {
                 </label>
                 <label title="Đã gọi điện">
                     <img src="icons/phone.svg" alt="Phone" class="table-icon">
-                    <input type="checkbox" onchange="updateNotificationStatus('${id}', 'phone', this.checked)" ${notificationStatus.phone ? 'checked' : ''}>
+                    <input type="checkbox" class="phone-checkbox" onchange="updateNotificationStatus('${id}', 'phone', this.checked)" ${notificationStatus.phone ? 'checked' : ''}>
                 </label>
             </div>
         `;
