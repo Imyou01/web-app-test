@@ -2680,33 +2680,30 @@ async function saveClass(event) {
     event.preventDefault();
     showLoading(true);
 
-    const classId = document.getElementById("class-index").value; // Sẽ có giá trị nếu là sửa lớp
-    
-    // Lấy <select> element thay vì chỉ lấy value
+    const classId = document.getElementById("class-index").value;
     const teacherSelect = document.getElementById("class-teacher");
     const assistantTeacherSelect = document.getElementById("class-assistant-teacher");
 
-    // Lấy tất cả thông tin từ form
     const classData = {
         name: document.getElementById("class-name").value.trim(),
         classType: document.getElementById('class-type-select').value,
         certificateType: document.getElementById('class-certificate-type-select').value,
         courseName: document.getElementById('class-course-select').value,
-        
-        // === PHẦN SỬA LỖI NẰM Ở ĐÂY ===
-        // Lấy .value (tên giáo viên) thay vì .text (tên + chức vụ)
         teacher: teacherSelect.value, 
-        teacherUid: teacherSelect.options[teacherSelect.selectedIndex].dataset.uid || '',
+        teacherUid: teacherSelect.options[teacherSelect.selectedIndex]?.dataset.uid || '',
         assistantTeacher: assistantTeacherSelect.value,
-        assistantTeacherUid: assistantTeacherSelect.value ? assistantTeacherSelect.options[assistantTeacherSelect.selectedIndex].dataset.uid : '',
-        // ==============================
-
+        assistantTeacherUid: assistantTeacherSelect.value ? assistantTeacherSelect.options[assistantTeacherSelect.selectedIndex]?.dataset.uid : '',
         room: document.getElementById("class-room").value,
         startDate: document.getElementById("class-start-date").value,
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     };
 
-    // --- LOGIC XỬ LÝ DANH SÁCH HỌC VIÊN ---
+    // LOGIC DỌN DẸP: Nếu không phải lớp chứng chỉ, hãy đảm bảo các trường liên quan bị xóa.
+    if (classData.classType !== 'Lớp chứng chỉ') {
+        classData.certificateType = null;
+        classData.courseName = null;
+    }
+
     const newStudentsObject = {};
     currentClassStudents.forEach(studentId => {
         newStudentsObject[studentId] = {
@@ -2722,7 +2719,6 @@ async function saveClass(event) {
             const oldClassData = allClassesData[classId];
             const oldStudentIds = oldClassData.students ? Object.keys(oldClassData.students) : [];
             
-            // Cập nhật thông tin lớp học (giữ lại các thuộc tính không có trên form)
             updates[`/classes/${classId}`] = { ...oldClassData, ...classData };
 
             const addedStudents = currentClassStudents.filter(id => !oldStudentIds.includes(id));
@@ -2736,20 +2732,20 @@ async function saveClass(event) {
             });
 
             await database.ref().update(updates);
-            await logActivity(`Đã tạo/cập nhật lớp: ${classData.name}`);
+            await logActivity(`Đã cập nhật lớp học: ${classData.name}`);
             Swal.fire({ icon: 'success', title: 'Đã cập nhật lớp học!', timer: 2000, showConfirmButton: false });
             
         } else {
             // --- TRƯỜNG HỢP TẠO LỚP MỚI ---
             const fixedSchedule = getFixedScheduleFromForm();
-            if (Object.keys(fixedSchedule).length === 0) { throw new Error("Lớp mới phải có lịch học."); }
+            if (Object.keys(fixedSchedule).length === 0) { throw new Error("Lớp mới phải có lịch học cố định."); }
             classData.fixedSchedule = fixedSchedule;
             classData.createdAt = firebase.database.ServerValue.TIMESTAMP;
             
             let sessionCount = (classData.classType === 'Lớp chứng chỉ')
                 ? (certificateCourses[classData.certificateType]?.find(c => c.name === classData.courseName)?.sessions || 0)
-                : 72; // Giả sử mặc định 72 buổi cho lớp phổ thông
-            if (sessionCount <= 0 && classData.classType === 'Lớp chứng chỉ') { throw new Error("Không thể xác định số buổi học."); }
+                : 72;
+            if (sessionCount <= 0 && classData.classType === 'Lớp chứng chỉ') { throw new Error("Không thể xác định số buổi học cho khóa chứng chỉ."); }
             
             classData.sessions = generateRollingSessions(classData.startDate, sessionCount, fixedSchedule);
             
@@ -2763,6 +2759,7 @@ async function saveClass(event) {
             });
             
             await database.ref().update(updates);
+            await logActivity(`Đã tạo lớp học mới: ${classData.name}`);
             Swal.fire({ icon: 'success', title: 'Đã tạo lớp học mới!', timer: 2000, showConfirmButton: false });
         }
         hideClassForm();
@@ -8133,18 +8130,19 @@ async function convertAndExtendClass(classId) {
     }
 }
 /**
- * HÀM CUỐI CÙNG: Áp dụng logic tính toán đã được kiểm chứng cho TOÀN BỘ học viên.
- * 1. Tìm lớp học đang hoạt động mới nhất của mỗi học viên.
- * 2. Đếm lại số buổi đã học (bao gồm cả KT định kỳ của lớp phổ thông) CHỈ trong lớp đó.
- * 3. Ghi đè lại kết quả cho tất cả học viên.
+ * HÀM CUỐI CÙNG: Quét TOÀN BỘ học viên và GHI ĐÈ lại số buổi đã học.
+ * - Bước 1: Tìm lớp học đang hoạt động mới nhất của mỗi học viên.
+ * - Bước 2: Chỉ đếm các buổi đã tick trong lớp đó (bao gồm KT định kỳ của lớp phổ thông).
+ * - Bước 3: Bỏ qua các tick điểm danh của các buổi học đã bị xóa.
+ * - Bước 4: Ghi đè lại kết quả, không cần so sánh.
  */
 async function finalRecalculateAllStudentSessions() {
     const result = await Swal.fire({
-        title: 'Bạn chắc chắn muốn đồng bộ lại toàn bộ?',
-        text: "Hệ thống sẽ thực hiện đợt quét sâu cuối cùng để GHI ĐÈ lại 'số buổi đã học' cho TẤT CẢ học viên. Đây là phương pháp chính xác nhất dựa trên logic đã kiểm tra.",
+        title: 'Tính lại Toàn bộ Dữ liệu?',
+        html: "Hệ thống sẽ thực hiện một đợt quét sâu cuối cùng để <b>GHI ĐÈ</b> lại 'số buổi đã học' cho <b>TẤT CẢ</b> học viên. <br><br><b>Quy tắc đếm:</b><br>- Tìm lớp đang hoạt động mới nhất của mỗi học viên.<br>- Chỉ đếm các tick điểm danh trong lớp đó.<br>- Bỏ qua các tick của các buổi học đã bị xóa.<br>- Tính cả các buổi KT định kỳ của lớp phổ thông.",
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Vâng, thực hiện ngay!',
+        confirmButtonText: 'Vâng, thực hiện!',
         cancelButtonText: 'Hủy'
     });
 
@@ -8174,16 +8172,17 @@ async function finalRecalculateAllStudentSessions() {
             studentsProcessed++;
             const studentData = allStudents[studentId];
             
-            // --- BƯỚC A: TÌM LỚP HỌC HIỆN TẠI DUY NHẤT CỦA HỌC VIÊN ---
+            // --- BƯỚC A: TÌM LỚP HỌC ĐANG HOẠT ĐỘNG MỚI NHẤT ---
             let newestActiveClassId = null;
             let latestEnrollment = 0;
 
             if (studentData.classes) {
                 for (const classId in studentData.classes) {
                     const classData = allClasses[classId];
+                    // Lớp phải tồn tại và đang hoạt động (không có status hoặc status là 'active')
                     if (classData && (classData.status === 'active' || !classData.status)) {
                         const enrollmentTime = classData.students?.[studentId]?.enrolledAt || 0;
-                        if (enrollmentTime >= latestEnrollment) { // Dùng >= để xử lý trường hợp chỉ có 1 lớp
+                        if (enrollmentTime >= latestEnrollment) {
                             latestEnrollment = enrollmentTime;
                             newestActiveClassId = classId;
                         }
@@ -8199,10 +8198,13 @@ async function finalRecalculateAllStudentSessions() {
                 const isGeneralTypeClass = classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường';
 
                 for (const date in studentAttendanceInClass) {
-                    if (studentAttendanceInClass[date]?.attended === true) {
+                    // Kiểm tra 1: Buổi học này phải thực sự tồn tại trong lịch của lớp
+                    const sessionExists = classData.sessions?.[date] || classData.exams?.[date];
+
+                    if (sessionExists && studentAttendanceInClass[date]?.attended === true) {
+                        // Kiểm tra 2: Loại trừ các buổi thi của lớp chứng chỉ
                         const isExam = classData.exams?.[date];
                         if (!isExam || (isExam && isGeneralTypeClass)) {
-                            // Đếm nếu là buổi học thường, HOẶC là buổi thi của lớp phổ thông
                             correctAttendedCount++;
                         }
                     }
@@ -8278,13 +8280,13 @@ async function debugFinalRecalculation(studentName) {
                         detailedLogs.push(`  -> Được chọn là lớp mới nhất (tạm thời).`);
                     }
                 } else {
-                     detailedLogs.push(`[LỚP: ${classData?.name || classId}] - Trạng thái: ${classData?.status || 'không tồn tại'}. Bỏ qua.`);
+                     detailedLogs.push(`[LỚP: ${classData?.name || classId}] - Trạng thái: ${classData?.status || 'không tồn tại/đã xóa'}. Bỏ qua.`);
                 }
             }
         }
         
         const finalClassName = newestActiveClassId ? allClasses[newestActiveClassId].name : "Không tìm thấy";
-        detailedLogs.push(`=> KẾT LUẬN: Lớp học mới nhất đang hoạt động là: "${finalClassName}"`);
+        detailedLogs.push(`=> KẾT LUẬN: Lớp học được chọn để đếm là: "${finalClassName}"`);
         
         // --- BƯỚC B: ĐẾM SỐ BUỔI ĐIỂM DANH TRONG LỚP TÌM ĐƯỢC ---
         detailedLogs.push("\n--- BƯỚC B: ĐẾM SỐ BUỔI ĐIỂM DANH TRONG LỚP TRÊN ---");
@@ -8295,6 +8297,13 @@ async function debugFinalRecalculation(studentName) {
             const isGeneralTypeClass = classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường';
 
             for (const date in studentAttendanceInClass) {
+                const sessionExists = classData.sessions?.[date] || classData.exams?.[date];
+
+                if (!sessionExists) {
+                    detailedLogs.push(`  -> [${date}]: Đã tick, nhưng buổi học này KHÔNG CÒN TỒN TẠI trong lịch của lớp. Bỏ qua.`);
+                    continue;
+                }
+
                 if (studentAttendanceInClass[date]?.attended === true) {
                     const isExam = classData.exams?.[date];
                     if (!isExam) {
@@ -8309,7 +8318,7 @@ async function debugFinalRecalculation(studentName) {
                 }
             }
         } else {
-            detailedLogs.push("Không tìm thấy dữ liệu điểm danh nào trong lớp này.");
+            detailedLogs.push("Không tìm thấy dữ liệu điểm danh nào trong lớp được chọn.");
         }
         
         console.log("%c--- KẾT QUẢ ---", "font-weight: bold; font-size: 18px; color: blue;");
