@@ -1563,10 +1563,10 @@ const canEditStudents = currentUserData && (
      if (canEditStudents) {
       // SỬ DỤNG HÀM MỚI ĐỂ TÌM LỚP HỢP LỆ
       const activeClassId = findActiveStudentClassId(st); 
-
+ //<button onclick="showTransferModal('${id}')">Chuyển lớp</button>
       actionButtonsHTML = `
         <button onclick="editStudent('${id}')">Sửa</button>
-        <button onclick="showTransferModal('${id}')">Chuyển lớp</button>
+       
         <button onclick="viewStudentSessions('${id}', '${activeClassId || ''}')" ${!activeClassId ? 'disabled' : ''}>Buổi học</button>
         <button onclick="showRenewPackageForm('${id}')">Gia hạn</button>
         <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
