@@ -1335,3 +1335,7 @@ a:hover {
     height: 18px;
     margin-right: 12px;
 }
+/* Đổi màu dấu tick của checkbox Điện thoại thành màu đỏ */
+.phone-checkbox {
+    accent-color: #dc3545;
+}
