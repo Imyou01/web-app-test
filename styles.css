@@ -1302,3 +1302,36 @@ a:hover {
 .class-sublist li:hover {
     background-color: #dee2e6;
 }
+/* CSS cho cột Thông báo */
+.notification-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 8px 0;
+}
+
+.notification-cell label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.notification-cell input[type="checkbox"] {
+    transform: scale(1.4);
+    cursor: pointer;
+}
+/* CSS cho icon dạng ảnh trong bảng */
+.table-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle; /* Căn icon ra giữa theo chiều dọc */
+}
+
+/* CSS cho icon trong sidebar */
+.sidebar-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+}
