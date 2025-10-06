@@ -94,43 +94,43 @@
             <ul class="sidebar__nav-list">
                 <li class="sidebar__nav-item">
                     <a href="#dashboard" class="sidebar__nav-link">
-                        <i data-lucide="layout-dashboard"></i>
+                        <img src="icons/dashboard.svg" class="sidebar-icon" alt="Bảng Điều Khiển">
                         <span>Bảng Điều Khiển</span>
                     </a>
                 </li>
                 <li class="sidebar__nav-item">
                     <a href="#student-management" class="sidebar__nav-link">
-                        <i data-lucide="users"></i>
+                        <img src="icons/student.svg" class="sidebar-icon" alt="Quản Lý Học Viên">
                         <span>Quản Lý Học Viên</span>
                     </a>
                 </li>
                 <li class="sidebar__nav-item">
                     <a href="#class-management" class="sidebar__nav-link">
-                        <i data-lucide="book-copy"></i>
+                        <img src="icons/class.svg" class="sidebar-icon" alt="Quản Lý Lớp Học">
                         <span>Quản Lý Lớp Học</span>
                     </a>
                 </li>
                 <li class="sidebar__nav-item">
                     <a href="#new-schedule-page" class="sidebar__nav-link">
-                        <i data-lucide="calendar-days"></i>
+                        <img src="icons/calendar.svg" class="sidebar-icon" alt="Quản Lý Lịch Học">
                         <span>Quản Lý Lịch Học</span>
                     </a>
                 </li>
                 <li class="sidebar__nav-item">
                     <a href="#personnel-management" class="sidebar__nav-link">
-                        <i data-lucide="user-cog"></i>
+                       <img src="icons/personnel.svg" class="sidebar-icon" alt="Quản Lý Nhân Sự">
                         <span>Quản Lý Nhân Sự</span>
                     </a>
                 </li>
                  <li class="sidebar__nav-item">
                     <a href="#account-management" class="sidebar__nav-link">
-                        <i data-lucide="shield-check"></i>
+                       <img src="icons/account.svg" class="sidebar-icon" alt="Quản Lý Tài Khoản">
                         <span>Quản Lý Tài Khoản</span>
                     </a>
                 </li>
                 <li class="sidebar__nav-item">
                     <a href="#tuition-management" class="sidebar__nav-link">
-                        <i data-lucide="dollar-sign"></i>
+                        <img src="icons/tuition.svg" class="sidebar-icon" alt="Quản Lý Học Phí">
                         <span>Quản Lý Học Phí</span>
                     </a>
                 </li>
@@ -186,6 +186,18 @@
     <div class="student-management__controls">
         <input type="text" id="student-search" class="student-management__search" placeholder="Tìm kiếm theo tên, SĐT..." oninput="filterStudentsBySearch()">
         <select id="student-filter-class" class="student-management__filter" onchange="applyStudentFilters()"></select>
+
+        <select id="student-filter-zalo" class="student-management__filter" onchange="applyStudentFilters()">
+        <option value="">-- Lọc theo Zalo --</option>
+        <option value="yes">Đã tick Zalo</option>
+        <option value="no">Chưa tick Zalo</option>
+    </select>
+    <select id="student-filter-phone" class="student-management__filter" onchange="applyStudentFilters()">
+        <option value="">-- Lọc theo Điện thoại --</option>
+        <option value="yes">Đã tick Điện thoại</option>
+        <option value="no">Chưa tick Điện thoại</option>
+    </select>
+
         <button class="student-management__reset-button" onclick="resetStudentFilters()">Reset</button>
     </div>
      <div class="student-management__summary">
@@ -209,7 +221,7 @@
                     <th class="data-table__header">Học phí</th>
                     <th class="data-table__header th-sessions-attended">Số buổi đã học</th>
                     <th class="data-table__header th-sessions-remaining">Buổi còn lại</th>
-                    <th class="data-table__header">Hành động</th>
+                    <th class="data-table__header">Thông báo</th> <th class="data-table__header">Hành động</th>
                 </tr>
             </thead>
             <tbody id="student-list" class="data-table__body">
@@ -578,6 +590,7 @@
         <div class="modal__footer">
             <button type="button" class="modal__button modal__button--cancel" onclick="hideStudentForm()">Hủy</button>
             <button type="button" class="modal__button modal__button--reset" onclick="promptResetPackage()">Reset Gói</button>
+        
             <button type="submit" class="modal__button modal__button--save">Lưu</button>
         </div>
     </form>
