@@ -176,12 +176,24 @@
         Xem lại và quản lý các học viên, lớp học đã bị xóa.
     </p>
 </a>
+    <a href="#" id="recalculate-sessions-btn" class="dashboard__card" onclick="event.preventDefault(); auditAndRecalculateGeneralEnglish();" style="display: none; background-color: #fff3cd; border: 1px solid #ffeeba;">
+        <h3 class="dashboard__card-title">
+            <i data-lucide="refresh-cw"></i> Tính Lại Số Buổi Học
+        </h3>
+        <p class="dashboard__card-description" style="color: #664d03;">
+            (Chỉ Admin) Chạy kiểm toán và tính lại tổng số buổi đã học cho tất cả học viên lớp phổ thông.
+        </p>
+    </a>
 </div>
             </section>
             <section class="student-management" id="student-management" style="display: none;">
     <div class="page-header">
         <h2 class="page-header__title">Quản Lý Học Viên</h2>
-        <button class="page-header__button" onclick="showStudentForm()">Thêm Học Viên Mới</button>
+         <div class="button-group"> <button id="export-cycle-report-btn" class="page-header__button page-header__button--danger" onclick="showStudentSelectorForCycleReport()" style="display: none;">
+                <i data-lucide="repeat"></i> Xem Chu Kỳ Học
+            </button>
+            <button class="page-header__button" onclick="showStudentForm()">Thêm Học Viên Mới</button>
+        </div>
     </div>
     <div class="student-management__controls">
         <input type="text" id="student-search" class="student-management__search" placeholder="Tìm kiếm theo tên, SĐT..." oninput="filterStudentsBySearch()">
