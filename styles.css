@@ -1339,3 +1339,29 @@ a:hover {
 .phone-checkbox {
     accent-color: #dc3545;
 }
+
+.button-group {
+    display: flex; /* Sử dụng flexbox để các item nằm ngang */
+    align-items: center; /* Căn chỉnh các item theo chiều dọc ở giữa */
+    gap: 10px; /* Tạo khoảng cách giữa các nút */
+}
+
+/* Đảm bảo các nút có chiều cao và padding tương đồng nếu cần */
+.page-header__button {
+    height: 40px; /* Ví dụ: đặt chiều cao cố định */
+    display: inline-flex; /* Đảm bảo nội dung (text + icon) được căn chỉnh */
+    align-items: center; /* Căn icon và text ở giữa */
+    justify-content: center; /* Căn nội dung nút ở giữa (nếu cần) */
+    padding: 0 15px; /* Điều chỉnh padding ngang nếu cần */
+    box-sizing: border-box; /* Đảm bảo padding không làm tăng kích thước tổng thể */
+}
+
+/* Nếu có các nút khác trong page-header__button mà bị ảnh hưởng, có thể cần cụ thể hơn */
+.page-header__button--danger {
+    background-color: #dc3545; /* Màu đỏ */
+    border-color: #dc3545;
+}
+
+.page-header__button--danger:hover {
+    background-color: #c82333; /* Màu đỏ đậm hơn khi hover */
+}
