@@ -40,7 +40,8 @@ const DB_PATHS = {
   USERS: "users",
   STUDENTS: "students",
   CLASSES: "classes",
-  HOMEWORKS: "homeworks"
+  HOMEWORKS: "homeworks",
+  ATTENDANCE: "attendance"
 };
 
 // Danh sách các trang (tham chiếu bằng ID)
@@ -203,6 +204,10 @@ let currentPersonnelClassId = null;
 let classSizeChart = null;
 let newStudentsChart = null;
 let currentClassView = 'active';
+
+const HOLIDAYS = [
+    '01-01' // Tết Dương lịch
+];
 
 const generalEnglishCourses = [
   { name: "Tiếng Anh cho trẻ em (Mầm non)", sessions: 8 }, // 1 tháng
@@ -748,16 +753,18 @@ async function loadInitialData() {
     console.log("Bắt đầu tải dữ liệu ban đầu...");
     try {
         // Tải đồng thời cả 3 loại dữ liệu và chờ cho đến khi tất cả hoàn tất
-        const [usersSnap, classesSnap, studentsSnap] = await Promise.all([
+        const [usersSnap, classesSnap, studentsSnap, attendanceSnap] = await Promise.all([
             database.ref(DB_PATHS.USERS).once('value'),
             database.ref(DB_PATHS.CLASSES).once('value'),
-            database.ref(DB_PATHS.STUDENTS).once('value')
+            database.ref(DB_PATHS.STUDENTS).once('value'),
+            database.ref(DB_PATHS.ATTENDANCE).once('value')
         ]);
 
         // Gán dữ liệu vào các biến toàn cục
         allUsersData = usersSnap.val() || {};
         allClassesData = classesSnap.val() || {};
         allStudentsData = studentsSnap.val() || {};
+        allAttendanceData = attendanceSnap.val() || {};
         
         console.log("Tải dữ liệu ban đầu thành công!");
     } catch (error) {
@@ -1529,6 +1536,7 @@ function formatTimestamp(ts) {
   return `${day}/${month}/${year}`;
 }
 // Render danh sách học viên (phân trang)
+// PHIÊN BẢN HOÀN CHỈNH - THAY THẾ TOÀN BỘ HÀM CŨ
 function renderStudentList(dataset) {
     const studentEntries = Object.entries(dataset)
         .filter(([, st]) => st.status !== 'deleted');
@@ -1549,7 +1557,7 @@ function renderStudentList(dataset) {
     const tbody = document.getElementById("student-list");
     tbody.innerHTML = "";
 
-    const canEditStudents = currentUserData && (
+     const canEdit = currentUserData && (
         currentUserData.role === "Admin" || 
         currentUserData.role === "Hội Đồng" || 
         currentUserData.role === "Giáo Viên" || 
@@ -1558,72 +1566,41 @@ function renderStudentList(dataset) {
 
     currentPageStudents.forEach(([id, st]) => {
         let actionButtonsHTML = '';
-        if (canEditStudents) {
-            const activeClassId = findActiveStudentClassId(st); 
-            actionButtonsHTML = `
-                <button onclick="editStudent('${id}')">Sửa</button>
-                <button onclick="viewStudentSessions('${id}', '${activeClassId || ''}')" ${!activeClassId ? 'disabled' : ''}>Buổi học</button>
-                <button onclick="showRenewPackageForm('${id}')">Gia hạn</button>
-                <button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>
-            `;
+        const activeClassId = findActiveStudentClassId(id, st);
+        
+        actionButtonsHTML = `
+            <button onclick="editStudent('${id}')">Sửa</button>
+            <button onclick="viewStudentSessions('${id}', '${activeClassId || ''}')" ${!activeClassId ? 'disabled' : ''}>Buổi học</button>
+            <button onclick="showRenewPackageForm('${id}')">Gia hạn</button>
+        `;
+        if(canEdit) {
+             actionButtonsHTML += `<button class="delete-btn" onclick="deleteStudent('${id}')">Xóa</button>`;
         } else {
-            const permissionAlert = "Swal.fire('Thẩm quyền', 'Bạn không có quyền thực hiện hành động này.', 'warning')";
-            actionButtonsHTML = `
+             const permissionAlert = "Swal.fire('Thẩm quyền', 'Bạn không có quyền thực hiện hành động này.', 'warning')";
+             actionButtonsHTML = `
                 <button onclick="${permissionAlert}">Sửa</button>
                 <button onclick="${permissionAlert}">Buổi học</button>
                 <button onclick="${permissionAlert}">Gia hạn</button>
                 <button class="delete-btn" onclick="${permissionAlert}">Xóa</button>
-            `;
+             `;
         }
-        
+
         const query = document.getElementById("student-search")?.value.toLowerCase() || "";
-        function highlight(text) {
+        const highlight = (text) => {
             if (!query || !text) return text;
             try {
                 const regex = new RegExp(`(${query})`, "gi");
                 return text.replace(regex, '<mark>$1</mark>');
-            } catch (e) {
-                return text;
-            }
-        }
+            } catch (e) { return text; }
+        };
+        
         const isHighlight = query && (
             (st.name || "").toLowerCase().includes(query) ||
             (st.phone || "").toLowerCase().includes(query) ||
-            (st.parentPhone || "").toLowerCase().includes(query) ||
-            (st.parentJob || "").toLowerCase().includes(query) ||
-            (st.package || "").toLowerCase().includes(query)
+            (st.parentPhone || "").toLowerCase().includes(query)
         );
 
-        let displayPhone = '';
-        const currentYear = new Date().getFullYear();
-        const age = st.dob ? (currentYear - parseInt(st.dob)) : null;
-
-        if (st.phone) {
-            displayPhone = st.phone;
-        } else if (age !== null && age < 18 && st.parentPhone) {
-            displayPhone = st.parentPhone;
-        } else {
-            displayPhone = st.parentPhone || "";
-        }
-
-        const notificationStatus = st.notificationStatus || {};
-        const notificationCellHTML = `
-            <div class="notification-cell">
-                <label title="Đã liên hệ qua Zalo">
-                    <img src="icons/zalo.svg" alt="Zalo" class="table-icon">
-                    <input type="checkbox" onchange="updateNotificationStatus('${id}', 'zalo', this.checked)" ${notificationStatus.zalo ? 'checked' : ''}>
-                </label>
-                <label title="Đã gọi điện">
-                    <img src="icons/phone.svg" alt="Phone" class="table-icon">
-                    <input type="checkbox" class="phone-checkbox" onchange="updateNotificationStatus('${id}', 'phone', this.checked)" ${notificationStatus.phone ? 'checked' : ''}>
-                </label>
-            </div>
-        `;
-
-        const totalDueFormatted = (st.totalDue || 0).toLocaleString('vi-VN');
-        const sessionsAttended = st.sessionsAttended || 0;
-        const totalSessionsPaid = st.totalSessionsPaid || 0;
-        const remainingSessions = totalSessionsPaid - sessionsAttended;
+        const remainingSessions = (st.totalSessionsPaid || 0) - (st.sessionsAttended || 0);
         let warningClass = '';
         let iconHtml = '';
         if (remainingSessions <= 0) {
@@ -1633,17 +1610,61 @@ function renderStudentList(dataset) {
             iconHtml = '<span class="warning-icon">&#9888;</span> ';
         }
         
+        // Logic cho ô sửa ngày bắt đầu chu kì
+        let cycleStartDateCellHTML = st.cycleStartDate || "";
+        if (canEdit) {
+            cycleStartDateCellHTML = `
+                <input 
+                    type="date" 
+                    class="inline-date-editor" 
+                    value="${st.cycleStartDate || ''}" 
+                    onchange="updateCycleStartDate('${id}', this.value)"
+                >`;
+        }
+        
+        // Logic cho ô thanh toán gói hiện tại
+        let tuitionCellHTML = `<td data-label="Thanh Toán Gói Hiện Tại" class="tuition-cycle-cell">---</td>`;
+        let currentCycle = (st.tuitionCycles && st.tuitionCycles.length > 0) ? st.tuitionCycles[st.tuitionCycles.length - 1] : null;
+
+        if (!currentCycle && st.package) {
+            currentCycle = { cycleId: 'new_cycle', isPaid: false };
+        }
+        
+        if (currentCycle) {
+            const isChecked = currentCycle.isPaid ? 'checked' : '';
+            const isDisabled = !canEdit ? 'disabled' : '';
+            tuitionCellHTML = `
+                <td data-label="Thanh Toán Gói Hiện Tại" class="tuition-cycle-cell">
+                    <a href="#" class="tuition-history-link" onclick="event.preventDefault(); showTuitionCycleHistory('${id}')">Xem lịch sử</a>
+                    <input 
+                        type="checkbox" 
+                        ${isChecked} 
+                        ${isDisabled}
+                        onchange="toggleTuitionCyclePaid('${id}', '${currentCycle.cycleId}', this.checked)">
+                </td>
+            `;
+        }
+        
+        // Logic cho ô thông báo Zalo/Phone
+        const notificationStatus = st.notificationStatus || {};
+        const notificationCellHTML = `
+            <div class="notification-cell">
+                <label title="Đã liên hệ qua Zalo"><img src="icons/zalo.svg" alt="Zalo" class="table-icon"><input type="checkbox" onchange="updateNotificationStatus('${id}', 'zalo', this.checked)" ${notificationStatus.zalo ? 'checked' : ''}></label>
+                <label title="Đã gọi điện"><img src="icons/phone.svg" alt="Phone" class="table-icon"><input type="checkbox" class="phone-checkbox" onchange="updateNotificationStatus('${id}', 'phone', this.checked)" ${notificationStatus.phone ? 'checked' : ''}></label>
+            </div>
+        `;
+
         const row = `
             <tr class="${isHighlight ? 'highlight-row' : ''}">
                 <td data-label="Họ và tên" class="${warningClass}">${iconHtml}${highlight(st.name || "")}</td>
                 <td data-label="Năm sinh">${st.dob || ""}</td>
-                <td data-label="Số điện thoại">${highlight(displayPhone)}</td>
+                <td data-label="Ngày bắt đầu chu kì">${cycleStartDateCellHTML}</td>
                 <td data-label="Gói đăng ký">${highlight(st.package || "")}</td>
                 <td data-label="Ngày tạo">${formatTimestamp(st.createdAt)}</td>
                 <td data-label="Ngày sửa đổi">${formatTimestamp(st.updatedAt)}</td>
-                <td data-label="Học phí">${totalDueFormatted} VNĐ</td>
-                <td data-label="Số buổi đã học" class="td-sessions-attended">${sessionsAttended}</td>
-                <td data-label="Số buổi còn lại" class="td-sessions-remaining">${remainingSessions}</td>
+                ${tuitionCellHTML}
+                <td data-label="Số buổi đã học" class="td-sessions-attended">${st.sessionsAttended || 0}</td>
+                <td data-label="Buổi còn lại" class="td-sessions-remaining">${remainingSessions}</td>
                 <td data-label="Thông báo">${notificationCellHTML}</td>
                 <td data-label="Hành động">${actionButtonsHTML}</td>
             </tr>`;
@@ -1652,10 +1673,6 @@ function renderStudentList(dataset) {
     });
 
     updateStudentPaginationControls();
-    
- /* if (typeof Lucide !== 'undefined') {
-        Lucide.createIcons();
-    } */
 }
 /**
  * HÀM CẬP NHẬT: Thực hiện chuyển lớp và TỰ ĐỘNG ĐIỂM DANH ở lớp mới.
@@ -1986,51 +2003,75 @@ async function saveStudent() {
     }
 
     const id = document.getElementById("student-index").value;
-    let existingData = id ? (allStudentsData[id] || null) : null;
+    const existingData = id ? (allStudentsData[id] || {}) : {};
     const isRenewing = document.getElementById("student-form-title").textContent.includes("Gia hạn");
     
-    // Biến để ghi log, sẽ được gán giá trị ở dưới
     let studentNameForLog = '';
+    const newPackageName = document.getElementById("student-package").value.trim();
 
     const studentData = {
-        package: document.getElementById("student-package").value.trim(),
+        package: newPackageName,
         discountPercent: parseInt(document.getElementById("student-discount-percent").value) || 0,
         promotionPercent: parseInt(document.getElementById("student-promotion-percent").value) || 0,
         originalPrice: parseInt(document.getElementById("student-original-price").value) || 0,
         totalDue: parseInt(document.getElementById("student-total-due").value) || 0,
         totalBookFeeDue: parseInt(document.getElementById("student-book-fee-due").value) || 0,
+       // cycleStartDate: document.getElementById("student-cycle-start-date").value,
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     };
 
+    // === LOGIC PHÂN BIỆT SỬA VÀ GIA HẠN ĐƯỢC THÊM LẠI ===
     if (!isRenewing) {
+        // Nếu là Tạo mới hoặc Sửa thông tin, đọc dữ liệu từ form
         const name = document.getElementById("student-name").value.trim();
-        const dob = document.getElementById("student-dob").value.trim();
-        if (!name || !dob) {
-            Swal.fire("Lỗi", "Vui lòng nhập đầy đủ Tên học viên và Năm sinh.", "error");
+        if (!name) {
+            Swal.fire("Lỗi", "Vui lòng nhập Tên học viên.", "error");
             return;
         }
         studentNameForLog = name;
         studentData.name = name;
-        studentData.dob = dob;
-        // ... (các trường dữ liệu cá nhân khác)
-    } else if (existingData) {
-        studentNameForLog = existingData.name;
-        studentData.name = existingData.name;
-        studentData.dob = existingData.dob;
-        // ... (sao chép các trường dữ liệu cá nhân cũ)
+        studentData.dob = document.getElementById("student-dob").value.trim();
+        studentData.address = document.getElementById("student-address").value.trim();
+        studentData.phone = document.getElementById("student-phone")?.value.trim() || "";
+        studentData.parent = document.getElementById("student-parent")?.value.trim() || "";
+        studentData.parentPhone = document.getElementById("student-parent-phone")?.value.trim() || "";
+        studentData.parentJob = document.getElementById("student-parent-job").value === 'Khác'
+            ? document.getElementById("student-parent-job-other").value.trim()
+            : document.getElementById("student-parent-job").value;
+    } else {
+        // Nếu là Gia hạn, sao chép lại thông tin cá nhân cũ để tránh bị xóa
+        studentNameForLog = existingData.name || '';
+        ['name', 'dob', 'address', 'phone', 'parent', 'parentPhone', 'parentJob', 'cycleStartDate'].forEach(key => {
+            studentData[key] = existingData[key] || "";
+        });
     }
+    // === KẾT THÚC LOGIC PHÂN BIỆT ===
 
+    // Xử lý logic chu kỳ học phí
+    let tuitionCycles = existingData.tuitionCycles || [];
+    const lastCycle = tuitionCycles.length > 0 ? tuitionCycles[tuitionCycles.length - 1] : null;
+
+    if (newPackageName && (!lastCycle || lastCycle.packageName !== newPackageName)) {
+        const newCycle = {
+            cycleId: `cycle_${Date.now()}`,
+            packageName: newPackageName,
+            renewalDate: new Date().toISOString().split("T")[0],
+            isPaid: false,
+            paidDate: null
+        };
+        tuitionCycles.push(newCycle);
+    }
+    studentData.tuitionCycles = tuitionCycles;
+
+    // Xử lý số buổi học
     const newPackageSessions = parseInt(document.getElementById("student-new-package-sessions").value) || 0;
-    if (id && existingData) {
-        // Cập nhật hoặc gia hạn
+    if (id) { // Nếu là sửa hoặc gia hạn
         studentData.sessionsAttended = existingData.sessionsAttended || 0;
         studentData.createdAt = existingData.createdAt;
-        studentData.paymentHistory = existingData.paymentHistory || {};
         studentData.totalSessionsPaid = isRenewing 
             ? (existingData.totalSessionsPaid || 0) + newPackageSessions 
             : (newPackageSessions > 0 ? newPackageSessions : (existingData.totalSessionsPaid || 0));
-    } else {
-        // Tạo mới
+    } else { // Nếu là tạo mới
         studentData.createdAt = firebase.database.ServerValue.TIMESTAMP;
         studentData.sessionsAttended = 0;
         studentData.totalSessionsPaid = newPackageSessions;
@@ -2039,7 +2080,7 @@ async function saveStudent() {
     try {
         if (id) {
             await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
-            await logActivity(`Đã cập nhật hồ sơ học viên: "${studentNameForLog}"`);
+            await logActivity(`Đã cập nhật/gia hạn cho học viên: "${studentNameForLog}"`);
             Swal.fire({ icon: 'success', title: 'Đã cập nhật!', timer: 2000, showConfirmButton: false });
         } else {
             await database.ref(DB_PATHS.STUDENTS).push(studentData);
@@ -2128,6 +2169,8 @@ async function editStudent(id) {
         document.getElementById("student-name").value = st.name || "";
         document.getElementById("student-dob").value = st.dob || "";
         document.getElementById("student-address").value = st.address || "";
+       // document.getElementById("student-cycle-start-date").value = st.cycleStartDate || "";
+
         handleAgeChange();
         setTimeout(() => {
             if (document.getElementById("student-phone")) document.getElementById("student-phone").value = st.phone || "";
@@ -2301,23 +2344,43 @@ function renderClassList() {
     });
 }
 /**
- * HÀM MỚI: Tìm ID của lớp học hợp lệ (còn tồn tại) từ hồ sơ của một học viên.
- * @param {object} studentData - Dữ liệu của học viên (st).
- * @returns {string|null} - Trả về ID của lớp hợp lệ, hoặc null nếu không tìm thấy.
+ * HÀM CẬP NHẬT: Tìm ID lớp hiện tại của học viên dựa vào ngày điểm danh gần nhất.
  */
-function findActiveStudentClassId(studentData) {
+function findActiveStudentClassId(studentId, studentData) {
     if (!studentData || !studentData.classes) {
         return null;
     }
+
     const classIds = Object.keys(studentData.classes);
-    // Duyệt qua danh sách ID lớp của học viên
-    for (const classId of classIds) {
-        // Kiểm tra xem ID này có tồn tại trong danh sách tất cả các lớp đang hoạt động không
-        if (allClassesData[classId]) {
-            return classId; // Tìm thấy, trả về ngay lập tức
+    let latestDate = '1970-01-01'; // Một ngày trong quá khứ rất xa
+    let mostRecentClassId = null;
+
+    const validClasses = classIds.filter(classId => {
+        const classData = allClassesData[classId];
+        return classData && classData.status !== 'deleted';
+    });
+
+    if (validClasses.length === 0) return null;
+    if (validClasses.length === 1) return validClasses[0];
+    
+    // Mặc định gán lớp hợp lệ đầu tiên làm kết quả tạm thời
+    mostRecentClassId = validClasses[0];
+
+    validClasses.forEach(classId => {
+        const attendanceRecords = allAttendanceData[classId]?.[studentId];
+        if (!attendanceRecords) {
+            return; // Bỏ qua nếu lớp này không có dữ liệu điểm danh
         }
-    }
-    return null; // Không tìm thấy lớp nào hợp lệ
+
+        const lastDateInClass = Object.keys(attendanceRecords).sort().pop();
+
+        if (lastDateInClass && lastDateInClass > latestDate) {
+            latestDate = lastDateInClass;
+            mostRecentClassId = classId;
+        }
+    });
+
+    return mostRecentClassId;
 }
 /**
  * Điền vào ô lựa chọn giáo viên trong form lớp học
@@ -4992,6 +5055,9 @@ function generateFixedSessions(fixedSchedule, startDateStr, sessionCount) {
  * @param {number} monthsInFuture - Cần tạo lịch cho bao nhiêu tháng trong tương lai.
  * @returns {Array} - Mảng các buổi học.
  */
+/**
+ * Tạo ra một danh sách các buổi học "cuốn chiếu", có bỏ qua ngày lễ.
+ */
 function generateRollingSessions(startDateStr, sessionCount, schedule) {
     const sessions = {};
     if (!schedule || Object.keys(schedule).length === 0 || sessionCount <= 0) {
@@ -5004,19 +5070,23 @@ function generateRollingSessions(startDateStr, sessionCount, schedule) {
         const dayIndex = cursorDate.getDay();
 
         if (schedule[dayIndex]) {
-            // === PHẦN SỬA LỖI QUAN TRỌNG NHẤT LÀ Ở ĐÂY ===
-            // Bỏ .toISOString() và định dạng ngày thủ công theo giờ địa phương
-            const year = cursorDate.getFullYear();
+            // *** BƯỚC KIỂM TRA NGÀY LỄ MỚI ***
             const month = String(cursorDate.getMonth() + 1).padStart(2, '0');
             const day = String(cursorDate.getDate()).padStart(2, '0');
-            const dateKey = `${year}-${month}-${day}`;
-            // ===============================================
+            const monthDay = `${month}-${day}`;
 
-            if (!sessions[dateKey]) {
-                sessions[dateKey] = {
-                    time: schedule[dayIndex]
-                };
+            if (!HOLIDAYS.includes(monthDay)) {
+                // Chỉ thêm buổi học nếu ngày đó không phải là ngày lễ
+                const year = cursorDate.getFullYear();
+                const dateKey = `${year}-${month}-${day}`;
+                
+                if (!sessions[dateKey]) {
+                    sessions[dateKey] = {
+                        time: schedule[dayIndex]
+                    };
+                }
             }
+            // Nếu là ngày lễ, vòng lặp sẽ tự động bỏ qua và xét ngày tiếp theo
         }
         cursorDate.setDate(cursorDate.getDate() + 1);
     }
@@ -8545,44 +8615,98 @@ function downloadToFile(content, filename, contentType) {
     a.click();
     URL.revokeObjectURL(a.href);
 }
-// HÀM 1: HIỂN THỊ HỘP THOẠI CHỌN HỌC VIÊN
+/**
+ * LỌC CÁC LỰA CHỌN TRONG HỘP THOẠI SWAL
+ */
+function filterSwalOptions() {
+    const query = document.getElementById('swal-student-search').value.toLowerCase();
+    const select = document.getElementById('swal-student-select');
+    const options = select.getElementsByTagName('option');
+
+    for (let i = 0; i < options.length; i++) {
+        const optionText = options[i].textContent || options[i].innerText;
+        if (optionText.toLowerCase().includes(query)) {
+            options[i].style.display = '';
+        } else {
+            options[i].style.display = 'none';
+        }
+    }
+}
+
+/**
+ * HÀM PHỤ ĐỂ DỰ ĐOÁN CÁC BUỔI HỌC TRONG TƯƠNG LAI
+ */
+function generateFutureSessions(startDateStr, count, schedule) {
+  const sessions = [];
+  if (count <= 0) return sessions;
+  
+  let cursorDate = new Date(startDateStr + 'T00:00:00');
+
+  while (sessions.length < count) {
+    cursorDate.setDate(cursorDate.getDate() + 1);
+    
+    const dayIndex = cursorDate.getDay();
+    if (schedule[dayIndex]) {
+      const dateKey = cursorDate.toISOString().split('T')[0];
+      sessions.push(dateKey);
+    }
+  }
+  return sessions;
+}
+
+/**
+ * HIỂN THỊ HỘP THOẠI CHỌN HỌC VIÊN ĐỂ XEM BÁO CÁO
+ */
 async function showStudentSelectorForCycleReport() {
     showLoading(true);
-    // Lọc ra những học viên hợp lệ (không thuộc lớp chứng chỉ và không bị xóa)
-    const validStudents = {};
+    const validStudents = [];
+    const classMap = new Map();
+
     for (const studentId in allStudentsData) {
         const student = allStudentsData[studentId];
         if (student.status === 'deleted') continue;
 
-        const classId = findActiveStudentClassId(student);
+        const classId = findActiveStudentClassId(studentId, student);
         if (classId && allClassesData[classId] && allClassesData[classId].classType !== 'Lớp chứng chỉ') {
-            validStudents[studentId] = student.name;
+            validStudents.push({ id: studentId, name: student.name, classId: classId });
+            if (!classMap.has(classId)) {
+                classMap.set(classId, allClassesData[classId].name);
+            }
         }
     }
     showLoading(false);
 
-    if (Object.keys(validStudents).length === 0) {
+    if (validStudents.length === 0) {
         Swal.fire("Thông báo", "Không có học viên nào thuộc lớp phổ thông hoặc các môn trên trường để xem báo cáo.", "info");
         return;
     }
 
-    // Tạo HTML cho ô select
-    const optionsHtml = Object.entries(validStudents)
-        .sort(([, a], [, b]) => a.localeCompare(b))
-        .map(([id, name]) => `<option value="${id}">${name}</option>`)
+    let classFilterOptions = '<option value="">-- Tất cả các lớp --</option>';
+    classMap.forEach((name, id) => {
+        classFilterOptions += `<option value="${id}">${name}</option>`;
+    });
+
+    const studentOptionsHtml = validStudents
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(student => `<option value="${student.id}" data-class-id="${student.classId}">${student.name}</option>`)
         .join('');
 
     const { value: selectedIds } = await Swal.fire({
         title: 'Chọn học viên để xem chu kỳ',
         html: `
+            <div class="swal-custom-controls">
+                <select id="swal-class-filter" onchange="applySwalFilters()">${classFilterOptions}</select>
+                <button onclick="selectAllStudentsInSwal(event)">Chọn hết</button>
+                <button onclick="deselectAllStudentsInSwal(event)">Bỏ chọn</button>
+            </div>
             <input 
                 type="text" 
                 id="swal-student-search" 
                 class="swal2-input" 
                 placeholder="Gõ tên học viên để lọc..."
-                oninput="filterSwalOptions()">
+                oninput="applySwalFilters()">
             <select id="swal-student-select" class="swal2-select" multiple style="height: 200px; margin-top: 10px;">
-                ${optionsHtml}
+                ${studentOptionsHtml}
             </select>
             <small>Giữ phím Ctrl (hoặc Command trên Mac) để chọn nhiều học viên.</small>`,
         focusConfirm: false,
@@ -8599,88 +8723,159 @@ async function showStudentSelectorForCycleReport() {
         generateCycleReport(selectedIds);
     }
 }
-
-// HÀM 2: LOGIC CHÍNH ĐỂ TẠO BÁO CÁO
+/**
+ * LOGIC CHÍNH ĐỂ TẠO BÁO CÁO CHU KỲ (PHIÊN BẢN HOÀN CHỈNH)
+ * Tự động bù thêm các buổi học dự đoán để đảm bảo đủ 24 buổi/chu kì.
+ */
 async function generateCycleReport(studentIds) {
     showLoading(true);
     try {
         const fullReport = [];
-        const attendanceSnap = await database.ref('attendance').once('value');
-        const allAttendance = attendanceSnap.val() || {};
+        const todayStr = new Date().toISOString().split('T')[0];
 
         for (const studentId of studentIds) {
             const studentData = allStudentsData[studentId];
             if (!studentData) continue;
+            
+            fullReport.push(`--- Báo Cáo Chu Kỳ Học Viên: ${studentData.name} ---`);
 
-            // --- Thu thập TẤT CẢ các ngày đã điểm danh và sắp xếp ---
-            const allAttendedDates = [];
-            if (studentData.classes) {
-                for (const classId in studentData.classes) {
-                    const classData = allClassesData[classId];
-                    if (!classData || classData.status === 'deleted' || classData.classType === 'Lớp chứng chỉ') continue;
-                    
-                    const attendanceRecords = allAttendance[classId]?.[studentId] || {};
-                    for (const date in attendanceRecords) {
-                        if (attendanceRecords[date]?.attended === true) {
-                            allAttendedDates.push(date);
-                        }
+            let cycleStartDate = studentData.cycleStartDate;
+            if (!cycleStartDate) {
+                cycleStartDate = await findFirstAttendanceDate(studentId);
+            }
+
+            if (!cycleStartDate) {
+                fullReport.push(" >> LỖI: Không thể xác định ngày bắt đầu chu kì cho học viên này.\n-----------------------------------------------------\n");
+                continue;
+            }
+
+            const allScheduledDatesSet = new Set();
+            const currentClassId = findActiveStudentClassId(studentId, studentData);
+            const pastClassIds = (studentData.classes ? Object.keys(studentData.classes) : []).filter(id => id !== currentClassId);
+
+            if (currentClassId) {
+                const classData = allClassesData[currentClassId];
+                if (classData && classData.sessions) {
+                    Object.keys(classData.sessions).forEach(date => allScheduledDatesSet.add(date));
+                }
+            } else {
+                 fullReport.push(" >> LỖI: Không tìm thấy lớp học hiện tại để dự đoán tương lai.\n-----------------------------------------------------\n");
+                 continue;
+            }
+
+            for (const classId of pastClassIds) {
+                const classData = allClassesData[classId];
+                if (classData && classData.sessions) {
+                    const attendanceRecords = allAttendanceData[classId]?.[studentId];
+                    if (attendanceRecords) {
+                        const lastAttendedDateInClass = Object.keys(attendanceRecords).sort().pop();
+                        Object.keys(classData.sessions).forEach(date => {
+                            if (date <= lastAttendedDateInClass) {
+                                allScheduledDatesSet.add(date);
+                            }
+                        });
                     }
                 }
             }
-            allAttendedDates.sort(); // Rất quan trọng: sắp xếp ngày tháng theo thứ tự
 
-            const sessionsAttended = allAttendedDates.length;
-            const currentCycleIndex = Math.floor((sessionsAttended -1 < 0 ? 0 : sessionsAttended - 1) / 24);
-            const currentCycleNumber = currentCycleIndex + 1;
+            const studentTimelineUnfiltered = Array.from(allScheduledDatesSet).sort().filter(date => date >= cycleStartDate);
             
-            const attendedSessionsInCurrentCycle = allAttendedDates.slice(currentCycleIndex * 24);
-            const sessionsToPredictInCurrentCycle = 24 - attendedSessionsInCurrentCycle.length;
-            
-            // --- Bắt đầu xây dựng báo cáo cho học viên này ---
-            fullReport.push(`--- Báo Cáo Chu Kỳ Học Viên: ${studentData.name} ---`);
-            fullReport.push(`Tổng số buổi đã học: ${sessionsAttended}`);
-            
-            // --- Lấy lịch học để dự đoán ---
-            const activeClassId = findActiveStudentClassId(studentData);
-            let fixedSchedule = null;
-            if (activeClassId && allClassesData[activeClassId]) {
-                fixedSchedule = allClassesData[activeClassId].fixedSchedule;
+            let studentTimeline = studentTimelineUnfiltered.filter(date => {
+                const monthDay = date.substring(5);
+                return !HOLIDAYS.includes(monthDay);
+            });
+
+            // *** BƯỚC BÙ THÊM BUỔI HỌC DỰ ĐOÁN ***
+            if (studentTimeline.length > 0) {
+                const lastKnownDate = studentTimeline[studentTimeline.length - 1];
+                const currentClassData = allClassesData[currentClassId];
+
+                if (currentClassData && currentClassData.fixedSchedule) {
+                    // Tạo thêm 50 buổi học nữa (đã lọc ngày lễ) tính từ sau ngày cuối cùng đã biết
+                    const futureSessionsObject = generateRollingSessions(lastKnownDate, 50, currentClassData.fixedSchedule);
+                    const futureSessions = Object.keys(futureSessionsObject);
+
+                    // Gộp lại để có một dòng thời gian đủ dài
+                    const finalTimelineSet = new Set([...studentTimeline, ...futureSessions]);
+                    studentTimeline = Array.from(finalTimelineSet).sort();
+                }
             }
+            // *** KẾT THÚC BƯỚC BÙ THÊM ***
 
-            if (!fixedSchedule) {
-                fullReport.push("Lỗi: Không tìm thấy lịch học cố định của lớp hiện tại để dự đoán.\n");
+            if (studentTimeline.length === 0) {
+                fullReport.push(" >> LỖI: Không tìm thấy buổi học nào hợp lệ.\n-----------------------------------------------------\n");
                 continue;
             }
             
-            // --- Xử lý Chu kỳ hiện tại ---
-            fullReport.push(`\n## CHU KỲ HIỆN TẠI (Số ${currentCycleNumber}, từ buổi ${currentCycleIndex * 24 + 1} đến ${currentCycleNumber * 24}) ##`);
-            if (attendedSessionsInCurrentCycle.length > 0) {
-                fullReport.push(`- Các buổi ĐÃ HỌC (${attendedSessionsInCurrentCycle.length} buổi):`);
-                fullReport.push(`  ${attendedSessionsInCurrentCycle.join(', ')}`);
+            const attendedDatesSet = new Set();
+            for (const classId in allAttendanceData) {
+                if (allAttendanceData[classId]?.[studentId]) {
+                    Object.keys(allAttendanceData[classId][studentId]).forEach(date => {
+                        if (allAttendanceData[classId][studentId][date]?.attended === true) {
+                            attendedDatesSet.add(date);
+                        }
+                    });
+                }
+            }
+
+            let sessionsPassedCount = 0;
+            for(const date of studentTimeline) {
+                if(date < todayStr) sessionsPassedCount++;
+                else break;
             }
             
-            const lastAttendedDate = allAttendedDates.length > 0 ? allAttendedDates[allAttendedDates.length - 1] : new Date().toISOString().split('T')[0];
-            const predictedSessionsInCurrentCycle = generateFutureSessions(lastAttendedDate, sessionsToPredictInCurrentCycle, fixedSchedule);
-            if (predictedSessionsInCurrentCycle.length > 0) {
-                fullReport.push(`- Các buổi DỰ ĐOÁN SẼ HỌC (${predictedSessionsInCurrentCycle.length} buổi):`);
-                fullReport.push(`  ${predictedSessionsInCurrentCycle.join(', ')}`);
+            const cycleIndex = Math.floor((sessionsPassedCount > 0 ? sessionsPassedCount - 1 : 0) / 24);
+            const currentCycleSessions = studentTimeline.slice(cycleIndex * 24, (cycleIndex + 1) * 24);
+            const nextCycleSessions = studentTimeline.slice((cycleIndex + 1) * 24, (cycleIndex + 2) * 24);
+            
+            fullReport.push(`Ngày bắt đầu tính chu kì: ${cycleStartDate}`);
+            
+            // === PHẦN MỚI: Khởi tạo biến đếm ===
+            let currentCycleAbsences = 0;
+            let totalAbsences = 0;
+
+            fullReport.push(`\n## CHU KỲ HIỆN TẠI (Số ${cycleIndex + 1}) ##`);
+            if (currentCycleSessions.length > 0) {
+                currentCycleSessions.forEach(date => {
+                    if (date < todayStr) {
+                        const isAttended = attendedDatesSet.has(date);
+                        fullReport.push(`- ${date} ${isAttended ? '' : '(nghỉ)'}`.trim());
+                    } else {
+                        fullReport.push(`- ${date} (dự đoán)`);
+                    }
+                });
+            } else {
+                fullReport.push("Không có dữ liệu cho chu kỳ này.");
             }
 
-            // --- Xử lý Chu kỳ kế tiếp ---
-            const nextCycleNumber = currentCycleNumber + 1;
-            const lastDateOfCurrentCycle = predictedSessionsInCurrentCycle.length > 0 ? predictedSessionsInCurrentCycle[predictedSessionsInCurrentCycle.length-1] : lastAttendedDate;
-            const predictedSessionsInNextCycle = generateFutureSessions(lastDateOfCurrentCycle, 24, fixedSchedule);
+            fullReport.push(`\n## CHU KỲ KẾ TIẾP (Số ${cycleIndex + 2}) ##`);
+            if (nextCycleSessions.length > 0) {
+                nextCycleSessions.forEach(date => {
+                    fullReport.push(`- ${date} (dự đoán)`);
+                });
+            } else {
+                fullReport.push("Không có dữ liệu cho chu kỳ tiếp theo.");
+            }
 
-            fullReport.push(`\n## CHU KỲ KẾ TIẾP (Dự đoán, Số ${nextCycleNumber}, từ buổi ${currentCycleNumber * 24 + 1} đến ${nextCycleNumber * 24}) ##`);
-            fullReport.push(`- Các buổi DỰ ĐOÁN SẼ HỌC (24 buổi):`);
-            fullReport.push(`  ${predictedSessionsInNextCycle.join(', ')}`);
+            // === PHẦN MỚI: Tính tổng số buổi nghỉ từ trước đến nay ===
+            const pastSessions = studentTimeline.filter(date => date < todayStr);
+            pastSessions.forEach(date => {
+                if (!attendedDatesSet.has(date)) {
+                    totalAbsences++;
+                }
+            });
+
+            // === PHẦN MỚI: Thêm phần tổng kết vào báo cáo ===
+            fullReport.push(`\n## TỔNG KẾT ##`);
+            fullReport.push(`- Số buổi nghỉ trong chu kỳ hiện tại: ${currentCycleAbsences}`);
+            fullReport.push(`- Tổng số buổi nghỉ từ trước đến nay: ${totalAbsences}`);
+
             fullReport.push(`\n-----------------------------------------------------\n`);
         }
         
-        // --- Xuất file ---
         const reportContent = fullReport.join('\n');
-        const today = new Date().toISOString().split('T')[0];
-        downloadToFile(reportContent, `BaoCaoChuKyHoc_${today}.txt`, 'text/plain');
+        const todayFile = new Date().toISOString().split('T')[0];
+        downloadToFile(reportContent, `BaoCaoChuKyHoc_${todayFile}.txt`, 'text/plain');
 
     } catch (error) {
         console.error("Lỗi khi tạo báo cáo chu kỳ:", error);
@@ -8690,37 +8885,219 @@ async function generateCycleReport(studentIds) {
     }
 }
 
-// HÀM 3: HÀM PHỤ ĐỂ DỰ ĐOÁN CÁC BUỔI HỌC TRONG TƯƠNG LAI
-function generateFutureSessions(startDateStr, count, schedule) {
-  const sessions = [];
-  if (count <= 0) return sessions;
-  
-  // Bắt đầu quét từ ngày startDateStr, không phải ngày hôm sau
-  let cursorDate = new Date(startDateStr + 'T00:00:00');
+/**
+ * HÀM MỚI: Cập nhật ngày bắt đầu chu kì trực tiếp từ bảng
+ */
+async function updateCycleStartDate(studentId, newDate) {
+    if (!studentId) return;
 
-  while (sessions.length < count) {
-    // Luôn tăng con trỏ lên 1 ngày trước khi kiểm tra
-    cursorDate.setDate(cursorDate.getDate() + 1);
-    
-    const dayIndex = cursorDate.getDay();
-    if (schedule[dayIndex]) { // Kiểm tra xem ngày này có trong lịch không
-      const dateKey = cursorDate.toISOString().split('T')[0];
-      sessions.push(dateKey);
+    try {
+        await database.ref(`students/${studentId}`).update({
+            cycleStartDate: newDate,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        // Thông báo nhỏ ở góc màn hình
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Đã cập nhật ngày!',
+            showConfirmButton: false,
+            timer: 1500
+        });
+
+    } catch (error) {
+        console.error("Lỗi cập nhật ngày bắt đầu chu kì:", error);
+        Swal.fire("Lỗi", "Không thể cập nhật ngày.", "error");
     }
-  }
-  return sessions;
 }
-function filterSwalOptions() {
-    const query = document.getElementById('swal-student-search').value.toLowerCase();
-    const select = document.getElementById('swal-student-select');
-    const options = select.getElementsByTagName('option');
+/**
+ * HÀM HỖ TRỢ MỚI: Tìm ngày điểm danh đầu tiên của học viên trên tất cả các lớp
+ */
+async function findFirstAttendanceDate(studentId) {
+    try {
+        const attendanceSnap = await database.ref('attendance').once('value');
+        const allAttendance = attendanceSnap.val() || {};
+        const attendedDates = [];
 
-    for (let i = 0; i < options.length; i++) {
-        const optionText = options[i].textContent || options[i].innerText;
-        if (optionText.toLowerCase().includes(query)) {
-            options[i].style.display = ''; // Hiện nếu tên khớp
-        } else {
-            options[i].style.display = 'none'; // Ẩn nếu tên không khớp
+        for (const classId in allAttendance) {
+            if (allAttendance[classId][studentId]) {
+                const studentAttendanceInClass = allAttendance[classId][studentId];
+                for (const date in studentAttendanceInClass) {
+                    if (studentAttendanceInClass[date]?.attended === true) {
+                        attendedDates.push(date);
+                    }
+                }
+            }
         }
+
+        if (attendedDates.length === 0) {
+            return null; // Không tìm thấy ngày nào
+        }
+
+        attendedDates.sort(); // Sắp xếp để tìm ngày sớm nhất
+        return attendedDates[0];
+
+    } catch (error) {
+        console.error("Lỗi khi tìm ngày đi học đầu tiên:", error);
+        return null;
+    }
+}
+/**
+ * HÀM MỚI: Hiển thị lịch sử các chu kỳ đóng học phí
+ */
+async function showTuitionCycleHistory(studentId) {
+    const student = allStudentsData[studentId];
+    if (!student) return;
+
+    const tuitionCycles = student.tuitionCycles || [];
+
+    if (tuitionCycles.length === 0) {
+        Swal.fire({
+            title: `Lịch sử đóng phí: ${student.name}`,
+            text: 'Chưa có dữ liệu chu kỳ học phí nào.',
+            icon: 'info'
+        });
+        return;
+    }
+
+    let historyHtml = `
+        <div style="text-align: left; max-height: 400px; overflow-y: auto;">
+            <table class="swal-table">
+                <thead>
+                    <tr>
+                        <th>Gói học</th>
+                        <th>Ngày gia hạn</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày thanh toán</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Sắp xếp để hiển thị cái mới nhất lên đầu
+    [...tuitionCycles].reverse().forEach(cycle => {
+        const status = cycle.isPaid 
+            ? '<span style="color: green; font-weight: bold;">Đã thanh toán</span>' 
+            : '<span style="color: red;">Chưa thanh toán</span>';
+        
+        historyHtml += `
+            <tr>
+                <td>${cycle.packageName}</td>
+                <td>${cycle.renewalDate}</td>
+                <td>${status}</td>
+                <td>${cycle.paidDate || '---'}</td>
+            </tr>
+        `;
+    });
+
+    historyHtml += `</tbody></table></div>`;
+
+    Swal.fire({
+        title: `Lịch sử đóng phí: ${student.name}`,
+        html: historyHtml,
+        width: '800px'
+    });
+}
+
+/**
+ * HÀM MỚI: Xử lý việc tick/bỏ tick ô đã thanh toán
+ */
+async function toggleTuitionCyclePaid(studentId, cycleId, isPaid) {
+    showLoading(true);
+    try {
+        const studentRef = database.ref(`${DB_PATHS.STUDENTS}/${studentId}`);
+        const studentSnap = await studentRef.once('value');
+        const studentData = studentSnap.val();
+        
+        let tuitionCycles = studentData.tuitionCycles || [];
+
+        // Nếu là 'new_cycle', nghĩa là đây là lần tick đầu tiên cho học viên cũ
+        if (cycleId === 'new_cycle') {
+            const newCycle = {
+                cycleId: `cycle_${Date.now()}`,
+                packageName: studentData.package,
+                renewalDate: formatTimestamp(studentData.updatedAt || studentData.createdAt),
+                isPaid: isPaid,
+                paidDate: isPaid ? new Date().toISOString().split("T")[0] : null
+            };
+            tuitionCycles.push(newCycle);
+        } else {
+            // Tìm và cập nhật chu kỳ đã có
+            const cycleIndex = tuitionCycles.findIndex(c => c.cycleId === cycleId);
+            if (cycleIndex !== -1) {
+                tuitionCycles[cycleIndex].isPaid = isPaid;
+                tuitionCycles[cycleIndex].paidDate = isPaid ? new Date().toISOString().split("T")[0] : null;
+            }
+        }
+
+        await studentRef.child('tuitionCycles').set(tuitionCycles);
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Đã cập nhật!',
+            showConfirmButton: false,
+            timer: 1500
+        });
+
+    } catch (error) {
+        console.error("Lỗi khi cập nhật trạng thái thanh toán:", error);
+        Swal.fire("Lỗi", "Không thể cập nhật trạng thái.", "error");
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * HÀM MỚI (THAY THẾ 2 HÀM CŨ): Áp dụng đồng thời cả bộ lọc lớp và bộ lọc tên
+ */
+function applySwalFilters() {
+    const selectedClassId = document.getElementById('swal-class-filter').value;
+    const searchQuery = document.getElementById('swal-student-search').value.toLowerCase();
+    const studentSelect = document.getElementById('swal-student-select');
+    const options = studentSelect.getElementsByTagName('option');
+
+    for (const option of options) {
+        const studentName = option.textContent.toLowerCase();
+        const studentClassId = option.dataset.classId;
+
+        // Kiểm tra xem học viên có thỏa mãn CẢ HAI điều kiện không
+        const classMatch = (selectedClassId === "" || studentClassId === selectedClassId);
+        const searchMatch = studentName.includes(searchQuery);
+
+        if (classMatch && searchMatch) {
+            option.style.display = ''; // Hiển thị nếu khớp cả hai
+        } else {
+            option.style.display = 'none'; // Ẩn nếu không khớp
+        }
+    }
+}
+/**
+ * HÀM MỚI: Chọn tất cả các học viên đang được hiển thị trong danh sách
+ */
+function selectAllStudentsInSwal(event) {
+    event.preventDefault(); // Ngăn hành vi mặc định của button
+    const studentSelect = document.getElementById('swal-student-select');
+    const options = studentSelect.getElementsByTagName('option');
+
+    for (const option of options) {
+        // Chỉ chọn những học viên đang hiển thị (không bị ẩn bởi bộ lọc)
+        if (option.style.display !== 'none') {
+            option.selected = true;
+        }
+    }
+}
+
+/**
+ * HÀM MỚI: Bỏ chọn tất cả học viên
+ */
+function deselectAllStudentsInSwal(event) {
+    event.preventDefault();
+    const studentSelect = document.getElementById('swal-student-select');
+    const options = studentSelect.getElementsByTagName('option');
+    for (const option of options) {
+        option.selected = false;
     }
 }
