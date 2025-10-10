@@ -1365,3 +1365,57 @@ a:hover {
 .page-header__button--danger:hover {
     background-color: #c82333; /* Màu đỏ đậm hơn khi hover */
 }
+/* CSS cho ô nhập ngày trực tiếp trong bảng */
+.inline-date-editor {
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background-color: transparent;
+    width: 150px; /* Điều chỉnh độ rộng nếu cần */
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.inline-date-editor:hover {
+    border-color: #ccc;
+    background-color: #fff;
+}
+
+.inline-date-editor:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15);
+}
+/* CSS cho chức năng tick học phí mới */
+.tuition-cycle-cell {
+    text-align: center;
+    min-width: 180px;
+}
+
+.tuition-history-link {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+    text-decoration: underline;
+    color: var(--color-primary);
+    cursor: pointer;
+}
+
+.tuition-cycle-cell input[type="checkbox"] {
+    transform: scale(1.5);
+    cursor: pointer;
+}
+
+/* CSS cho bảng lịch sử trong popup */
+.swal-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.swal-table th, .swal-table td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+}
+.swal-table th {
+    background-color: #f2f2f2;
+}
