@@ -1171,7 +1171,27 @@ function calculateFinalPrice() {
     const fullPackageName = document.getElementById('student-package').value;
     const courseNameForPriceLookup = fullPackageName.replace(/\s*\(\d+\s+buổi\)$/, '').trim();
 
-    let basePrice = coursePrices[courseNameForPriceLookup] || 0;
+     // === PHẦN SỬA LỖI QUAN TRỌNG NHẤT NẰM Ở ĐÂY ===
+    let basePrice = 0;
+    const certType = document.getElementById('student-certificate-type').value;
+    const courseName = document.getElementById('student-certificate-course').value;
+    const selectedCourseData = (certType && certificateCourses[certType]) 
+        ? certificateCourses[certType].find(c => c.name === courseName) 
+        : null;
+
+    // 1. Kiểm tra xem có phải là gói combo không
+    if (selectedCourseData && selectedCourseData.selectionLimit > 0) {
+        // Nếu LÀ combo, tính tổng giá từ các ô đã tick
+        const checkedBoxes = document.querySelectorAll('#combo-checkboxes-list input:checked');
+        checkedBoxes.forEach(box => {
+            // Lấy giá từ thuộc tính 'data-price' mà chúng ta đã lưu trước đó
+            basePrice += parseFloat(box.dataset.price) || 0;
+        });
+    } else {
+        // Nếu KHÔNG phải combo, lấy giá như bình thường
+        basePrice = coursePrices[courseNameForPriceLookup] || 0;
+    }
+    // === KẾT THÚC PHẦN SỬA LỖI ===
 
     originalPriceInput.value = Math.round(basePrice);
     let finalPrice = basePrice;
@@ -1187,7 +1207,7 @@ function calculateFinalPrice() {
     if (!isChinese && !isSchoolSubject) {
         finalPrice *= (1 - 20 / 100); // Tự động khấu trừ 20%
     }
-    
+
     // ======================================================================
     // ======================================================================
     // === SỬA LỖI TÍNH TOÁN NẰM Ở ĐÂY ===
