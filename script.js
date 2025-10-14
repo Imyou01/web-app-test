@@ -775,24 +775,37 @@ async function loadInitialData() {
 }
 // Chuyển trang theo hash
 async function showPageFromHash() {
-    const hash = window.location.hash.slice(1) || 'dashboard';
+    let hash = window.location.hash.slice(1) || 'dashboard';
 
-    // --- BƯỚC KIỂM TRA QUYỀN TRUY CẬP ---
-    const isAuthorized = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
-    if (hash === 'trash-management' && !isAuthorized) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Truy cập bị từ chối',
-            text: 'Bạn không có quyền truy cập chức năng này.',
-        });
-        window.location.hash = 'dashboard'; // Chuyển về trang chính
-        return; // Dừng hàm tại đây
+    const role = currentUserData?.role;
+    const isFullAccess = role === 'Admin' || role === 'Hội Đồng';
+    const isAdmin = role === 'Admin';
+
+    // Danh sách các trang bị hạn chế
+    const restrictedPages = [
+        'student-management', 'personnel-management', 
+        'account-management', 'tuition-management', 'trash-management'
+    ];
+    
+    // Kiểm tra quyền truy cập trang
+    let hasAccess = true;
+    if (restrictedPages.includes(hash) && !isFullAccess) {
+        hasAccess = false;
     }
-    // --- KẾT THÚC BƯỚC KIỂM TRA ---
+    if (hash === 'activity-log-page' && !isAdmin) {
+        hasAccess = false;
+    }
+
+    // Nếu không có quyền, báo lỗi và chuyển về trang dashboard
+    if (!hasAccess) {
+        Swal.fire('Truy cập bị từ chối', 'Bạn không có quyền truy cập chức năng này.', 'error');
+        hash = 'dashboard';
+        window.location.hash = 'dashboard';
+    }
 
     if (!pages.includes(hash)) {
+        hash = 'dashboard';
         window.location.hash = 'dashboard';
-        return;
     }
     
     pages.forEach(pageId => {
@@ -805,6 +818,7 @@ async function showPageFromHash() {
         targetPage.style.display = "block";
     }
 
+    // Phần switch case để render nội dung trang giữ nguyên như cũ
     switch (hash) {
         case 'dashboard':
             renderDashboardCharts();
@@ -814,7 +828,6 @@ async function showPageFromHash() {
             renderStudentList(allStudentsData);
             break;
         case 'class-management':
-            //renderClassList(allClassesData);
             showClassView('active');
             break;
          case 'new-schedule-page':
@@ -827,8 +840,8 @@ async function showPageFromHash() {
             renderAccountList();
             break;
         case 'tuition-management':
-           renderTuitionView('', 'fee');  // Render tab học phí
-            renderTuitionView('', 'book');
+           renderTuitionView('', 'fee');
+           renderTuitionView('', 'book');
             break;
         case 'trash-management':
             renderTrashPage();
@@ -836,7 +849,6 @@ async function showPageFromHash() {
         case 'activity-log-page':
             renderActivityLog();
              break;
-
     }
 }
 window.addEventListener("hashchange", () => {
@@ -7650,35 +7662,47 @@ async function permanentlyDeleteClass(id) {
 }
 // HÀM MỚI: Cập nhật giao diện dựa trên vai trò người dùng
 function updateUIAccessByRole(userData) {
-    // Biến để kiểm tra quyền truy cập các mục chung (Admin + Hội Đồng)
-    const isAuthorized = userData && (userData.role === 'Admin' || userData.role === 'Hội Đồng');
-    
-    // === PHẦN SỬA LỖI: Định nghĩa biến 'isAdmin' một cách rõ ràng ===
-    const isAdmin = userData && userData.role === 'Admin';
-    // ==========================================================
+    const role = userData?.role;
 
-    // Lấy thẻ Thùng rác trên Bảng điều khiển
+    // Vai trò có toàn quyền truy cập
+    const isFullAccess = role === 'Admin' || role === 'Hội Đồng';
+    // Vai trò Admin (quyền cao nhất)
+    const isAdmin = role === 'Admin';
+
+    // Lấy các mục menu cần ẩn/hiện
+    const restrictedNavItems = [
+        document.getElementById('nav-student'),
+        document.getElementById('nav-personnel'),
+        document.getElementById('nav-account'),
+        document.getElementById('nav-tuition')
+    ];
+
+    // Ẩn hoặc hiện các mục menu dựa trên quyền
+    restrictedNavItems.forEach(item => {
+        if (item) {
+            item.style.display = isFullAccess ? 'list-item' : 'none';
+        }
+    });
+
+    // Giữ nguyên logic cũ cho các phần tử khác
     const trashCard = document.querySelector('a[href="#trash-management"]');
     if (trashCard) {
-        // Chỉ Admin và Hội Đồng mới thấy Thùng rác
-        trashCard.style.display = isAuthorized ? 'block' : 'none';
+        trashCard.style.display = isFullAccess ? 'block' : 'none';
     }
 
-    // Lấy link Nhật ký Hoạt động trên sidebar
     const activityLogNav = document.getElementById('nav-activity-log');
     if (activityLogNav) {
-        // Chỉ Admin mới thấy Nhật ký
-        activityLogNav.style.display = isAdmin ? 'block' : 'none';
+        activityLogNav.style.display = isAdmin ? 'list-item' : 'none';
     }
 
-     const recalcButton = document.getElementById('recalculate-sessions-btn');
+    const recalcButton = document.getElementById('recalculate-sessions-btn');
     if (recalcButton) {
-        // Chỉ Admin mới thấy nút này
         recalcButton.style.display = isAdmin ? 'block' : 'none';
     }
-     const cycleReportBtn = document.getElementById('export-cycle-report-btn');
+
+    const cycleReportBtn = document.getElementById('export-cycle-report-btn');
     if (cycleReportBtn) {
-        cycleReportBtn.style.display = isAuthorized ? 'inline-flex' : 'none';
+        cycleReportBtn.style.display = isFullAccess ? 'inline-flex' : 'none';
     }
 }
 /**
