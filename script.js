@@ -1177,13 +1177,26 @@ function calculateFinalPrice() {
     let finalPrice = basePrice;
     
     // ======================================================================
+    // === BƯỚC 1: TỰ ĐỘNG KHẤU TRỪ 20% (LOGIC MỚI) ===
+    // ======================================================================
+    const packageType = document.getElementById('student-package-type').value;
+    const isChinese = courseNameForPriceLookup.includes("Tiếng Trung");
+    const isSchoolSubject = packageType === 'Các môn trên trường';
+
+    // Chỉ áp dụng khấu trừ nếu không phải Tiếng Trung hoặc Môn trên trường
+    if (!isChinese && !isSchoolSubject) {
+        finalPrice *= (1 - 20 / 100); // Tự động khấu trừ 20%
+    }
+    
+    // ======================================================================
+    // ======================================================================
     // === SỬA LỖI TÍNH TOÁN NẰM Ở ĐÂY ===
     // ======================================================================
     let packageDiscountPercent = 0;
     // THÊM ĐIỀU KIỆN: Chỉ giảm giá nếu là gói Combo TIẾNG ANH
-    if (courseNameForPriceLookup.includes("3X") && courseNameForPriceLookup.includes("Tiếng Anh")) packageDiscountPercent = 5;
-    else if (courseNameForPriceLookup.includes("6X") && courseNameForPriceLookup.includes("Tiếng Anh")) packageDiscountPercent = 11;
-    else if (courseNameForPriceLookup.includes("12X") && courseNameForPriceLookup.includes("Tiếng Anh")) packageDiscountPercent = 25;
+    if (courseNameForPriceLookup.includes("3X") && courseNameForPriceLookup.includes("Tiếng Anh") && courseNameForPriceLookup.includes("THPT")) packageDiscountPercent = 5;
+    else if (courseNameForPriceLookup.includes("6X") && courseNameForPriceLookup.includes("Tiếng Anh") && courseNameForPriceLookup.includes("THPT")) packageDiscountPercent = 7;
+    else if (courseNameForPriceLookup.includes("12X") && courseNameForPriceLookup.includes("Tiếng Anh") && courseNameForPriceLookup.includes("THPT")) packageDiscountPercent = 10;
     // Các logic giảm giá cho chứng chỉ khác giữ nguyên vì đã đủ cụ thể
     else if (courseNameForPriceLookup.includes('IELTS') && courseNameForPriceLookup.includes('Combo 2 khóa')) packageDiscountPercent = 20;
     else if (courseNameForPriceLookup.includes('IELTS') && courseNameForPriceLookup.includes('Combo 3 khóa')) packageDiscountPercent = 22;
