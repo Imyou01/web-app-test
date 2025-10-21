@@ -31,6 +31,7 @@ let currentUserData = null;
 let currentClassStudents = [];
 
 let personnelListInitialized = false;
+let codeManagementListenerInitialized = false;
 let scheduleEventListenersInitialized = false;
 //let tempClassesData = {};
 let selectedTempStudents = {};
@@ -41,7 +42,8 @@ const DB_PATHS = {
   STUDENTS: "students",
   CLASSES: "classes",
   HOMEWORKS: "homeworks",
-  ATTENDANCE: "attendance"
+  ATTENDANCE: "attendance",
+  PERSONNEL_CODES: "personnel_codes"
 };
 
 // Danh sách các trang (tham chiếu bằng ID)
@@ -55,7 +57,8 @@ const pages = [
   "tuition-management",
   "profile-page",
   "trash-management",
-  "activity-log-page"
+  "activity-log-page",
+  "code-management"
 ];
 // script.js
 const PERSONNEL_MANAGEMENT_ROLES = ["Admin", "Hội Đồng"];
@@ -338,6 +341,10 @@ auth.onAuthStateChanged(async (user) => {
         initStudentsListener();
         initClassesListener();
         initUsersListener();
+        if (!codeManagementListenerInitialized) {
+            initPersonnelCodesListener();
+            codeManagementListenerInitialized = true; // Đánh dấu đã chạy
+        }
         setupDashboardUI(currentUserData);
         updateUIAccessByRole(currentUserData);
     /*    if (typeof Lucide !== 'undefined') {
@@ -784,17 +791,13 @@ async function showPageFromHash() {
     // Danh sách các trang bị hạn chế
     const restrictedPages = [
         'student-management', 'personnel-management', 
-        'account-management', 'tuition-management', 'trash-management'
+        'account-management', 'tuition-management', 'trash-management', 'code-management'
     ];
     
     // Kiểm tra quyền truy cập trang
     let hasAccess = true;
-    if (restrictedPages.includes(hash) && !isFullAccess) {
-        hasAccess = false;
-    }
-    if (hash === 'activity-log-page' && !isAdmin) {
-        hasAccess = false;
-    }
+    if (restrictedPages.includes(hash) && !isFullAccess) hasAccess = false;
+    if (hash === 'activity-log-page' && !isAdmin) hasAccess = false;
 
     // Nếu không có quyền, báo lỗi và chuyển về trang dashboard
     if (!hasAccess) {
@@ -835,6 +838,10 @@ async function showPageFromHash() {
             break;
         case 'personnel-management':
             initPersonnelManagement(); 
+            break;
+        case 'code-management':
+           // đã dùng ListenerInitilized để kiểm tra
+           renderCodeManagementPage();
             break;
         case 'account-management':
             renderAccountList();
@@ -2328,21 +2335,18 @@ function renderClassList() {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    let classesToRender = {};
-    const isAdminOrHoiDong = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
-
-    if (isAdminOrHoiDong) {
-        classesToRender = allClassesData;
-    } else if (currentUserData && (currentUserData.role === 'Giáo Viên' || currentUserData.role === 'Trợ Giảng')) {
-        const currentUid = currentUserData.uid;
-        Object.entries(allClassesData).forEach(([classId, cls]) => {
-            if (cls.teacherUid === currentUid || cls.assistantTeacherUid === currentUid) {
-                classesToRender[classId] = cls;
-            }
-        });
-    }
+    // === THAY ĐỔI NẰM Ở ĐÂY ===
+    // Bây giờ, tất cả các vai trò được phép vào trang này (Admin, Hội Đồng, GV, TG)
+    // đều sẽ xem được toàn bộ danh sách lớp học.
+    // Việc phân quyền (ai được sửa/xóa) sẽ nằm ở phần tạo nút hành động.
+    let classesToRender = allClassesData; 
+    // === KẾT THÚC THAY ĐỔI ===
     
+    // Phần lọc theo trạng thái (active/completed) giữ nguyên
     const filteredClasses = Object.entries(classesToRender).filter(([, cls]) => {
+        // Loại bỏ các lớp đã bị xóa mềm (status === 'deleted')
+        if (cls.status === 'deleted') return false; 
+        
         const isActive = !cls.status || cls.status === 'active';
         return currentClassView === 'active' ? isActive : cls.status === 'completed';
     });
@@ -2354,22 +2358,36 @@ function renderClassList() {
 
     filteredClasses.sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""));
 
+    // === PHẦN PHÂN QUYỀN CHO NÚT BẤM ===
+    const canManageClass = currentUserData && (currentUserData.role === 'Admin' || currentUserData.role === 'Hội Đồng');
+
     filteredClasses.forEach(([id, cls]) => {
         let actionButtonsHTML = '';
-        if (currentClassView === 'active') {
-            actionButtonsHTML = `
-                <button onclick="showClassAttendanceAndHomeworkTable('${id}')">Điểm Danh</button>
-                <button onclick="editClass('${id}')">Sửa</button>
-                <button class="btn-restore" onclick="markClassAsCompleted('${id}')">Hoàn thành</button>
-                <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
-            `;
+        
+        // Nút Điểm Danh/Xem Điểm Danh luôn hiển thị cho mọi vai trò được phép vào trang
+        const attendanceButtonText = currentClassView === 'active' ? 'Điểm Danh' : 'Xem Điểm danh';
+        actionButtonsHTML += `<button onclick="promptForAttendancePassword('${id}')">${attendanceButtonText}</button>`;
+
+        // Chỉ Admin/Hội Đồng mới có các nút quản lý khác
+        if (canManageClass) {
+            if (currentClassView === 'active') {
+                actionButtonsHTML += `
+                    <button onclick="editClass('${id}')">Sửa</button>
+                    <button class="btn-restore" onclick="markClassAsCompleted('${id}')">Hoàn thành</button>
+                    <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
+                `;
+            } else { // Lớp đã hoàn thành
+                actionButtonsHTML += `
+                    <button onclick="editOfficialClass('${id}', true)">Xem Thông tin</button>
+                    <button onclick="restoreClassFromCompleted('${id}')">Khôi phục</button>
+                    <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
+                `;
+            }
         } else {
-            actionButtonsHTML = `
-                <button onclick="showClassAttendanceAndHomeworkTable('${id}')">Xem Điểm danh</button>
-                <button onclick="editOfficialClass('${id}', true)">Xem Thông tin</button>
-                <button onclick="restoreClassFromCompleted('${id}')">Khôi phục</button>
-                <button class="delete-btn" onclick="deleteClass('${id}')">Xóa</button>
-            `;
+             // Giáo viên/Trợ giảng chỉ có thể xem thông tin lớp đã hoàn thành
+             if (currentClassView === 'completed') {
+                 actionButtonsHTML += `<button onclick="editOfficialClass('${id}', true)">Xem Thông tin</button>`;
+             }
         }
 
         const tr = document.createElement("tr");
@@ -2433,46 +2451,34 @@ function findActiveStudentClassId(studentId, studentData) {
 async function populateTeacherDropdown() {
   const teacherSelect = document.getElementById("class-teacher");
   teacherSelect.innerHTML = '<option value="">-- Chọn giáo viên --</option>';
-
   try {
-    const snapshot = await database.ref(DB_PATHS.USERS).once("value");
-    allUsersData = snapshot.val() || {}; // CẬP NHẬT BIẾN TOÀN CỤC allUsersData
-
-    Object.entries(allUsersData).forEach(([uid, userData]) => {
-      if (userData.role && TEACHER_ROLES.includes(userData.role)) {
-        const option = document.createElement("option");
-        option.value = userData.name || userData.email;
-        option.textContent = `${userData.name || userData.email} (${userData.role})`;
-        option.dataset.uid = uid; // LƯU UID VÀO DATASET
-        teacherSelect.appendChild(option);
-      }
+    const snapshot = await database.ref(DB_PATHS.PERSONNEL_CODES).once("value");
+    const personnel = snapshot.val() || {};
+    Object.values(personnel).forEach(p => {
+        if (p.name) { // Chỉ thêm nếu có tên
+            const option = document.createElement("option");
+            option.value = p.name;
+            option.textContent = p.name;
+            teacherSelect.appendChild(option);
+        }
     });
-  } catch (error) {
-    console.error("Lỗi khi tải danh sách giáo viên:", error);
-    Swal.fire("Lỗi", "Không thể tải danh sách giáo viên. Vui lòng thử lại.", "error");
-  }
+  } catch (error) { console.error("Lỗi tải danh sách giáo viên:", error); }
 }
 async function populateAssistantTeacherDropdown() {
-    const assistantTeacherSelect = document.getElementById("class-assistant-teacher");
-    assistantTeacherSelect.innerHTML = '<option value="">-- Không có trợ giảng --</option>';
-
+    const assistantSelect = document.getElementById("class-assistant-teacher");
+    assistantSelect.innerHTML = '<option value="">-- Không có trợ giảng --</option>';
     try {
-        const snapshot = await database.ref(DB_PATHS.USERS).once("value");
-        allUsersData = snapshot.val() || {}; // CẬP NHẬT BIẾN TOÀN CỤC allUsersData
-
-        Object.entries(allUsersData).forEach(([uid, userData]) => {
-            if (userData.role && ASSISTANT_TEACHER_ROLES.includes(userData.role)) {
+        const snapshot = await database.ref(DB_PATHS.PERSONNEL_CODES).once("value");
+        const personnel = snapshot.val() || {};
+        Object.values(personnel).forEach(p => {
+            if (p.name) { // Chỉ thêm nếu có tên
                 const option = document.createElement("option");
-                option.value = userData.name || userData.email;
-                option.textContent = `${userData.name || userData.email} (${userData.role})`;
-                option.dataset.uid = uid; // LƯU UID VÀO DATASET
-                assistantTeacherSelect.appendChild(option);
+                option.value = p.name;
+                option.textContent = p.name;
+                assistantSelect.appendChild(option);
             }
         });
-    } catch (error) {
-        console.error("Lỗi khi tải danh sách trợ giảng:", error);
-        Swal.fire("Lỗi", "Không thể tải danh sách trợ giảng. Vui lòng thử lại.", "error");
-    }
+    } catch (error) { console.error("Lỗi tải danh sách trợ giảng:", error); }
 }
 function showClassView(viewType) {
     currentClassView = viewType; // Cập nhật trạng thái view hiện tại
@@ -2822,9 +2828,9 @@ async function saveClass(event) {
         certificateType: document.getElementById('class-certificate-type-select').value,
         courseName: document.getElementById('class-course-select').value,
         teacher: teacherSelect.value, 
-        teacherUid: teacherSelect.options[teacherSelect.selectedIndex]?.dataset.uid || '',
+     //   teacherUid: teacherSelect.options[teacherSelect.selectedIndex]?.dataset.uid || '',
         assistantTeacher: assistantTeacherSelect.value,
-        assistantTeacherUid: assistantTeacherSelect.value ? assistantTeacherSelect.options[assistantTeacherSelect.selectedIndex]?.dataset.uid : '',
+     //   assistantTeacherUid: assistantTeacherSelect.value ? assistantTeacherSelect.options[assistantTeacherSelect.selectedIndex]?.dataset.uid : '',
         room: document.getElementById("class-room").value,
         startDate: document.getElementById("class-start-date").value,
         updatedAt: firebase.database.ServerValue.TIMESTAMP
@@ -5413,6 +5419,29 @@ async function renderClassAttendanceTable(classId) {
         const exams = classData.exams || {};
         const allEventDates = [...new Set([...Object.keys(sessions), ...Object.keys(exams)])].sort();
 
+        // === LOGIC MỚI: XÁC ĐỊNH CÁC NGÀY ĐƯỢC PHÉP ĐIỂM DANH ===
+        const role = currentUserData?.role;
+        const isLimited = role === 'Giáo Viên';
+        let allowedDates = new Set();
+
+        if (isLimited) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            // Tìm buổi học gần nhất tính từ hôm nay
+            const futureSessions = allEventDates.filter(date => date >= todayStr);
+            if (futureSessions.length > 0) {
+                const sessionN = futureSessions[0]; // Buổi N
+                allowedDates.add(sessionN);
+                
+                // Tìm buổi học ngay trước đó (Buổi N-1)
+                const indexN = allEventDates.indexOf(sessionN);
+                if (indexN > 0) {
+                    const sessionN_1 = allEventDates[indexN - 1];
+                    allowedDates.add(sessionN_1);
+                }
+            }
+        }
+        // === KẾT THÚC LOGIC MỚI ===
+
         const tableHeadRow = document.getElementById("class-attendance-table-head");
         const tableBody = document.getElementById("class-attendance-table-body");
 
@@ -5459,6 +5488,9 @@ async function renderClassAttendanceTable(classId) {
                 const isExam = !!exams[dateKey];
                 const attendanceData = allAttendance[studentId] ? allAttendance[studentId][dateKey] : undefined;
                 const isChecked = attendanceData && attendanceData.attended === true;
+                // === LOGIC MỚI: Thêm thuộc tính 'disabled' nếu cần ===
+                const isDisabled = isLimited && !allowedDates.has(dateKey);
+
                 rowHTML += `<td><input type="checkbox" onchange="toggleAttendance('${classId}', '${studentId}', '${dateKey}', this.checked, ${isExam})" ${isChecked ? "checked" : ""}></td>`;
             });
             rowHTML += `</tr>`;
@@ -9157,4 +9189,259 @@ function deselectAllStudentsInSwal(event) {
     for (const option of options) {
         option.selected = false;
     }
+}
+// ======================================================
+// === CÁC HÀM MỚI CHO CHỨC NĂNG QUẢN LÝ MÃ NHÂN SỰ ===
+// ======================================================
+
+/**
+ * Render trang Quản Lý Mã
+ */
+async function renderCodeManagementPage() {
+    showLoading(true);
+    const tbody = document.getElementById("personnel-code-list");
+    tbody.innerHTML = ""; // Xóa nội dung cũ
+    try {
+        const snapshot = await database.ref(DB_PATHS.PERSONNEL_CODES).once('value');
+        const codes = snapshot.val() || {};
+        console.log("Dữ liệu mã nhân sự nhận được:", codes); // Kiểm tra lại dữ liệu
+
+        if (Object.keys(codes).length === 0) {
+             tbody.innerHTML = '<tr><td colspan="3">Chưa có mã nhân sự nào. Bấm "Thêm Nhân Sự Mới" để bắt đầu.</td></tr>';
+             showLoading(false);
+             return;
+        }
+
+        Object.entries(codes).forEach(([key, data]) => {
+            // Thêm kiểm tra data có tồn tại không
+            if (!data) {
+                console.warn(`Dữ liệu không hợp lệ cho key: ${key}`);
+                return; // Bỏ qua mục này nếu data là null/undefined
+            }
+            const nameValue = data.name || '';
+            const codeValue = data.code || ''; // Thêm kiểm tra cho code
+
+            const row = `
+                <tr data-key="${key}">
+                    <td><input type="text" class="personnel-code-input" value="${nameValue}" onchange="savePersonnelCode('${key}', 'name', this.value)"></td>
+                    <td>
+                        <div class="password-cell">
+                            <input type="text" class="personnel-code-input" value="${codeValue}" onchange="savePersonnelCode('${key}', 'code', this.value)" maxlength="6">
+                            <button class="random-code-btn" title="Tạo mã ngẫu nhiên" onclick="generateRandomCode(this.previousElementSibling)">
+                                <img src="icons/dice.svg" alt="Random" width="24" height="24">
+                            </button>
+                        </div>
+                    </td>
+                    <td><button class="delete-btn" onclick="deletePersonnelCode('${key}')">Xóa</button></td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    } catch (error) {
+        console.error("Lỗi tải mã nhân sự:", error);
+        tbody.innerHTML = '<tr><td colspan="3">Có lỗi xảy ra khi tải dữ liệu.</td></tr>'; // Thông báo lỗi rõ hơn
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Thêm một dòng mới vào bảng Quản Lý Mã (CHỈ THÊM DỮ LIỆU, LISTENER SẼ RENDER)
+ */
+async function addNewPersonnelCodeRow() {
+    showLoading(true);
+    try {
+        // Chỉ cần thêm dữ liệu trống vào Firebase
+        await database.ref(DB_PATHS.PERSONNEL_CODES).push({ name: "", code: "" });
+        
+        // Listener (initPersonnelCodesListener) sẽ tự động được kích hoạt 
+        // và gọi renderCodeManagementPage() để vẽ lại bảng với dòng mới.
+        
+        // Không cần tự thêm dòng HTML ở đây nữa.
+        // Không cần tự cuộn hay focus nữa, vì listener sẽ vẽ lại toàn bộ.
+
+    } catch (error) {
+        console.error("Lỗi khi thêm dòng mã nhân sự mới:", error);
+        Swal.fire("Lỗi", "Không thể thêm dòng mới.", "error");
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * Lưu thay đổi tên hoặc mã
+ */
+async function savePersonnelCode(key, field, value) {
+    try {
+        await database.ref(`${DB_PATHS.PERSONNEL_CODES}/${key}/${field}`).set(value);
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Đã lưu!', showConfirmButton: false, timer: 1500 });
+    } catch (error) {
+        Swal.fire("Lỗi", "Không thể lưu thay đổi.", "error");
+    }
+}
+
+/**
+ * Xóa một nhân sự khỏi danh sách mã
+ */
+async function deletePersonnelCode(key) {
+    const result = await Swal.fire({
+        title: 'Bạn chắc chắn muốn xóa?',
+        text: "Hành động này không thể hoàn tác!", // Thêm mô tả rõ hơn
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33', // Màu đỏ cho nút xóa
+        confirmButtonText: 'Vâng, xóa!',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
+        showLoading(true); // Hiển thị loading
+        try {
+            // 1. Xóa dữ liệu trên Firebase
+            await database.ref(`${DB_PATHS.PERSONNEL_CODES}/${key}`).remove();
+
+            // 2. Xóa dòng tương ứng khỏi bảng trên giao diện ngay lập tức
+            const rowToRemove = document.querySelector(`#personnel-code-list tr[data-key="${key}"]`);
+            if (rowToRemove) {
+                rowToRemove.remove(); // Xóa thẻ <tr>
+            }
+
+            Swal.fire('Đã xóa!', 'Nhân sự đã được xóa.', 'success'); // Thông báo thành công
+
+        } catch (error) {
+            console.error("Lỗi khi xóa mã nhân sự:", error);
+            Swal.fire("Lỗi", "Không thể xóa nhân sự.", "error");
+        } finally {
+            showLoading(false); // Ẩn loading
+        }
+    }
+}
+/**
+ * Tạo mã 6 số ngẫu nhiên và không trùng lặp
+ */
+async function generateRandomCode(inputElement) {
+    showLoading(true);
+    try {
+        const snapshot = await database.ref(DB_PATHS.PERSONNEL_CODES).once('value');
+        const existingCodes = Object.values(snapshot.val() || {}).map(item => item.code);
+        let randomCode;
+        do {
+            randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+        } while (existingCodes.includes(randomCode));
+        inputElement.value = randomCode;
+        inputElement.dispatchEvent(new Event('change')); // Kích hoạt sự kiện onchange để tự động lưu
+    } finally {
+        showLoading(false);
+    }
+}
+/**
+ * HÀM MỚI: Yêu cầu mật khẩu trước khi vào điểm danh
+ */
+/**
+ * HÀM NÂNG CẤP: Yêu cầu mật khẩu và kiểm tra quyền truy cập lớp
+ */
+/**
+ * HÀM NÂNG CẤP: Yêu cầu mật khẩu, kiểm tra quyền và TỰ ĐỘNG MỞ BẢNG ĐIỂM DANH
+ */
+async function promptForAttendancePassword(classId) {
+    const role = currentUserData?.role;
+
+    if (role === 'Admin' || role === 'Hội Đồng') {
+        showClassAttendanceAndHomeworkTable(classId); // Vào thẳng
+        return;
+    }
+
+    if (role === 'Giáo Viên') {
+        const { value: enteredCode } = await Swal.fire({
+            title: 'Xác thực nhân sự',
+            input: 'text',
+            inputLabel: 'Vui lòng nhập mật mã 6 số của bạn để điểm danh',
+            inputPlaceholder: '******',
+            inputAttributes: { 
+                maxlength: 6, 
+                autocapitalize: 'off', 
+                autocorrect: 'off',
+                autocomplete: 'new-password' // <-- DÒNG THÊM MỚI
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Xác nhận',
+            cancelButtonText: 'Hủy'
+        });
+
+        if (enteredCode) {
+            showLoading(true);
+            try {
+                const [codesSnapshot, classSnapshot] = await Promise.all([
+                    database.ref(DB_PATHS.PERSONNEL_CODES).once('value'),
+                    database.ref(`${DB_PATHS.CLASSES}/${classId}`).once('value')
+                ]);
+
+                const personnelList = codesSnapshot.val() || {};
+                const classData = classSnapshot.val();
+
+                if (!classData) {
+                    throw new Error("Không tìm thấy thông tin lớp học.");
+                }
+
+                let matchedPersonnel = null;
+                for (const key in personnelList) {
+                    if (personnelList[key].code === enteredCode) {
+                        matchedPersonnel = personnelList[key];
+                        break;
+                    }
+                }
+
+                if (!matchedPersonnel) {
+                    Swal.fire('Lỗi', 'Mật mã không chính xác.', 'error');
+                } else {
+                    const teacherName = classData.teacher || "";
+                    const assistantName = classData.assistantTeacher || "";
+                    const personnelName = matchedPersonnel.name || "";
+
+                    if (personnelName === teacherName || personnelName === assistantName) {
+                        // === THAY ĐỔI NẰM Ở ĐÂY ===
+                        // Mã đúng và tên khớp -> Gọi hàm hiển thị bảng điểm danh NGAY LẬP TỨC
+                        showClassAttendanceAndHomeworkTable(classId);
+                        // Không cần return ở đây nữa
+                        // === KẾT THÚC THAY ĐỔI ===
+                    } else {
+                        Swal.fire('Lỗi', 'Mật mã đúng, nhưng bạn không được phân công dạy lớp này.', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error("Lỗi xác thực điểm danh:", error);
+                Swal.fire("Lỗi", "Đã xảy ra lỗi: " + error.message, "error");
+            } finally {
+                // Chỉ tắt loading nếu KHÔNG mở được bảng điểm danh (vì hàm kia có loading riêng)
+                 if (!(Swal.isVisible() && Swal.getTitle() === 'Lỗi')) { 
+                    // Nếu không có lỗi nào được hiển thị, nghĩa là đã vào điểm danh thành công
+                 } else {
+                    showLoading(false); // Chỉ tắt loading nếu có lỗi hiện ra
+                 }
+            }
+        }
+        // Nếu người dùng bấm Hủy (enteredCode là undefined), không làm gì cả
+    } else {
+        Swal.fire('Truy cập bị từ chối', 'Vai trò của bạn không được phép thực hiện điểm danh.', 'error');
+    }
+}
+/**
+ * HÀM MỚI: Lắng nghe thay đổi trên danh sách mã nhân sự
+ */
+function initPersonnelCodesListener() {
+    database.ref(DB_PATHS.PERSONNEL_CODES).on("value", snapshot => {
+        // Khi có bất kỳ thay đổi nào, tự động vẽ lại trang nếu đang mở
+        if (window.location.hash === '#code-management') {
+            renderCodeManagementPage();
+        }
+        // Cập nhật lại dropdown trong form lớp học nếu cần
+        if (document.getElementById('class-form-modal').style.display === 'flex') {
+             populateTeacherDropdown();
+             populateAssistantTeacherDropdown();
+        }
+        // Cập nhật dropdown trong form lớp tạm nếu cần
+        if (document.getElementById('temp-class-form-modal').style.display === 'flex') {
+             populatePersonnelDropdown(document.getElementById('temp-class-teacher'));
+             populatePersonnelDropdown(document.getElementById('temp-class-assistant'));
+        }
+    });
 }
