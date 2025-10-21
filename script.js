@@ -9353,14 +9353,14 @@ async function promptForAttendancePassword(classId) {
     if (role === 'Giáo Viên') {
         const { value: enteredCode } = await Swal.fire({
             title: 'Xác thực nhân sự',
-            input: 'text',
+            input: 'password',
             inputLabel: 'Vui lòng nhập mật mã 6 số của bạn để điểm danh',
             inputPlaceholder: '******',
             inputAttributes: { 
                 maxlength: 6, 
                 autocapitalize: 'off', 
                 autocorrect: 'off',
-                autocomplete: 'new-password' // <-- DÒNG THÊM MỚI
+              //  autocomplete: 'new-password' // <-- DÒNG THÊM MỚI
             },
             showCancelButton: true,
             confirmButtonText: 'Xác nhận',
