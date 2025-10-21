@@ -122,6 +122,14 @@
                         <span>Quản Lý Nhân Sự</span>
                     </a>
                 </li>
+
+                <li class="sidebar__nav-item" id="nav-code">
+                 <a href="#code-management" class="sidebar__nav-link">
+                  <img src="icons/key.svg" class="sidebar-icon" alt="Quản Lý Mã">
+                 <span>Quản Lý Mã</span>
+                 </a>
+                </li>
+
                  <li class="sidebar__nav-item">
                     <a href="#account-management" class="sidebar__nav-link">
                        <img src="icons/account.svg" class="sidebar-icon" alt="Quản Lý Tài Khoản">
@@ -440,10 +448,28 @@
         </table>
     </div>
 </section>
+ </section> <section class="management-page" id="code-management" style="display: none;">
+    <div class="page-header">
+        <h2 class="page-header__title">Quản Lý Mã Nhân Sự</h2>
+        <button class="page-header__button" onclick="addNewPersonnelCodeRow()">Thêm Nhân Sự Mới</button>
+    </div>
+    <div class="data-table-wrapper">
+        <table class="data-table">
+            <thead class="data-table__head">
+                <tr class="data-table__row">
+                    <th class="data-table__header">Tên Nhân Sự</th>
+                    <th class="data-table__header">Mật Mã (6 số)</th>
+                    <th class="data-table__header">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="personnel-code-list" class="data-table__body">
+                </tbody>
+        </table>
+    </div>
+    </section>
             </main>
     </div>
 </div>
-
     
     <div class="modal modal--student-form" id="student-form-modal" style="display: none;">
         <div class="modal__overlay" onclick="hideStudentForm()"></div>
