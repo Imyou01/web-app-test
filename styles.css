@@ -1442,3 +1442,27 @@ a:hover {
     color: white;
     cursor: pointer;
 }
+/* CSS cho trang Quản Lý Mã */
+.personnel-code-input {
+    width: 90%;
+    padding: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+}
+
+.password-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.random-code-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.random-code-btn:hover {
+    opacity: 0.7;
+}
