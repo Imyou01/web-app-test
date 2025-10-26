@@ -1466,3 +1466,117 @@ a:hover {
 .random-code-btn:hover {
     opacity: 0.7;
 }
+/* ==========================================================================
+   Branch Selection Screen Styles
+   ========================================================================== */
+
+.branch-selection-screen {
+    position: fixed; /* Che phủ toàn bộ màn hình */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Nền mờ */
+    display: flex; /* Sử dụng flex để căn giữa */
+    justify-content: center;
+    align-items: center;
+    z-index: 5000; /* Hiển thị trên cùng */
+    backdrop-filter: blur(5px); /* Hiệu ứng blur nền (tùy chọn) */
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Ẩn màn hình này nếu cần bằng JS sau này */
+.branch-selection-screen.hidden {
+    opacity: 0;
+    pointer-events: none; /* Không cho tương tác khi ẩn */
+}
+
+
+.branch-selection-box {
+    background-color: var(--color-surface);
+    padding: 35px 40px; /* Tăng padding */
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 500px;
+    width: 90%;
+    animation: scaleUp 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); /* Animation mượt hơn */
+}
+
+.branch-selection__title {
+    font-size: 24px; /* Tăng cỡ chữ */
+    font-weight: 700;
+    margin-bottom: 30px; /* Tăng khoảng cách */
+    color: var(--color-text-primary);
+}
+
+.branch-selection__buttons {
+    display: flex; /* Các nút nằm ngang */
+    flex-direction: column; /* Hoặc column nếu muốn nút dọc */
+    gap: 15px; /* Khoảng cách giữa các nút */
+    justify-content: center;
+}
+
+.branch-selection__button {
+    display: inline-flex; /* Để icon và text căn giữa (nếu có icon) */
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Khoảng cách giữa icon và text (nếu có icon) */
+    padding: 14px 25px; /* Tăng padding */
+    background-color: var(--color-primary);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 16px; /* Tăng cỡ chữ */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 4px 10px rgba(0, 102, 204, 0.2);
+}
+
+.branch-selection__button:hover {
+    background-color: var(--color-primary-dark);
+    transform: translateY(-2px); /* Hiệu ứng nhấc lên khi hover */
+}
+
+/* Nếu bạn muốn dùng icon Lucide sau này, thêm đoạn này */
+/*
+.branch-selection__button i {
+    width: 20px;
+    height: 20px;
+}
+*/
+/* Styling cho nhóm nút ở top-bar */
+.top-bar__actions {
+    display: flex; /* Đặt các nút nằm ngang */
+    align-items: center; /* Căn giữa theo chiều dọc */
+    gap: 12px; /* Khoảng cách giữa các nút */
+}
+
+/* Styling cho nút Chuyển Cơ Sở (tương tự nút Logout) */
+.top-bar__switch-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    padding: 7px 14px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.top-bar__switch-button:hover {
+    background-color: #e2e6ea; /* Màu xám nhạt khi hover */
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+/* Đảm bảo icon trong các nút top-bar có kích thước phù hợp */
+.top-bar__actions button i {
+    width: 16px; /* Kích thước icon nhỏ hơn một chút */
+    height: 16px;
+}
