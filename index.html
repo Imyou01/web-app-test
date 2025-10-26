@@ -14,7 +14,18 @@
    <script src="https://unpkg.com/lucide-static@latest/dist/lucide.min.js"></script>
 </head>
 <body>
-
+    <div class="branch-selection-screen" id="branch-selection-screen" style="display: flex;"> <div class="branch-selection-box">
+        <h2 class="branch-selection__title">Chọn Cơ Sở Làm Việc</h2>
+        <div class="branch-selection__buttons">
+            <button class="branch-selection__button" onclick="selectBranch('branch1')">
+                 Cơ sở Yên Bài
+            </button>
+            <button class="branch-selection__button" onclick="selectBranch('branch2')">
+                 Cơ sở Thanh Lãng
+            </button>
+            </div>
+    </div>
+</div>
     <div class="loading" id="loading" style="display: none;">
         <div class="loading__spinner"></div>
     </div>
@@ -30,11 +41,12 @@
                     <input type="password" id="login-password" class="auth-form__input" required>
                 </div>
                 <button onclick="login()" class="auth-form__button">Đăng Nhập</button>
-                <p class="auth-form__switch">Chưa có tài khoản? <a href="#" onclick="showForm('register')">Đăng ký</a></p>
+                
                 <p class="auth-form__switch"><a href="#" onclick="showForm('forgot')">Quên mật khẩu?</a></p>
             </div>
 
-            <div class="auth-form auth-form--register" id="register-form">
+            <div class="auth-form auth-form--register" id="register-form" style="display: none !important;">
+
                 <h2 class="auth-form__title">Đăng Ký</h2>
                 <div class="auth-form__field">
                     <label for="register-name" class="auth-form__label">Họ và Tên</label>
@@ -154,10 +166,14 @@
     <div class="content-wrapper">
         <header class="top-bar">
             <h1 class="top-bar__title">Quản Lý Trung Tâm</h1>
-            <button onclick="logout()" class="top-bar__logout-button">
-                <i data-lucide="log-out"></i>
-                <span>Đăng Xuất</span>
-            </button>
+            <div class="top-bar__actions"> <button onclick="promptSwitchBranch()" class="top-bar__switch-button">
+                    <i data-lucide="arrow-left-right"></i> <span>Chuyển Cơ Sở</span>
+                </button>
+                <button onclick="logout()" class="top-bar__logout-button">
+                    <i data-lucide="log-out"></i>
+                    <span>Đăng Xuất</span>
+                </button>
+            </div>
         </header>
 
         <main class="main-content">
