@@ -23,7 +23,7 @@ let isAuthReady = false;
 let currentStudentPage = 1;
 const studentsPerPage = 20;
 let totalStudentPages = 1;
-
+let selectedBranchId = null; // Lưu ID của cơ sở đang làm việc ('branch1', 'branch2', ...)
 let allStudentsData = {};
 let allClassesData = {};
 let allUsersData = {};
@@ -312,9 +312,58 @@ for (const key in certificateCourses) {
 
 // hoặc (curr || 0) - 1 nếu bỏ điểm danh
 
+/**
+ * HÀM MỚI: Trả về một Firebase Database Reference đã trỏ đúng vào nhánh dữ liệu của cơ sở đã chọn.
+ * @param {string} path - Đường dẫn tương đối bên trong một nhánh (vd: DB_PATHS.STUDENTS, 'classes/some_class_id').
+ * @returns {firebase.database.Reference} - Một đối tượng Reference.
+ */
+function getBranchRef(path) {
+    if (!selectedBranchId) {
+        // Trường hợp lỗi: Chưa chọn cơ sở mà đã cố gắng truy cập dữ liệu nhánh
+        console.error("Lỗi nghiêm trọng: Chưa chọn cơ sở (selectedBranchId is null) khi gọi getBranchRef với path:", path);
+        // Có thể hiển thị thông báo lỗi hoặc chuyển hướng về màn hình chọn cơ sở
+        // Ví dụ đơn giản: Ném lỗi để dừng thực thi
+        throw new Error("Chưa chọn cơ sở làm việc.");
+    }
+    // Tạo đường dẫn đầy đủ: ví dụ "branches/branch1/students"
+    const fullPath = `branches/${selectedBranchId}/${path}`;
+    return database.ref(fullPath);
+}
+
 // Khi trạng thái xác thực thay đổi
 auth.onAuthStateChanged(async (user) => {
-  isAuthReady = true;
+  checkInitialAuthState();
+});
+async function checkInitialAuthState() {
+    console.log("Kiểm tra trạng thái đăng nhập ban đầu...");
+    const user = auth.currentUser; // Lấy user hiện tại trực tiếp
+
+    // === LOGIC MỚI: KIỂM TRA LỰA CHỌN CƠ SỞ ===
+    selectedBranchId = localStorage.getItem('selectedBranchId');
+    const branchScreen = document.getElementById('branch-selection-screen');
+
+    if (!selectedBranchId) {
+        console.log("Chưa chọn cơ sở. Hiển thị màn hình chọn.");
+        if (branchScreen) {
+            branchScreen.style.display = 'flex'; // Đảm bảo màn hình chọn hiển thị
+            branchScreen.classList.remove('hidden');
+        }
+        // Ẩn các màn hình khác
+        document.getElementById("auth-container").style.display = "none";
+        document.getElementById("role-selection").style.display = "none";
+        document.getElementById("pending-approval-screen").style.display = "none";
+        document.getElementById("app-layout").style.display = "none";
+        return; // Dừng lại ở đây, chờ người dùng chọn cơ sở
+    } else {
+        console.log("Đã chọn cơ sở:", selectedBranchId);
+        if (branchScreen) {
+            branchScreen.style.display = 'none'; // Ẩn màn hình chọn nếu đã có lựa chọn
+            branchScreen.classList.add('hidden');
+        }
+    }
+    // === KẾT THÚC LOGIC MỚI ===
+
+    isAuthReady = true;
 
   // Ẩn tất cả các màn hình trước khi xử lý
   document.getElementById("auth-container").style.display = "none";
@@ -335,16 +384,10 @@ auth.onAuthStateChanged(async (user) => {
     } else {
       // 3. Đã được duyệt -> Vào màn hình chính
       document.getElementById("app-layout").style.display = "flex";
-      showLoading(true);
+      //showLoading(true);
       try {
         await loadInitialData();
-        initStudentsListener();
-        initClassesListener();
-        initUsersListener();
-        if (!codeManagementListenerInitialized) {
-            initPersonnelCodesListener();
-            codeManagementListenerInitialized = true; // Đánh dấu đã chạy
-        }
+        initListeners();
         setupDashboardUI(currentUserData);
         updateUIAccessByRole(currentUserData);
     /*    if (typeof Lucide !== 'undefined') {
@@ -353,8 +396,10 @@ auth.onAuthStateChanged(async (user) => {
         await showPageFromHash();
       } catch (error) {
          console.error("Lỗi nghiêm trọng khi khởi tạo:", error);
+         Swal.fire("Lỗi Khởi Tạo", "Không thể tải dữ liệu cần thiết. Vui lòng thử lại.", "error");
+         showLoading(false); // Ẩn loading nếu có lỗi ở đây
       } finally {
-        showLoading(false);
+       // showLoading(false);
       }
     }
   } else {
@@ -362,8 +407,30 @@ auth.onAuthStateChanged(async (user) => {
     document.getElementById("auth-container").style.display = "flex";
     currentUserData = null;
   }
-});
+}
 // =========================== AUTH FUNCTIONS ===========================
+/**
+ * HÀM MỚI: Xử lý khi người dùng chọn một cơ sở
+ * @param {string} branchId - ID của cơ sở được chọn (vd: 'branch1')
+ */
+function selectBranch(branchId) {
+    console.log("Đã chọn cơ sở:", branchId);
+    selectedBranchId = branchId;
+    localStorage.setItem('selectedBranchId', branchId); // Lưu vào localStorage
+
+    // Ẩn màn hình chọn cơ sở
+    const branchScreen = document.getElementById('branch-selection-screen');
+    if (branchScreen) {
+        branchScreen.classList.add('hidden'); // Dùng class để ẩn mượt hơn
+        // Dùng setTimeout để đảm bảo animation ẩn hoàn thành trước khi ẩn hẳn
+        setTimeout(() => {
+             branchScreen.style.display = 'none';
+        }, 300); // 300ms khớp với transition trong CSS
+    }
+
+    // Sau khi chọn, kiểm tra trạng thái đăng nhập để hiển thị form login hoặc vào app
+    checkInitialAuthState(); // Gọi hàm kiểm tra đăng nhập (sẽ tạo ở bước sau)
+}
 // Đăng ký
 function register() {
   const email = document.getElementById("register-email").value.trim();
@@ -484,21 +551,82 @@ function forgotPassword() {
 // Đăng xuất
 function logout() {
   auth.signOut().then(() => {
+    // === THÊM CÁC DÒNG NÀY ===
+    console.log("Đăng xuất, xóa lựa chọn cơ sở...");
+    localStorage.removeItem('selectedBranchId'); // Xóa lựa chọn cơ sở khi đăng xuất
+    selectedBranchId = null; // Reset biến toàn cục
+    // ======================
+
     // Ẩn giao diện chính của ứng dụng
     document.getElementById("app-layout").style.display = "none";
-    
-    // Hiển thị lại màn hình đăng nhập với thuộc tính 'flex' để căn giữa
-    document.getElementById("auth-container").style.display = "flex"; 
+
+    // Hiển thị lại màn hình đăng nhập (sẽ bị ẩn ngay sau đó nếu chọn cơ sở)
+    document.getElementById("auth-container").style.display = "flex";
+    showForm("login"); // Đặt lại form đăng nhập về mặc định
 
     // Các thao tác dọn dẹp khác
-    showForm("login");
-    window.location.hash = "";
-    hideAllManagementPages();
-    personnelListInitialized = false;
+    window.location.hash = ""; // Xóa hash khỏi URL
+    hideAllManagementPages(); // Ẩn tất cả các trang quản lý
+    personnelListInitialized = false; // Reset trạng thái khởi tạo trang nhân sự
+
+    // QUAN TRỌNG: Hiển thị lại màn hình chọn cơ sở sau khi đăng xuất
+    const branchScreen = document.getElementById('branch-selection-screen');
+     if (branchScreen) {
+        console.log("Hiển thị lại màn hình chọn cơ sở sau khi đăng xuất.");
+        branchScreen.style.display = 'flex';
+        branchScreen.classList.remove('hidden'); // Bỏ class hidden đi
+    }
 
   }).catch(error => {
-    alert("Lỗi đăng xuất: " + error.message);
+    // Sử dụng Swal thay cho alert
+    Swal.fire({icon: 'error', title: 'Lỗi Đăng Xuất', text: error.message});
+    console.error("Lỗi đăng xuất:", error);
   });
+}
+/**
+ * HÀM MỚI: Hiển thị lại màn hình chọn cơ sở mà không cần đăng xuất
+ */
+function promptSwitchBranch() {
+    console.log("Yêu cầu chuyển cơ sở...");
+    // 1. Xóa lựa chọn cơ sở đã lưu
+    localStorage.removeItem('selectedBranchId');
+    selectedBranchId = null;
+
+    // 2. Ẩn giao diện ứng dụng hiện tại
+    const appLayout = document.getElementById('app-layout');
+    if (appLayout) {
+        appLayout.style.display = 'none';
+    }
+
+    // 3. Ẩn các màn hình khác (phòng trường hợp đang ở màn hình role/pending)
+    document.getElementById("role-selection").style.display = "none";
+    document.getElementById("pending-approval-screen").style.display = "none";
+    document.getElementById("auth-container").style.display = "none"; // Ẩn cả login
+
+
+    // 4. Reset các trạng thái listener (quan trọng để tránh lỗi khi chọn lại cơ sở)
+     window.globalListenersInitialized = false; // Cho phép gắn lại listener chung
+     // Có thể cần detach các listener cũ ở đây nếu Firebase SDK không tự xử lý
+     // database.ref(...).off(); // Ví dụ
+
+    // 5. Hiển thị lại màn hình chọn cơ sở
+    const branchScreen = document.getElementById('branch-selection-screen');
+    if (branchScreen) {
+        console.log("Hiển thị màn hình chọn cơ sở.");
+        branchScreen.style.display = 'flex';
+        branchScreen.classList.remove('hidden'); // Bỏ class hidden
+    }
+
+    // 6. (Tùy chọn) Xóa hash khỏi URL để quay về trang mặc định sau khi chọn lại
+    window.location.hash = "";
+    hideAllManagementPages(); // Ẩn các section con trong app-layout
+
+     // 7. Reset lại biến dữ liệu toàn cục để buộc tải lại khi chọn cơ sở mới
+     allStudentsData = {};
+     allClassesData = {};
+     allAttendanceData = {};
+     allPersonnelAttendanceData = {};
+     // Reset các biến dữ liệu khác nếu có
 }
 // =========================== UI & NAVIGATION ===========================
 
@@ -757,27 +885,37 @@ function backToDashboard() {
   window.location.hash = "dashboard";
 }
 async function loadInitialData() {
-    console.log("Bắt đầu tải dữ liệu ban đầu...");
+    console.log(`Bắt đầu tải dữ liệu ban đầu cho cơ sở: ${selectedBranchId}...`); // Thêm log để biết đang tải cơ sở nào
+    showLoading(true); // Hiển thị loading ở đây
     try {
-        // Tải đồng thời cả 3 loại dữ liệu và chờ cho đến khi tất cả hoàn tất
-        const [usersSnap, classesSnap, studentsSnap, attendanceSnap] = await Promise.all([
-            database.ref(DB_PATHS.USERS).once('value'),
-            database.ref(DB_PATHS.CLASSES).once('value'),
-            database.ref(DB_PATHS.STUDENTS).once('value'),
-            database.ref(DB_PATHS.ATTENDANCE).once('value')
+        // --- THAY ĐỔI CÁCH GỌI Ở ĐÂY ---
+        const [usersSnap, classesSnap, studentsSnap, attendanceSnap, personnelAttendanceSnap, homeworkScoresSnap /*, Thêm các Snap khác nếu cần */] = await Promise.all([
+            database.ref(DB_PATHS.USERS).once('value'),               // Giữ nguyên vì users là chung
+            getBranchRef(DB_PATHS.CLASSES).once('value'),             // Sử dụng getBranchRef
+            getBranchRef(DB_PATHS.STUDENTS).once('value'),            // Sử dụng getBranchRef
+            getBranchRef(DB_PATHS.ATTENDANCE).once('value'),          // Sử dụng getBranchRef
+            getBranchRef(DB_PATHS.PERSONNEL_ATTENDANCE).once('value'), // Sử dụng getBranchRef
+            getBranchRef(DB_PATHS.HOMEWORK_SCORES).once('value')      // Sử dụng getBranchRef
+            // Thêm getBranchRef(...).once('value') cho các path khác trong DB_PATHS nếu bạn dùng chúng ở đây
         ]);
+        // --- KẾT THÚC THAY ĐỔI ---
 
-        // Gán dữ liệu vào các biến toàn cục
-        allUsersData = usersSnap.val() || {};
+        // Gán dữ liệu vào các biến toàn cục (giữ nguyên)
+        allUsersData = usersSnap.val() || {}; // users vẫn lấy từ gốc
         allClassesData = classesSnap.val() || {};
         allStudentsData = studentsSnap.val() || {};
-        allAttendanceData = attendanceSnap.val() || {};
-        
+        allAttendanceData = attendanceSnap.val() || {}; // Đảm bảo bạn có biến này
+        allPersonnelAttendanceData = personnelAttendanceSnap.val() || {}; // Cần biến này nếu dùng
+        allHomeworkScoresData = homeworkScoresSnap.val() || {}; // Cần biến này nếu dùng
+
         console.log("Tải dữ liệu ban đầu thành công!");
+
     } catch (error) {
         console.error("Lỗi nghiêm trọng khi tải dữ liệu ban đầu:", error);
-        Swal.fire("Lỗi kết nối", "Không thể tải dữ liệu từ server. Vui lòng kiểm tra kết nối mạng và thử lại.", "error");
+        Swal.fire("Lỗi kết nối", `Không thể tải dữ liệu từ cơ sở ${selectedBranchId}. Vui lòng kiểm tra kết nối mạng và thử lại.`, "error");
         throw error; // Ném lỗi ra ngoài để hàm gọi nó biết và dừng lại
+    } finally {
+        showLoading(false); // Ẩn loading khi hoàn thành hoặc lỗi
     }
 }
 // Chuyển trang theo hash
@@ -1131,9 +1269,17 @@ function handleAgeChange() {
   }
 }
 async function showRenewPackageForm(studentId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !studentId) {
+        Swal.fire("Lỗi", "Không thể xác định cơ sở hoặc học viên.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     try {
-        const snapshot = await database.ref(`${DB_PATHS.STUDENTS}/${studentId}`).once("value");
+        const snapshot = await getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`).once("value");
         const studentData = snapshot.val();
         if (!studentData) throw new Error("Không tìm thấy học viên.");
 
@@ -1161,6 +1307,17 @@ async function showRenewPackageForm(studentId) {
                 el.required = false;
             }
         });
+
+        // Reset phần học phí về 0 để nhập mới
+        document.getElementById("student-original-price").value = 0;
+        document.getElementById("student-total-due").value = 0;
+        document.getElementById("student-discount-percent").value = 0;
+        document.getElementById("student-promotion-percent").value = 0;
+        // Không reset số buổi đã học/còn lại vì gia hạn là cộng thêm
+         const sessionsAttended = studentData.sessionsAttended || 0;
+         const totalSessionsPaid = studentData.totalSessionsPaid || 0;
+         document.getElementById("student-total-attended-sessions").value = sessionsAttended;
+         document.getElementById("student-remaining-sessions-display").value = totalSessionsPaid - sessionsAttended;
 
     } catch (error) {
         console.error("Lỗi khi mở form gia hạn:", error);
@@ -1886,7 +2043,7 @@ function changeStudentPage(newPage) {
 
 // Khởi tạo listener realtime cho học viên
 function initStudentsListener() {
-    database.ref(DB_PATHS.STUDENTS).on("value", snapshot => {
+    getBranchRef(DB_PATHS.STUDENTS).on("value", snapshot => {
         // Cập nhật dữ liệu học viên mới nhất
         allStudentsData = snapshot.val() || {};
         
@@ -2053,8 +2210,14 @@ async function saveStudent() {
         Swal.fire("Lỗi", "Vui lòng đăng nhập để thêm hoặc sửa học viên!", "error");
         return;
     }
+// Thêm kiểm tra selectedBranchId
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
 
     const id = document.getElementById("student-index").value;
+    // Lấy dữ liệu hiện có TỪ CHI NHÁNH HIỆN TẠI
     const existingData = id ? (allStudentsData[id] || {}) : {};
     const isRenewing = document.getElementById("student-form-title").textContent.includes("Gia hạn");
     
@@ -2129,23 +2292,41 @@ async function saveStudent() {
         studentData.totalSessionsPaid = newPackageSessions;
     }
   
+   // === PHẦN THAY ĐỔI QUAN TRỌNG NHẤT ===
     try {
+        showLoading(true); // Hiển thị loading trước khi ghi DB
         if (id) {
-            await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
-            await logActivity(`Đã cập nhật/gia hạn cho học viên: "${studentNameForLog}"`);
+            // Sửa: Dùng getBranchRef để lấy đường dẫn tới học viên cụ thể
+            await getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).update(studentData);
+            await logActivity(`Đã cập nhật/gia hạn cho học viên: "${studentNameForLog}" tại cơ sở ${selectedBranchId}`);
             Swal.fire({ icon: 'success', title: 'Đã cập nhật!', timer: 2000, showConfirmButton: false });
         } else {
-            await database.ref(DB_PATHS.STUDENTS).push(studentData);
-            await logActivity(`Đã tạo hồ sơ học viên mới: "${studentNameForLog}"`);
+            // Thêm mới: Dùng getBranchRef để lấy đường dẫn tới node students
+            await getBranchRef(DB_PATHS.STUDENTS).push(studentData);
+            await logActivity(`Đã tạo hồ sơ học viên mới: "${studentNameForLog}" tại cơ sở ${selectedBranchId}`);
             Swal.fire({ icon: 'success', title: 'Đã thêm!', timer: 2000, showConfirmButton: false });
         }
         hideStudentForm();
     } catch (error) {
+        console.error("Lỗi lưu học viên:", error); // Log lỗi chi tiết
         Swal.fire("Lỗi", "Lỗi lưu học viên: " + error.message, "error");
+    } finally {
+        showLoading(false); // Ẩn loading sau khi hoàn thành hoặc lỗi
     }
+    // === KẾT THÚC THAY ĐỔI ===
 }
 // Xóa học viên
 async function deleteStudent(id) {
+    // Thêm kiểm tra selectedBranchId
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+     // Thêm kiểm tra id
+     if (!id) {
+        Swal.fire("Lỗi", "Không xác định được học viên cần xóa.", "error");
+        return;
+    }
     const result = await Swal.fire({
         title: 'Bạn muốn chuyển vào thùng rác?',
         text: "Học viên sẽ được chuyển vào thùng rác và có thể khôi phục sau.",
@@ -2156,20 +2337,28 @@ async function deleteStudent(id) {
         confirmButtonText: 'Vâng, chuyển!'
     });
 
-    if (result.isConfirmed) {
+   if (result.isConfirmed) {
         showLoading(true);
         try {
+            // Lấy tên học viên TỪ CHI NHÁNH HIỆN TẠI
             const studentName = allStudentsData[id]?.name || 'Không rõ tên';
 
-            await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update({
+            // --- THAY ĐỔI Ở ĐÂY ---
+            // Sử dụng getBranchRef để trỏ đến học viên cần xóa mềm
+            await getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).update({
+            // --- KẾT THÚC THAY ĐỔI ---
                 status: 'deleted',
                 deletedAt: firebase.database.ServerValue.TIMESTAMP
             });
 
-            await logActivity(`Đã chuyển học viên vào thùng rác: ${studentName}`);
-            
+            // Thêm cơ sở vào log
+            await logActivity(`Đã chuyển học viên vào thùng rác: ${studentName} tại cơ sở ${selectedBranchId}`);
+
             Swal.fire('Đã chuyển!', 'Học viên đã được chuyển vào thùng rác.', 'success');
+            // Listener sẽ tự động cập nhật lại danh sách
+
         } catch (error) {
+            console.error("Lỗi khi chuyển học viên vào thùng rác:", error); // Log lỗi chi tiết
             Swal.fire("Lỗi", "Không thể thực hiện: " + error.message, "error");
         } finally {
             showLoading(false);
@@ -2207,9 +2396,17 @@ function resetStudentFormState() {
 }
 // Chỉnh sửa học viên (đổ dữ liệu vào form)
 async function editStudent(id) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !id) {
+        Swal.fire("Lỗi", "Không thể xác định cơ sở hoặc học viên.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     try {
-        const snapshot = await database.ref(`${DB_PATHS.STUDENTS}/${id}`).once("value");
+        const snapshot = await getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).once("value");
         const st = snapshot.val();
         if (!st) throw new Error("Không tìm thấy học viên.");
 
@@ -2229,6 +2426,26 @@ async function editStudent(id) {
             if (document.getElementById("student-parent")) document.getElementById("student-parent").value = st.parent || "";
             if (document.getElementById("student-parent-phone")) document.getElementById("student-parent-phone").value = st.parentPhone || "";
         }, 50);
+
+        // Điền thông tin nghề nghiệp
+        const parentJobSelect = document.getElementById("student-parent-job");
+        const otherJobInput = document.getElementById("student-parent-job-other");
+        parentJobSelect.value = st.parentJob || "";
+        // Kiểm tra xem giá trị có phải là "Khác" không
+        let isOtherJob = true;
+        for (let i = 0; i < parentJobSelect.options.length; i++) {
+            if (parentJobSelect.options[i].value === st.parentJob) {
+                isOtherJob = false;
+                break;
+            }
+        }
+        if (st.parentJob && isOtherJob) {
+             parentJobSelect.value = "Khác"; // Set dropdown thành "Khác"
+             otherJobInput.value = st.parentJob; // Điền giá trị vào ô text
+             otherJobInput.style.display = "inline-block";
+        } else {
+             otherJobInput.style.display = "none";
+        }
 
         document.getElementById("student-package").value = st.package || "";
         document.getElementById("student-original-price").value = st.originalPrice || 0;
@@ -2551,45 +2768,65 @@ async function editClass(id) {
 }
 // Chỉnh sửa lớp (đổ dữ liệu vào form)
 async function editOfficialClass(id, isReadOnly = false) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !id) {
+        Swal.fire("Lỗi", "Không thể xác định cơ sở hoặc lớp học.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     document.getElementById("class-form-modal").style.display = "flex";
     document.getElementById("class-form-title").textContent = isReadOnly ? "Xem thông tin lớp học" : "Chỉnh sửa lớp học";
 
     try {
-        const snapshot = await database.ref(`${DB_PATHS.CLASSES}/${id}`).once("value");
-        const cls = snapshot.val();
-        if (!cls) throw new Error("Lớp học không tồn tại!");
+        // --- THAY ĐỔI Ở ĐÂY: Sử dụng getBranchRef để đọc dữ liệu lớp ---
+        const snapshot = await getBranchRef(`${DB_PATHS.CLASSES}/${id}`).once("value");
+        // --- KẾT THÚC THAY ĐỔI ---
 
+        const cls = snapshot.val();
+        if (!cls) throw new Error("Lớp học không tồn tại trong cơ sở này!");
+
+        // Phần còn lại của hàm (điền dữ liệu vào form, xử lý readonly,...) giữ nguyên
         document.getElementById("class-index").value = id;
         document.getElementById("class-name").value = cls.name || "";
+        // ... (điền các trường khác: startDate, room, teacher, assistantTeacher, classType, ...) ...
         document.getElementById("class-start-date").value = cls.startDate || "";
         document.getElementById("class-room").value = cls.room || "Phòng 301";
 
-        await populateTeacherDropdown();
+        // Cần gọi populate dropdowns trước khi set value
+        await populateTeacherDropdown(); // Đảm bảo hàm này lấy đúng danh sách chung
+        await populateAssistantTeacherDropdown(); // Đảm bảo hàm này lấy đúng danh sách chung
+
         document.getElementById("class-teacher").value = cls.teacher || "";
-        await populateAssistantTeacherDropdown();
         document.getElementById("class-assistant-teacher").value = cls.assistantTeacher || "";
 
         const classTypeSelect = document.getElementById('class-type-select');
         classTypeSelect.value = cls.classType || "";
-        handleClassTypeChange();
+        handleClassTypeChange(); // Gọi để hiện/ẩn phần chứng chỉ
 
-        setTimeout(() => {
-            if (cls.classType === 'Lớp chứng chỉ') {
-                const certTypeSelect = document.getElementById('class-certificate-type-select');
-                certTypeSelect.value = cls.certificateType || "";
-                populateClassCertificateCourseDropdown();
+        // Xử lý điền dropdown chứng chỉ (nếu có)
+        if (cls.classType === 'Lớp chứng chỉ' && cls.certificateType) {
+             setTimeout(() => { // Dùng timeout nhỏ để đảm bảo dropdown loại chứng chỉ đã được điền
+                 const certTypeSelect = document.getElementById('class-certificate-type-select');
+                 certTypeSelect.value = cls.certificateType;
+                 populateClassCertificateCourseDropdown(); // Điền khóa học theo loại chứng chỉ
 
-                setTimeout(() => {
-                    const courseSelect = document.getElementById('class-course-select');
-                    courseSelect.value = cls.courseName || "";
-                }, 100);
-            }
-        }, 100);
+                 setTimeout(() => { // Timeout nhỏ nữa để đảm bảo dropdown khóa học đã được điền
+                     const courseSelect = document.getElementById('class-course-select');
+                     courseSelect.value = cls.courseName || "";
+                 }, 50); // Có thể cần điều chỉnh thời gian
+             }, 50);
+        }
 
-        await updateStudentOptionsForClassForm();
+
+        // Cập nhật danh sách học viên hiện tại và render (cần đảm bảo allStudentsData đã load đúng)
+        await updateStudentOptionsForClassForm(); // Hàm này cần đọc students từ đúng nhánh
         currentClassStudents = cls.students ? Object.keys(cls.students) : [];
         renderClassStudentList(currentClassStudents);
+
+        // Điền lịch học cố định
         fillFixedScheduleIntoForm(cls.fixedSchedule);
 
         const form = document.getElementById('class-form');
@@ -2726,19 +2963,37 @@ function hideClassForm() {
 }
 
 // Cập nhật dropdown chọn học viên khi tạo/sửa lớp
-function updateStudentOptionsForClassForm() {
-  return database.ref(DB_PATHS.STUDENTS).once("value").then(snapshot => {
-    allStudentsData = snapshot.val() || {};
+async function updateStudentOptionsForClassForm() { // Chuyển thành async
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) { return; } // Không làm gì nếu chưa chọn cơ sở
+    // --- KẾT THÚC KIỂM TRA ---
+    try { // Thêm try...catch
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const snapshot = await getBranchRef(DB_PATHS.STUDENTS).once("value");
+        // --- KẾT THÚC THAY ĐỔI ---
 
-    const datalist = document.getElementById("class-add-student-datalist");
-    datalist.innerHTML = ""; 
-    Object.entries(allStudentsData).forEach(([id, st]) => {
-      const option = document.createElement("option");
-      option.value = st.name || "(Không rõ tên)";
-      option.dataset.id = id; // lưu luôn studentId vào data-id để dùng sau
-      datalist.appendChild(option);
-    });
-  });
+        // Cập nhật lại biến toàn cục allStudentsData cho cơ sở hiện tại
+        allStudentsData = snapshot.val() || {};
+
+        const datalist = document.getElementById("class-add-student-datalist");
+        if (!datalist) return; // Kiểm tra nếu datalist tồn tại
+        datalist.innerHTML = "";
+
+        // Sắp xếp học viên theo tên trước khi thêm vào datalist
+        const sortedStudents = Object.entries(allStudentsData)
+                                .filter(([, st]) => st.status !== 'deleted') // Lọc học viên đã xóa
+                                .sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""));
+
+        sortedStudents.forEach(([id, st]) => {
+            const option = document.createElement("option");
+            option.value = st.name || "(Không rõ tên)";
+            option.dataset.id = id;
+            datalist.appendChild(option);
+        });
+    } catch (error) {
+         console.error("Lỗi khi cập nhật danh sách học viên cho form lớp:", error);
+         // Có thể thông báo lỗi nếu cần
+    }
 }
 /**
  * Lọc các option trong <select id="class-add-student"> dựa vào nội dung ô #class-add-student-search.
@@ -2816,13 +3071,19 @@ let isSavingClass = false;
 // script.js
 async function saveClass(event) {
     event.preventDefault();
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
     showLoading(true);
 
     const classId = document.getElementById("class-index").value;
     const teacherSelect = document.getElementById("class-teacher");
     const assistantTeacherSelect = document.getElementById("class-assistant-teacher");
 
-    const classData = {
+    const classDataFromForm = {
         name: document.getElementById("class-name").value.trim(),
         classType: document.getElementById('class-type-select').value,
         certificateType: document.getElementById('class-certificate-type-select').value,
@@ -2833,13 +3094,14 @@ async function saveClass(event) {
      //   assistantTeacherUid: assistantTeacherSelect.value ? assistantTeacherSelect.options[assistantTeacherSelect.selectedIndex]?.dataset.uid : '',
         room: document.getElementById("class-room").value,
         startDate: document.getElementById("class-start-date").value,
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
+        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+        status: 'active'
     };
 
     // LOGIC DỌN DẸP: Nếu không phải lớp chứng chỉ, hãy đảm bảo các trường liên quan bị xóa.
-    if (classData.classType !== 'Lớp chứng chỉ') {
-        classData.certificateType = null;
-        classData.courseName = null;
+    if (classDataFromForm.classType !== 'Lớp chứng chỉ') {
+        classDataFromForm.certificateType = null;
+        classDataFromForm.courseName = null;
     }
 
     const newStudentsObject = {};
@@ -2848,56 +3110,102 @@ async function saveClass(event) {
             enrolledAt: firebase.database.ServerValue.TIMESTAMP
         };
     });
-    classData.students = newStudentsObject;
+  //  classData.students = newStudentsObject;
 
     try {
         if (classId) {
             // --- TRƯỜNG HỢP SỬA LỚP ---
             const updates = {};
-            const oldClassData = allClassesData[classId];
-            const oldStudentIds = oldClassData.students ? Object.keys(oldClassData.students) : [];
-            
-            updates[`/classes/${classId}`] = { ...oldClassData, ...classData };
+            const oldClassData = allClassesData[classId]; // Lấy dữ liệu cũ từ biến toàn cục
+            const oldStudentIds = oldClassData?.students ? Object.keys(oldClassData.students) : [];
 
+             // === SỬA LỖI: Tạo đối tượng cập nhật cuối cùng ===
+             // Bắt đầu với dữ liệu cũ (nếu có)
+            const finalClassData = { ...(oldClassData || {}) };
+             // Ghi đè bằng dữ liệu mới từ form
+             Object.assign(finalClassData, classDataFromForm);
+             // Gán danh sách học viên mới
+             finalClassData.students = newStudentsObject;
+
+             // Đảm bảo các thuộc tính có thể rỗng là null thay vì undefined
+             finalClassData.fixedSchedule = finalClassData.fixedSchedule || null;
+             finalClassData.sessions = finalClassData.sessions || null;
+             finalClassData.exams = finalClassData.exams || null; // Quan trọng!
+             finalClassData.bookDrives = finalClassData.bookDrives || null;
+             finalClassData.currentBookDriveId = finalClassData.currentBookDriveId || null;
+             finalClassData.teacherSalary = finalClassData.teacherSalary || 0;
+             finalClassData.assistantTeacherSalary = finalClassData.assistantTeacherSalary || 0;
+              // Giữ lại createdAt nếu có
+             finalClassData.createdAt = oldClassData?.createdAt || firebase.database.ServerValue.TIMESTAMP;
+             // Giữ ngày bắt đầu cũ
+             finalClassData.startDate = oldClassData?.startDate || classDataFromForm.startDate;
+             // ===============================================
+
+            // Đường dẫn cập nhật lớp
+            updates[`/branches/${selectedBranchId}/${DB_PATHS.CLASSES}/${classId}`] = finalClassData;
+
+            // Cập nhật liên kết học viên (đường dẫn đã sửa ở bước trước)
+            const studentBasePath = `branches/${selectedBranchId}/${DB_PATHS.STUDENTS}`;
             const addedStudents = currentClassStudents.filter(id => !oldStudentIds.includes(id));
             addedStudents.forEach(studentId => {
-                updates[`/students/${studentId}/classes/${classId}`] = true;
+                updates[`/${studentBasePath}/${studentId}/classes/${classId}`] = true;
             });
-
             const removedStudents = oldStudentIds.filter(id => !currentClassStudents.includes(id));
             removedStudents.forEach(studentId => {
-                updates[`/students/${studentId}/classes/${classId}`] = null;
+                updates[`/${studentBasePath}/${studentId}/classes/${classId}`] = null;
             });
 
+            // Thực hiện cập nhật hàng loạt
             await database.ref().update(updates);
-            await logActivity(`Đã cập nhật lớp học: ${classData.name}`);
+            await logActivity(`Đã cập nhật lớp học: ${finalClassData.name} tại cơ sở ${selectedBranchId}`);
             Swal.fire({ icon: 'success', title: 'Đã cập nhật lớp học!', timer: 2000, showConfirmButton: false });
-            
         } else {
             // --- TRƯỜNG HỢP TẠO LỚP MỚI ---
             const fixedSchedule = getFixedScheduleFromForm();
             if (Object.keys(fixedSchedule).length === 0) { throw new Error("Lớp mới phải có lịch học cố định."); }
-            classData.fixedSchedule = fixedSchedule;
-            classData.createdAt = firebase.database.ServerValue.TIMESTAMP;
+
+            // Tạo dữ liệu lớp hoàn chỉnh để push
+            const newClassData = {
+                ...classDataFromForm, // Dữ liệu từ form
+                fixedSchedule: fixedSchedule,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                students: newStudentsObject, // Danh sách học viên ban đầu
+                // Khởi tạo các trường khác là null hoặc giá trị mặc định
+                sessions: null, // Sẽ được tạo sau
+                exams: null,
+                teacherSalary: 0,
+                assistantTeacherSalary: 0,
+                bookDrives: null,
+                currentBookDriveId: null
+            };
             
             let sessionCount = (classData.classType === 'Lớp chứng chỉ')
                 ? (certificateCourses[classData.certificateType]?.find(c => c.name === classData.courseName)?.sessions || 0)
                 : 72;
             if (sessionCount <= 0 && classData.classType === 'Lớp chứng chỉ') { throw new Error("Không thể xác định số buổi học cho khóa chứng chỉ."); }
             
-            classData.sessions = generateRollingSessions(classData.startDate, sessionCount, fixedSchedule);
-            
-            const updates = {};
-            const newClassRef = database.ref('classes').push();
-            const newClassId = newClassRef.key;
-            updates[`/classes/${newClassId}`] = classData;
+            // Nếu là lớp phổ thông/môn trường, có thể chỉ cần tạo trước 1 lượng buổi nhất định?
+            if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường') {
+                 sessionCount = 24; // Ví dụ: Tạo trước 24 buổi ban đầu
+            }
 
-            currentClassStudents.forEach(studentId => {
-                updates[`/students/${studentId}/classes/${newClassId}`] = true;
-            });
+            newClassData.sessions = generateRollingSessions(newClassData.startDate, sessionCount, fixedSchedule);
             
+            // Chuẩn bị cập nhật hàng loạt
+            const updates = {};
+            const newClassRef = getBranchRef(DB_PATHS.CLASSES).push();
+            const newClassId = newClassRef.key;
+            updates[`/branches/${selectedBranchId}/${DB_PATHS.CLASSES}/${newClassId}`] = newClassData;
+
+            // Cập nhật liên kết học viên
+            const studentBasePath = `branches/${selectedBranchId}/${DB_PATHS.STUDENTS}`;
+            currentClassStudents.forEach(studentId => {
+                updates[`/${studentBasePath}/${studentId}/classes/${newClassId}`] = true;
+            });
+
+            // Thực hiện cập nhật
             await database.ref().update(updates);
-            await logActivity(`Đã tạo lớp học mới: ${classData.name}`);
+            await logActivity(`Đã tạo lớp học mới: ${newClassData.name} tại cơ sở ${selectedBranchId}`);
             Swal.fire({ icon: 'success', title: 'Đã tạo lớp học mới!', timer: 2000, showConfirmButton: false });
         }
         hideClassForm();
@@ -2910,6 +3218,18 @@ async function saveClass(event) {
 }
 // Xóa lớp học
 async function deleteClass(id) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    if (!id) {
+        Swal.fire("Lỗi", "Không xác định được lớp học cần xóa.", "error");
+        return;
+    }
+    // --- KẾT THÚC THÊM KIỂM TRA ---
+
     const result = await Swal.fire({
         title: 'Bạn muốn chuyển vào thùng rác?',
         text: "Lớp học sẽ được chuyển vào thùng rác và có thể khôi phục sau.",
@@ -2922,18 +3242,27 @@ async function deleteClass(id) {
 
     if (result.isConfirmed) {
         showLoading(true);
-        try {
+       try {
+            // Lấy tên lớp TỪ CHI NHÁNH HIỆN TẠI
             const className = allClassesData[id]?.name || 'Không rõ tên';
 
-            await database.ref(`${DB_PATHS.CLASSES}/${id}`).update({
+            // --- THAY ĐỔI Ở ĐÂY ---
+            // Sử dụng getBranchRef để trỏ đến lớp cần xóa mềm
+            await getBranchRef(`${DB_PATHS.CLASSES}/${id}`).update({
+            // --- KẾT THÚC THAY ĐỔI ---
                 status: 'deleted',
                 deletedAt: firebase.database.ServerValue.TIMESTAMP
+                // Không cần xóa học viên khỏi lớp khi chỉ chuyển vào thùng rác
             });
 
-            await logActivity(`Đã chuyển lớp vào thùng rác: ${className}`);
-            
+            // Thêm cơ sở vào log
+            await logActivity(`Đã chuyển lớp vào thùng rác: ${className} tại cơ sở ${selectedBranchId}`);
+
             Swal.fire('Đã chuyển!', 'Lớp học đã được chuyển vào thùng rác.', 'success');
+            // Listener sẽ tự động cập nhật danh sách lớp
+
         } catch (error) {
+            console.error("Lỗi khi chuyển lớp vào thùng rác:", error); // Log lỗi chi tiết
             Swal.fire("Lỗi", "Không thể thực hiện: " + error.message, "error");
         } finally {
             showLoading(false);
@@ -3329,7 +3658,7 @@ ${scheduleText}
 
 // Khởi tạo listener realtime cho lớp
 function initClassesListener() {
-  database.ref(DB_PATHS.CLASSES).on("value", snapshot => {
+  getBranchRef(DB_PATHS.CLASSES).on("value", snapshot => {
     allClassesData = snapshot.val() || {};
     const currentPage = window.location.hash.slice(1);
 
@@ -3569,6 +3898,18 @@ function filterPersonnelClassesBySearch() {
 }
 // MỚI: Render bảng chấm công của lớp (Ô 1 - giống bảng điểm danh học viên nhưng cho nhân sự)
 async function renderPersonnelAttendanceTable(classId, className) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    if (!classId) {
+         Swal.fire("Lỗi", "Không xác định được lớp học.", "error");
+         return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     document.getElementById("personnel-classes-section").style.display = "none";
     document.getElementById("personnel-staff-section").style.display = "none";
@@ -3576,68 +3917,82 @@ async function renderPersonnelAttendanceTable(classId, className) {
     document.getElementById("current-personnel-class-name").textContent = className;
 
     try {
-        const classSnap = await database.ref(`classes/${classId}`).once("value");
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const classSnap = await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).once("value");
+        // --- KẾT THÚC THAY ĐỔI ---
         const cls = classSnap.val();
-        if (!cls) {
-            throw new Error("Không tìm thấy dữ liệu lớp học.");
-        }
+        if (!cls) throw new Error("Không tìm thấy dữ liệu lớp học.");
 
-        // SỬA LỖI: Lấy trực tiếp các buổi học đã được lưu của lớp
         const sessions = cls.sessions || {};
         const sortedSessionDates = Object.keys(sessions).sort();
 
         let classStaff = [];
-        const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
-        const currentUid = currentUserData ? currentUserData.uid : null;
+        const isAdminOrHoiDong = currentUserData?.role === "Admin" || currentUserData?.role === "Hội Đồng";
+        const currentUid = currentUserData?.uid;
 
+        // Lấy thông tin nhân sự từ allUsersData (chung)
         if (cls.teacherUid && allUsersData[cls.teacherUid]) {
             if (isAdminOrHoiDong || cls.teacherUid === currentUid) {
-                classStaff.push({ uid: cls.teacherUid, name: cls.teacher, role: "Giáo Viên" });
+                classStaff.push({ uid: cls.teacherUid, name: allUsersData[cls.teacherUid]?.name || cls.teacher, role: "Giáo Viên" }); // Lấy tên từ allUsersData
             }
         }
         if (cls.assistantTeacherUid && allUsersData[cls.assistantTeacherUid]) {
             if (isAdminOrHoiDong || cls.assistantTeacherUid === currentUid) {
+                // Đảm bảo không thêm trùng nếu GV=TG
                 if (!classStaff.some(s => s.uid === cls.assistantTeacherUid)) {
-                    classStaff.push({ uid: cls.assistantTeacherUid, name: cls.assistantTeacher, role: "Trợ Giảng" });
+                    classStaff.push({ uid: cls.assistantTeacherUid, name: allUsersData[cls.assistantTeacherUid]?.name || cls.assistantTeacher, role: "Trợ Giảng" }); // Lấy tên từ allUsersData
                 }
             }
         }
 
-        const personnelAttendanceSnap = await database.ref(`personnelAttendance/${classId}`).once("value");
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const personnelAttendanceSnap = await getBranchRef(`${DB_PATHS.PERSONNEL_ATTENDANCE}/${classId}`).once("value");
+        // --- KẾT THÚC THAY ĐỔI ---
         const personnelAttendanceData = personnelAttendanceSnap.val() || {};
 
+        // Phần tạo HTML header và body (giữ nguyên logic, chỉ cần đảm bảo đọc đúng tên nhân sự)
         const tableHeadRow = document.getElementById("personnel-attendance-table-head");
         const tableBody = document.getElementById("personnel-attendance-table-body");
-
-        let headerHTML = `<th style="min-width: 180px; position: sticky; left: 0; background-color: #f3f6fb; z-index: 1;">Nhân sự</th>`;
-        // Dùng sortedSessionDates để tạo header
+        let headerHTML = `<tr><th style="min-width: 180px; position: sticky; left: 0; background-color: #f8f9fa; z-index: 2;">Nhân sự</th>`; // Cập nhật style
         sortedSessionDates.forEach((dateKey) => {
             const d = new Date(dateKey + 'T00:00:00');
             const label = `${d.getDate()}/${d.getMonth() + 1}`;
-            headerHTML += `<th style="min-width: 100px;">${label}</th>`;
+            const sessionType = sessions[dateKey]?.type; // Lấy loại buổi học
+            let typeLabel = '';
+            if (sessionType === 'makeup') typeLabel = ' (Bù)';
+            else if (sessionType === 'extra') typeLabel = ' (Thêm)';
+            // Chỉ hiển thị nút xóa cho Admin/Hội đồng
+            const deleteButtonHtml = (isAdminOrHoiDong)
+                ? `<button class="delete-session-btn" onclick="deleteSession('${classId}', '${dateKey}', false)" title="Xóa buổi này">×</button>` // isExam = false
+                : '';
+            headerHTML += `<th style="position: relative; min-width: 100px;">${deleteButtonHtml}Buổi học${typeLabel}<br><small>${label}</small></th>`; // Thêm loại buổi học, bỏ isExam
         });
+        headerHTML += `</tr>`;
         tableHeadRow.innerHTML = headerHTML;
         tableBody.innerHTML = "";
 
         classStaff.forEach(staff => {
             const row = document.createElement("tr");
+            // Cột tên nhân sự (sticky)
             const nameCell = document.createElement("td");
             nameCell.textContent = `${staff.name} (${staff.role})`;
             nameCell.style.position = "sticky";
             nameCell.style.left = "0";
-            nameCell.style.backgroundColor = "#fff";
+            nameCell.style.backgroundColor = "var(--color-surface)"; // Dùng biến CSS
             nameCell.style.zIndex = "1";
             row.appendChild(nameCell);
 
-            // Dùng sortedSessionDates để tạo các ô checkbox
+            // Các cột checkbox điểm danh
             sortedSessionDates.forEach((dateKey) => {
                 const isChecked = personnelAttendanceData?.[staff.uid]?.[dateKey]?.[staff.role] === true;
                 const td = document.createElement("td");
                 td.style.minWidth = "100px";
-                const isDisabled = !isAdminOrHoiDong;
-                
+                td.style.textAlign = "center"; // Căn giữa checkbox
+                const isDisabled = !isAdminOrHoiDong; // Chỉ Admin/Hội đồng được sửa
+
                 td.innerHTML = `
                     <input type="checkbox"
+                           style="transform: scale(1.3);"
                            onchange="togglePersonnelAttendance('${classId}', '${staff.uid}', '${dateKey}', '${staff.role}', this.checked)"
                            ${isChecked ? "checked" : ""}
                            ${isDisabled ? "disabled" : ""} />
@@ -3646,6 +4001,7 @@ async function renderPersonnelAttendanceTable(classId, className) {
             });
             tableBody.appendChild(row);
         });
+
 
         showPersonnelAttendanceModal();
         
@@ -3676,14 +4032,25 @@ async function renderPersonnelAttendanceTable(classId, className) {
 }
 // MỚI: Hàm bật/tắt checkbox chấm công nhân sự
 async function togglePersonnelAttendance(classId, staffUid, dateStr, role, isChecked) {
-    const attPath = `personnelAttendance/${classId}/${staffUid}/${dateStr}/${role}`;
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+// Lưu ý: role ở đây là 'Giáo Viên' hoặc 'Trợ Giảng' (có dấu tiếng Việt)
+    const attPath = `${DB_PATHS.PERSONNEL_ATTENDANCE}/${classId}/${staffUid}/${dateStr}/${role}`;
+    const attRef = getBranchRef(attPath);
+    // --- KẾT THÚC THAY ĐỔI ---
     try {
-        await database.ref(attPath).set(isChecked);
-        console.log(`Chấm công ${staffUid} (${role}) ngày ${dateStr} của lớp ${classId}: ${isChecked}`);
-        // Không cần cập nhật sessionsAttended ở đây, sẽ tính lại tổng khi xem lương
+        await attRef.set(isChecked);
+        console.log(`Chấm công ${staffUid} (${role}) ngày ${dateStr} lớp ${classId} tại cơ sở ${selectedBranchId}: ${isChecked}`);
+        // Không cần logActivity cho hành động này
     } catch (error) {
         console.error("Lỗi cập nhật chấm công nhân sự:", error);
         Swal.fire("Lỗi", "Không thể cập nhật chấm công.", "error");
+         // Nên tìm cách bỏ tick lại checkbox nếu lỗi
+         const checkbox = event?.target;
+         if (checkbox) checkbox.checked = !isChecked;
     }
 }
 
@@ -3820,6 +4187,12 @@ async function populatePersonnelClassList(classesToRender = allClassesData) {
 // VÌ KHÔNG CÓ INPUT LƯƠNG CỐ ĐỊNH Ở ĐÂY
 // MỚI: Lưu lương của nhân sự
 async function showStaffClassesAndSalariesModal(staffUid) {
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
     if (!currentUserData) {
         Swal.fire("Lỗi", "Vui lòng đăng nhập.", "error");
         return;
@@ -3846,62 +4219,68 @@ async function showStaffClassesAndSalariesModal(staffUid) {
     listEl.innerHTML = "";
 
     try {
-        const allClasses = allClassesData || {};
+        // --- THAY ĐỔI: Đọc allClassesData từ biến toàn cục đã load theo nhánh ---
+        const allClassesInBranch = allClassesData || {}; // Dùng biến toàn cục đã load
+        // --- KẾT THÚC THAY ĐỔI ---
 
         let foundClasses = false;
-        for (const classId in allClasses) {
-            if (!allClasses.hasOwnProperty(classId)) continue;
+        // Sắp xếp lớp theo tên
+        const sortedClassEntries = Object.entries(allClassesInBranch)
+                                     .sort(([,a], [,b]) => (a.name || "").localeCompare(b.name || ""));
 
-            const cls = allClasses[classId];
+        sortedClassEntries.forEach(([classId, cls]) => { // Duyệt qua các lớp đã sắp xếp
+            // Phần logic kiểm tra isTeacherInClass, isAssistantInClass, currentSalary, roleInClass giữ nguyên
             let isTeacherInClass = false;
             let isAssistantInClass = false;
             let currentSalary = 0;
-            let roleInClass = ''; // Role hiển thị trong bảng
+            let roleInClass = '';
 
             if (cls.teacherUid === staffUid) {
                 isTeacherInClass = true;
                 roleInClass = 'Giáo Viên';
                 currentSalary = cls.teacherSalary || 0;
             }
-            // Nếu người này vừa là GV vừa là TG trong cùng 1 lớp (trường hợp hiếm)
             if (cls.assistantTeacherUid === staffUid) {
                 isAssistantInClass = true;
-                // Nếu đã là GV, thêm cả vai trò TG vào
                 if (isTeacherInClass) roleInClass = 'Giáo Viên, Trợ Giảng';
-                else roleInClass = 'Trợ Giảng';
-                // Lấy lương của vai trò chính hoặc vai trò TG nếu chỉ là TG
-                currentSalary = isTeacherInClass ? (cls.teacherSalary || 0) : (cls.assistantTeacherSalary || 0);
+                else {
+                    roleInClass = 'Trợ Giảng';
+                    // Chỉ lấy lương trợ giảng nếu họ CHỈ là trợ giảng trong lớp này
+                    currentSalary = cls.assistantTeacherSalary || 0;
+                }
             }
+
 
             if (isTeacherInClass || isAssistantInClass) {
                 foundClasses = true;
                 const row = document.createElement("tr");
+                const salaryInputId = `salary-input-${classId}-${staffUid}`; // Tạo ID duy nhất
+
+                 // Xác định vai trò chính để lưu lương (ưu tiên GV nếu có cả 2)
+                 const primaryRoleForSalary = isTeacherInClass ? 'teacher' : 'assistant';
+
                 row.innerHTML = `
                     <td>${cls.name || 'Không tên lớp'}</td>
                     <td>${roleInClass}</td>
                     <td>
                         <input type="number"
+                               id="${salaryInputId}"
                                class="salary-input"
                                data-class-id="${classId}"
                                data-staff-uid="${staffUid}"
-                               data-role-in-class="${isTeacherInClass ? 'teacher' : ''}${isAssistantInClass ? 'assistant' : ''}"
-                               value="${currentSalary}"
+                               data-role-salary="${primaryRoleForSalary}" value="${currentSalary}"
                                min="0"
                                onchange="saveClassSpecificSalary(this)"
-                               ${isAdminOrHoiDong ? '' : 'disabled'} > </td>
+                               > VNĐ </td>
                     <td>
-                        ${isAdminOrHoiDong ? `
-                            <button onclick="removeClassSpecificSalary('${classId}', '${staffUid}', '${isTeacherInClass ? 'teacher' : ''}${isAssistantInClass ? 'assistant' : ''}')" class="delete-btn">Xóa</button>
-                        ` : `
-                            `}
-                    </td>
+                        </td>
                 `;
                 listEl.appendChild(row);
             }
-        }
+        });
 
         if (!foundClasses) {
-            listEl.innerHTML = '<tr><td colspan="4">Nhân sự này hiện không dạy lớp nào.</td></tr>';
+            listEl.innerHTML = '<tr><td colspan="4">Nhân sự này hiện không dạy lớp nào tại cơ sở này.</td></tr>';
         }
 
         document.getElementById("staff-classes-salary-modal").style.display = "flex";
@@ -3918,6 +4297,12 @@ async function showStaffClassesAndSalariesModal(staffUid) {
     }
 }
 async function saveClassSpecificSalary(inputElement) {
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
    const isAdminOrHoiDong = currentUserData && (currentUserData.role === "Admin" || currentUserData.role === "Hội Đồng");
     if (!isAdminOrHoiDong) {
         Swal.fire("Truy cập bị từ chối", "Bạn không có quyền chỉnh sửa mức lương.", "warning");
@@ -3946,11 +4331,22 @@ async function saveClassSpecificSalary(inputElement) {
     }
 
     try {
-        await database.ref(updatePath).set(value);
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const salaryRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}/${updatePathKey}`);
+        await salaryRef.set(value);
+        // --- KẾT THÚC THAY ĐỔI ---
+
+        // Cập nhật lại dữ liệu toàn cục allClassesData để phản ánh thay đổi ngay
+        if (allClassesData[classId]) {
+             allClassesData[classId][updatePathKey] = value;
+        }
+
         Swal.fire({ icon: 'success', title: 'Đã lưu lương lớp!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
     } catch (error) {
         console.error("Lỗi lưu lương lớp:", error);
         Swal.fire("Lỗi", "Không thể lưu lương lớp. Vui lòng thử lại.", "error");
+         // Có thể cần đọc lại giá trị cũ và đặt lại vào input nếu lỗi
+         // inputElement.value = allClassesData[classId]?.[updatePathKey] || 0;
     }
 }
 
@@ -4046,6 +4442,12 @@ async function deleteStaffSalary(uid) {
 
 // MỚI: Hiển thị Modal chi tiết lương và chấm công
 async function showSalaryDetailModal(staffUid) {
+
+        if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
     if (!currentUserData) {
         Swal.fire("Lỗi", "Vui lòng đăng nhập.", "error");
         return;
@@ -4095,6 +4497,12 @@ function hideSalaryDetailModal() {
 let personnelChart = null; // Biến để lưu instance của Chart.js
 
 async function renderPersonnelSalaryChart(staffUid, monthYear) {
+
+        if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
     showLoading(true);
     const staffData = allStaffData[staffUid];
     if (!staffData) {
@@ -4109,58 +4517,64 @@ async function renderPersonnelSalaryChart(staffUid, monthYear) {
     const endDate = new Date(year, month - 1, 15);   // Ngày 15 của tháng đã chọn
     endDate.setHours(23, 59, 59, 999); // Bao gồm toàn bộ ngày cuối cùng
 
-    const allAttendanceSnap = await database.ref(`personnelAttendance`).once("value");
-    const allAttendanceData = allAttendanceSnap.val() || {};
-    const allClassesSnap = await database.ref(DB_PATHS.CLASSES).once("value");
-    const allClasses = allClassesSnap.val() || {};
+   try { // Thêm try...catch để bắt lỗi đọc DB
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const [personnelAttendanceSnap, allClassesSnap] = await Promise.all([
+            getBranchRef(DB_PATHS.PERSONNEL_ATTENDANCE).once("value"),
+            getBranchRef(DB_PATHS.CLASSES).once("value")
+        ]);
+        // --- KẾT THÚC THAY ĐỔI ---
 
-    let dailyShiftDetails = {};
-    let finalCalculatedSalary = 0;
-    
-    // Tạo một map để lưu số ca theo từng ngày trong chu kỳ
-    const dailyShiftsMap = new Map();
+        const allAttendanceDataInBranch = personnelAttendanceSnap.val() || {};
+        const allClassesInBranch = allClassesSnap.val() || {};
 
-    // Duyệt qua tất cả các lớp để tính lương và chấm công
-    for (const classId in allClasses) {
-        const cls = allClasses[classId];
-        if (!cls) continue;
+        // Phần còn lại: tính toán dailyShiftDetails, finalCalculatedSalary,
+        // chuẩn bị labels, teacherData, assistantData, vẽ biểu đồ, cập nhật UI
+        // giữ nguyên logic, chỉ cần đảm bảo đọc đúng dữ liệu từ các biến mới
+        // (allAttendanceDataInBranch, allClassesInBranch)
+        let dailyShiftDetails = {};
+        let finalCalculatedSalary = 0;
+        const dailyShiftsMap = new Map();
 
-        const staffAttendanceInClass = allAttendanceData[classId]?.[staffUid];
-        if (!staffAttendanceInClass) continue;
+        // Duyệt qua các lớp trong chi nhánh hiện tại
+        for (const classId in allClassesInBranch) {
+            const cls = allClassesInBranch[classId];
+            if (!cls) continue;
 
-        // Xác định mức lương của nhân sự trong lớp này
-        const salaryTeacherPerClass = (cls.teacherUid === staffUid) ? (cls.teacherSalary || 0) : 0;
-        const salaryAssistantPerClass = (cls.assistantTeacherUid === staffUid) ? (cls.assistantTeacherSalary || 0) : 0;
+            // Lấy dữ liệu điểm danh của nhân sự trong lớp này
+            const staffAttendanceInClass = allAttendanceDataInBranch[classId]?.[staffUid];
+            if (!staffAttendanceInClass) continue;
 
-        // Duyệt qua các ngày đã chấm công của nhân sự trong lớp
-        for (const dateStr in staffAttendanceInClass) {
-            const sessionDate = new Date(dateStr);
-            if (sessionDate >= startDate && sessionDate <= endDate) {
-                
-                // Khởi tạo nếu ngày chưa có trong map
-                if (!dailyShiftsMap.has(dateStr)) {
-                    dailyShiftsMap.set(dateStr, { teacher: 0, assistant: 0 });
-                }
-                if (!dailyShiftDetails[dateStr]) {
-                    dailyShiftDetails[dateStr] = [];
-                }
+            const salaryTeacherPerClass = (cls.teacherUid === staffUid) ? (cls.teacherSalary || 0) : 0;
+            const salaryAssistantPerClass = (cls.assistantTeacherUid === staffUid) ? (cls.assistantTeacherSalary || 0) : 0;
 
-                const rolesAttended = staffAttendanceInClass[dateStr];
-                const sessionTime = cls.fixedSchedule?.[sessionDate.toLocaleDateString("en-US", { weekday: "long" })] || 'N/A';
-                
-                if (rolesAttended['Giáo Viên'] === true) {
-                    dailyShiftsMap.get(dateStr).teacher++;
-                    finalCalculatedSalary += salaryTeacherPerClass;
-                    dailyShiftDetails[dateStr].push(`Lớp: ${cls.name} (GV - ${sessionTime}) - Lương: ${salaryTeacherPerClass.toLocaleString('vi-VN')} VNĐ`);
-                }
-                if (rolesAttended['Trợ Giảng'] === true) {
-                    dailyShiftsMap.get(dateStr).assistant++;
-                    finalCalculatedSalary += salaryAssistantPerClass;
-                    dailyShiftDetails[dateStr].push(`Lớp: ${cls.name} (TG - ${sessionTime}) - Lương: ${salaryAssistantPerClass.toLocaleString('vi-VN')} VNĐ`);
+            for (const dateStr in staffAttendanceInClass) {
+                const sessionDate = new Date(dateStr + 'T00:00:00'); // Thêm T00:00:00 để tránh lỗi timezone
+                if (sessionDate >= startDate && sessionDate <= endDate) {
+                    if (!dailyShiftsMap.has(dateStr)) { dailyShiftsMap.set(dateStr, { teacher: 0, assistant: 0 }); }
+                    if (!dailyShiftDetails[dateStr]) { dailyShiftDetails[dateStr] = []; }
+
+                    const rolesAttended = staffAttendanceInClass[dateStr];
+                     // Lấy giờ học từ fixedSchedule dựa trên ngày trong tuần
+                     const dayIndex = sessionDate.getDay(); // 0=CN, 1=T2,...
+                     const sessionTime = cls.fixedSchedule?.[dayIndex] || 'N/A'; // Lấy giờ từ schedule bằng số
+
+                    if (rolesAttended['Giáo Viên'] === true) {
+                        dailyShiftsMap.get(dateStr).teacher++;
+                        finalCalculatedSalary += salaryTeacherPerClass;
+                        dailyShiftDetails[dateStr].push(`Lớp: ${cls.name} (GV - ${sessionTime}) - Lương: ${salaryTeacherPerClass.toLocaleString('vi-VN')} VNĐ`);
+                    }
+                    if (rolesAttended['Trợ Giảng'] === true) {
+                        dailyShiftsMap.get(dateStr).assistant++;
+                        finalCalculatedSalary += salaryAssistantPerClass;
+                         // Chỉ thêm nếu khác dòng GV (trường hợp GV=TG)
+                         if (!(rolesAttended['Giáo Viên'] === true && salaryTeacherPerClass === salaryAssistantPerClass)) {
+                              dailyShiftDetails[dateStr].push(`Lớp: ${cls.name} (TG - ${sessionTime}) - Lương: ${salaryAssistantPerClass.toLocaleString('vi-VN')} VNĐ`);
+                         }
+                    }
                 }
             }
         }
-    }
     
     // Chuẩn bị dữ liệu và nhãn cho biểu đồ từ startDate đến endDate
     const labels = [];
@@ -4271,8 +4685,17 @@ async function renderPersonnelSalaryChart(staffUid, monthYear) {
         li.innerHTML = `<strong>Ngày ${new Date(dateStr).toLocaleDateString('vi-VN')}:</strong><br>` + details.map(d => `- ${d}`).join('<br>');
         dailyShiftsList.appendChild(li);
     });
-
-    showLoading(false);
+} catch (error) { // Bắt lỗi đọc DB
+        console.error("Lỗi khi tải dữ liệu lương:", error);
+        Swal.fire("Lỗi", "Không thể tải dữ liệu chi tiết lương: " + error.message, "error");
+         // Có thể ẩn modal hoặc hiển thị thông báo lỗi trong modal
+         document.getElementById("total-monthly-salary").textContent = "Lỗi";
+         document.getElementById("total-teacher-shifts").textContent = "N/A";
+         document.getElementById("total-assistant-shifts").textContent = "N/A";
+         if (personnelChart) personnelChart.destroy(); // Hủy biểu đồ cũ nếu có
+    } finally {
+        showLoading(false);
+    }
 }
 async function showSalaryDetailModal(staffUid) {
     if (!currentUserData) {
@@ -4883,14 +5306,21 @@ function closeModal(modalId) {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Khởi tạo các thành phần giao diện ban đầu ---
+    initScheduleEventListeners(); // Khởi tạo listener cho lịch học (context menu) - tooltip sẽ được thêm vào đây
+    populateTimeDropdowns();      // Điền giờ/phút vào các dropdown
+    updateLiveDate();             // Cập nhật ngày tháng
+    setInterval(updateLiveClock, 100); // Bắt đầu chạy đồng hồ
+
+    // === THÊM LẠI LISTENER CHO TOOLTIP LỊCH HỌC ===
     const scheduleContainer = document.getElementById('schedule-grid-container');
     const tooltip = document.getElementById('schedule-tooltip');
 
     if (scheduleContainer && tooltip) {
         scheduleContainer.addEventListener('mouseover', (e) => {
             const classBlock = e.target.closest('.class-block');
-            if (classBlock) {
-                tooltip.textContent = classBlock.dataset.tooltip;
+            if (classBlock && classBlock.dataset.tooltip) { // Thêm kiểm tra dataset.tooltip
+                tooltip.innerHTML = classBlock.dataset.tooltip.replace(/\n/g, '<br>'); // Dùng innerHTML để hiển thị <br>
                 tooltip.style.display = 'block';
             }
         });
@@ -4901,108 +5331,143 @@ document.addEventListener('DOMContentLoaded', () => {
 
         scheduleContainer.addEventListener('mousemove', (e) => {
             // Hiển thị tooltip bên cạnh con trỏ chuột
-            tooltip.style.left = `${e.pageX + 15}px`;
+            tooltip.style.left = `${e.pageX + 15}px`; // Dùng pageX/pageY nếu tooltip không fixed
             tooltip.style.top = `${e.pageY + 15}px`;
+            // Hoặc dùng clientX/clientY nếu tooltip có position: fixed
+            // tooltip.style.left = `${e.clientX + 15}px`;
+            // tooltip.style.top = `${e.clientY + 15}px`;
         });
     }
-});
-// Gắn sự kiện cho các nút chuyển tuần
-// Chờ cho toàn bộ HTML được tải xong rồi mới chạy code bên trong
-document.addEventListener('DOMContentLoaded', () => {
-     initScheduleEventListeners();
-    // Gắn sự kiện cho các nút chuyển tuần
+    // ===========================================
+
+    // === GỌI KIỂM TRA TRẠNG THÁI BAN ĐẦU (CƠ SỞ & ĐĂNG NHẬP) ===
+    checkInitialAuthState(); // Kiểm tra xem đã chọn cơ sở chưa và xử lý đăng nhập
+    // =========================================================
+
+    // --- Gắn listener cho các nút và input khác ---
+
+    // Gắn sự kiện cho các nút chuyển tuần (lịch học)
     const prevWeekBtn = document.getElementById('schedule-prev-week');
     const nextWeekBtn = document.getElementById('schedule-next-week');
-
     if (prevWeekBtn) {
         prevWeekBtn.addEventListener('click', () => {
             currentWeekOffset--;
             renderNewSchedulePage();
         });
     }
-
     if (nextWeekBtn) {
         nextWeekBtn.addEventListener('click', () => {
             currentWeekOffset++;
             renderNewSchedulePage();
         });
-    } 
-     const hamburgerBtn = document.querySelector('.top-bar__hamburger'); // Sửa lại selector
-    const sidebar = document.querySelector('.sidebar');
+    }
 
+    // Gắn sự kiện cho nút hamburger (menu mobile) và đóng sidebar
+    const hamburgerBtn = document.querySelector('.top-bar__hamburger'); // Selector này có thể cần sửa nếu bạn chưa thêm nút hamburger
+    const sidebar = document.querySelector('.sidebar');
     if (hamburgerBtn && sidebar) {
         hamburgerBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+            e.stopPropagation();
             sidebar.classList.toggle('visible');
         });
     }
-
-    // Thêm sự kiện để đóng sidebar khi nhấn ra ngoài
     document.addEventListener('click', (e) => {
-        if (sidebar && sidebar.classList.contains('visible') && !sidebar.contains(e.target)) {
+        if (sidebar && sidebar.classList.contains('visible') && !sidebar.contains(e.target) && (!hamburgerBtn || !hamburgerBtn.contains(e.target))) { // Thêm kiểm tra hamburgerBtn
             sidebar.classList.remove('visible');
         }
     });
+
+    // Gắn sự kiện cho input chọn file avatar
     const avatarFileInput = document.getElementById("avatar-file");
     if (avatarFileInput) {
         avatarFileInput.addEventListener("change", async function() {
             const file = this.files[0];
             if (!file) return;
-
             const user = auth.currentUser;
-            if (!user) return alert("Bạn chưa đăng nhập!");
-
+            if (!user) return alert("Bạn chưa đăng nhập!"); // Nên dùng Swal
             const storageRef = storage.ref();
             const avatarRef = storageRef.child(`avatars/${user.uid}_${Date.now()}`);
-
             try {
                 showLoading(true);
                 await avatarRef.put(file);
                 const url = await avatarRef.getDownloadURL();
                 await database.ref(`${DB_PATHS.USERS}/${user.uid}`).update({ avatarUrl: url });
-
-                // Thêm kiểm tra null cho các element này để an toàn hơn
                 const avatarImg = document.getElementById("avatar-img");
                 const profileAvatar = document.getElementById("profile-avatar");
                 if(avatarImg) avatarImg.src = url;
                 if(profileAvatar) profileAvatar.src = url;
-
-                alert("Cập nhật avatar thành công!");
+                Swal.fire({icon: 'success', title: 'Avatar đã được cập nhật!', showConfirmButton: false, timer: 1500});
             } catch (error) {
-                alert("Lỗi upload avatar: " + error.message);
+                Swal.fire({icon: 'error', title: 'Lỗi Upload Avatar', text: error.message});
             } finally {
                 showLoading(false);
             }
         });
     }
-    // 1. Dán listener cho form lớp học
+
+    // Gắn listener submit cho form lớp học
     const classForm = document.getElementById("class-form");
     if (classForm) {
         classForm.addEventListener("submit", saveClass);
     }
 
-    // 2. Dán listener cho việc lưu brouillon
-    const fields = ["student-name", "student-dob", "student-address", "student-package-type", 
+    // Gắn listener lưu brouillon (nháp) cho các trường trong form học viên
+    const fields = ["student-name", "student-dob", "student-address", "student-package-type",
                     "general-english-course", "student-certificate-type", "student-certificate-course",
-                    "student-package", "student-sessions-attended", "student-sessions-paid",
-                    "student-discount-percent", "student-promotion-percent", 
-                    "student-original-price", "student-total-due", "student-parent-job"];
-
+                    "student-package",
+                    "student-discount-percent", "student-promotion-percent",
+                    "student-original-price", "student-total-due", "student-parent-job",
+                    "student-phone", "student-parent", "student-parent-phone", "student-parent-job-other"
+                   ];
     fields.forEach(id => {
-      const input = document.getElementById(id);
-      if (input) {
-        input.addEventListener("input", () => {
-          localStorage.setItem(id, input.value);
-        });
-        const draft = localStorage.getItem(id);
-        if (draft !== null && draft !== undefined) {
-          input.value = draft;
+        const input = document.getElementById(id);
+        if (input) {
+            // Load nháp khi trang tải
+            const draft = localStorage.getItem(id);
+            if (draft !== null && draft !== undefined) {
+                input.value = draft;
+                if (input.tagName === 'SELECT') {
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                if (id === 'student-parent-job' && draft === 'Khác') {
+                    const otherJobInput = document.getElementById('student-parent-job-other');
+                    if (otherJobInput) otherJobInput.style.display = 'inline-block';
+                }
+                if (id === 'student-dob' && draft) {
+                    // Cần đảm bảo hàm này chạy sau khi giá trị dob được set
+                    setTimeout(handleAgeChange, 0);
+                }
+            }
+            // Lưu nháp khi người dùng nhập
+            input.addEventListener("input", () => {
+                localStorage.setItem(id, input.value);
+                if (id === 'student-parent-job') {
+                    const otherJobInput = document.getElementById('student-parent-job-other');
+                    if (otherJobInput) {
+                        otherJobInput.style.display = (input.value === 'Khác') ? 'inline-block' : 'none';
+                        if (input.value !== 'Khác') {
+                            otherJobInput.value = '';
+                            localStorage.removeItem('student-parent-job-other');
+                        }
+                    }
+                }
+                 // Trigger age change logic when dob is changed by user
+                if (id === 'student-dob') {
+                    handleAgeChange();
+                }
+            });
+             // Trigger age change logic after loading draft for dob (initial load)
+            if (id === 'student-dob' && input.value) {
+                setTimeout(handleAgeChange, 0); // Use timeout to ensure DOM updates apply
+            }
         }
-      }
     });
-     setInterval(updateLiveClock, 100); // Cập nhật đồng hồ mỗi 100ms
-    updateLiveDate();
-});
+
+    // Cập nhật lại giao diện sticky button
+    updateStickyBackVisibility();
+    window.addEventListener("hashchange", updateStickyBackVisibility);
+
+}); // <--- Chỉ có MỘT dấu đóng } và ); ở đây
 function populateTimeDropdowns() {
     const hourSelects = document.querySelectorAll('.hour-select');
     const minuteSelects = document.querySelectorAll('.minute-select');
@@ -5246,6 +5711,14 @@ async function showClassAttendanceAndHomeworkTable(classId) {
  * HÀM MỚI: Mở hộp thoại để thêm một buổi học dự phòng/bổ sung.
  */
 async function promptAddExtraSession() {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const classId = document.getElementById('class-attendance-modal-title').dataset.classId;
     if (!classId) {
         Swal.fire("Lỗi", "Không thể xác định được lớp học hiện tại.", "error");
@@ -5288,14 +5761,14 @@ async function promptAddExtraSession() {
         const { newDate, newTime } = formValues;
         showLoading(true);
         try {
-            const updates = {};
-            // Thêm buổi học mới và đánh dấu là "buổi thêm"
-            updates[`/classes/${classId}/sessions/${newDate}`] = { time: newTime, type: "extra" };
+            // --- THAY ĐỔI: Sử dụng getBranchRef để cập nhật ---
+            const sessionRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}/sessions/${newDate}`);
+            await sessionRef.set({ time: newTime, type: "extra" });
+            // --- KẾT THÚC THAY ĐỔI ---
 
-            await database.ref().update(updates);
-            await logActivity(`Đã thêm buổi học dự phòng ngày ${newDate} cho lớp ${classData.name}`);
+            await logActivity(`Đã thêm buổi học dự phòng ngày ${newDate} cho lớp ${classData.name} tại cơ sở ${selectedBranchId}`);
 
-            // Tải lại bảng điểm danh để hiển thị buổi mới
+            // Tải lại bảng điểm danh (hàm này đã được sửa)
             await renderClassAttendanceTable(classId);
 
             Swal.fire('Thành công!', 'Đã thêm buổi học mới thành công.', 'success');
@@ -5312,6 +5785,14 @@ async function promptAddExtraSession() {
  * HÀM MỚI: Mở hộp thoại để tạo một buổi học bù thay thế cho một buổi học cũ.
  */
 async function promptCreateMakeupSession() {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const classId = document.getElementById('class-attendance-modal-title').dataset.classId;
     if (!classId) {
         Swal.fire("Lỗi", "Không thể xác định được lớp học hiện tại.", "error");
@@ -5375,17 +5856,21 @@ async function promptCreateMakeupSession() {
         const { newDate, newTime, oldDate } = formValues;
         showLoading(true);
         try {
-            // 4. Chuẩn bị cập nhật lên Firebase
+            // --- THAY ĐỔI: Chuẩn bị cập nhật hàng loạt trong đúng nhánh ---
             const updates = {};
-            // Xóa buổi học cũ
-            updates[`/classes/${classId}/sessions/${oldDate}`] = null;
-            // Thêm buổi học mới và đánh dấu là "buổi bù"
-            updates[`/classes/${classId}/sessions/${newDate}`] = { time: newTime, type: "makeup" };
+            const basePath = `branches/${selectedBranchId}/${DB_PATHS.CLASSES}/${classId}/sessions`;
+            // Đánh dấu xóa buổi học cũ
+            updates[`/${basePath}/${oldDate}`] = null;
+            // Thêm buổi học mới
+            updates[`/${basePath}/${newDate}`] = { time: newTime, type: "makeup" };
 
+            // Thực hiện cập nhật
             await database.ref().update(updates);
-            await logActivity(`Đã tạo buổi bù ngày ${newDate} thay thế cho buổi ${oldDate} của lớp ${classData.name}`);
+            // --- KẾT THÚC THAY ĐỔI ---
 
-            // Tải lại bảng điểm danh để hiển thị sự thay đổi
+            await logActivity(`Đã tạo buổi bù ngày ${newDate} thay thế cho buổi ${oldDate} của lớp ${classData.name} tại cơ sở ${selectedBranchId}`);
+
+            // Tải lại bảng điểm danh (hàm này đã được sửa)
             await renderClassAttendanceTable(classId);
 
             Swal.fire('Thành công!', 'Đã cập nhật lịch học.', 'success');
@@ -5399,21 +5884,39 @@ async function promptCreateMakeupSession() {
     }
 }
 async function renderClassAttendanceTable(classId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    if (!classId) {
+         Swal.fire("Lỗi", "Không xác định được lớp học.", "error");
+         return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     try {
-        const classSnap = await database.ref(`classes/${classId}`).once("value");
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const classSnap = await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).once("value");
+        // --- KẾT THÚC THAY ĐỔI ---
         const classData = classSnap.val();
         if (!classData) throw new Error("Không tìm thấy dữ liệu lớp học.");
 
         const studentIds = Object.keys(classData.students || {});
-        const studentPromises = studentIds.map(id => database.ref(`students/${id}`).once('value'));
+        // --- THAY ĐỔI: Lấy dữ liệu students từ đúng nhánh ---
+        const studentPromises = studentIds.map(id => getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).once('value'));
+        // --- KẾT THÚC THAY ĐỔI ---
         const studentSnapshots = await Promise.all(studentPromises);
         const students = {};
         studentSnapshots.forEach(snap => {
             if (snap.exists()) students[snap.key] = snap.val();
         });
 
-        const attendanceSnap = await database.ref(`attendance/${classId}`).once('value');
+        // --- THAY ĐỔI: Lấy dữ liệu attendance từ đúng nhánh ---
+        const attendanceSnap = await getBranchRef(`${DB_PATHS.ATTENDANCE}/${classId}`).once('value');
+        // --- KẾT THÚC THAY ĐỔI ---
         const allAttendance = attendanceSnap.val() || {};
         const sessions = classData.sessions || {};
         const exams = classData.exams || {};
@@ -5421,26 +5924,30 @@ async function renderClassAttendanceTable(classId) {
 
         // === LOGIC MỚI: XÁC ĐỊNH CÁC NGÀY ĐƯỢC PHÉP ĐIỂM DANH ===
         const role = currentUserData?.role;
-        const isLimited = role === 'Giáo Viên';
-        let allowedDates = new Set();
+        const isLimited = role === 'Giáo Viên'; // Chỉ Giáo viên bị giới hạn, Trợ giảng không bị
+        let allowedDates = new Set(allEventDates); // Mặc định cho phép tất cả
 
         if (isLimited) {
+            allowedDates = new Set(); // Reset, chỉ cho phép ngày cụ thể
             const todayStr = new Date().toISOString().split('T')[0];
-            // Tìm buổi học gần nhất tính từ hôm nay
             const futureSessions = allEventDates.filter(date => date >= todayStr);
             if (futureSessions.length > 0) {
-                const sessionN = futureSessions[0]; // Buổi N
+                const sessionN = futureSessions[0];
                 allowedDates.add(sessionN);
-                
-                // Tìm buổi học ngay trước đó (Buổi N-1)
                 const indexN = allEventDates.indexOf(sessionN);
                 if (indexN > 0) {
                     const sessionN_1 = allEventDates[indexN - 1];
                     allowedDates.add(sessionN_1);
                 }
             }
+             // Cho phép cả ngày hôm qua nữa
+             const yesterday = new Date();
+             yesterday.setDate(yesterday.getDate() - 1);
+             const yesterdayStr = yesterday.toISOString().split('T')[0];
+             if (allEventDates.includes(yesterdayStr)) {
+                 allowedDates.add(yesterdayStr);
+             }
         }
-        // === KẾT THÚC LOGIC MỚI ===
 
         const tableHeadRow = document.getElementById("class-attendance-table-head");
         const tableBody = document.getElementById("class-attendance-table-body");
@@ -5469,33 +5976,69 @@ async function renderClassAttendanceTable(classId) {
         tableHeadRow.innerHTML = headerHTML;
 
         let bodyHTML = "";
-        for (const studentId in students) {
-            const student = students[studentId];
-            const sessionsAttended = student.sessionsAttended || 0;
-            const totalSessionsPaid = student.totalSessionsPaid || 0;
-            const remainingSessions = totalSessionsPaid - sessionsAttended;
-            let warningClass = '';
-            let iconHtml = '';
-            if (remainingSessions <= 0) {
-                warningClass = 'student-warning-critical';
-            } else if (remainingSessions <= 3) {
-                warningClass = 'student-warning-low';
-                iconHtml = '<span class="warning-icon">&#9888;</span> ';
-            }
+        // Sắp xếp học viên theo tên
+        const sortedStudentIds = Object.keys(students).sort((a, b) => (students[a]?.name || '').localeCompare(students[b]?.name || ''));
 
-            let rowHTML = `<tr><td class="${warningClass}">${iconHtml}${student.name}</td>`;
+        sortedStudentIds.forEach(studentId => { // Duyệt theo thứ tự đã sắp xếp
+            const student = students[studentId];
+             // Tính toán warning (giữ nguyên)
+             const sessionsAttended = student.sessionsAttended || 0;
+             const totalSessionsPaid = student.totalSessionsPaid || 0;
+             const remainingSessions = totalSessionsPaid - sessionsAttended;
+             let warningClass = '';
+             let iconHtml = '';
+             if (remainingSessions <= 0) { warningClass = 'student-warning-critical'; }
+             else if (remainingSessions <= 3) { warningClass = 'student-warning-low'; iconHtml = '<span class="warning-icon">&#9888;</span> '; }
+
+             // Thêm style sticky cho cột tên
+            let rowHTML = `<tr><td class="${warningClass}" style="position: sticky; left: 0; background-color: var(--color-surface); z-index: 1;">${iconHtml}${student.name}</td>`;
             allEventDates.forEach(dateKey => {
                 const isExam = !!exams[dateKey];
-                const attendanceData = allAttendance[studentId] ? allAttendance[studentId][dateKey] : undefined;
-                const isChecked = attendanceData && attendanceData.attended === true;
-                // === LOGIC MỚI: Thêm thuộc tính 'disabled' nếu cần ===
-                const isDisabled = isLimited && !allowedDates.has(dateKey);
+                const attendanceRecord = allAttendance[studentId]?.[dateKey]; // Lấy cả object { attended, score }
+                const isChecked = attendanceRecord?.attended === true;
+                const scoreValue = (attendanceRecord?.score !== undefined) ? attendanceRecord.score : "";
+                const isDisabled = isLimited && !allowedDates.has(dateKey); // Kiểm tra giới hạn
 
-                rowHTML += `<td><input type="checkbox" onchange="toggleAttendance('${classId}', '${studentId}', '${dateKey}', this.checked, ${isExam})" ${isChecked ? "checked" : ""}></td>`;
+                // Render ô điểm danh và ô điểm/đánh giá
+                rowHTML += `<td style="text-align: center;">`; // Thêm style center
+                rowHTML += `<input type="checkbox" onchange="toggleAttendance('${classId}', '${studentId}', '${dateKey}', this.checked, ${isExam})" ${isChecked ? "checked" : ""} ${isDisabled ? "disabled" : ""}>`;
+
+                 // Chỉ hiển thị ô nhập điểm/đánh giá nếu là Admin/Hội đồng hoặc là buổi được phép sửa
+                 if (!isDisabled || currentUserData?.role === 'Admin' || currentUserData?.role === 'Hội Đồng') {
+                     if (isExam) {
+                         rowHTML += `<input type="number" class="exam-score-input" min="0" max="10" step="0.5" value="${scoreValue}" placeholder="Điểm" onchange="updateHomeworkScore('${classId}', '${studentId}', '${dateKey}', this.value)" style="width: 60px; margin-top: 5px;">`;
+                     } else {
+                         const scoreOptions = [ /* ... options ... */
+                             { value: "", text: "Chưa ĐG", color: "#6c757d" },
+                             { value: "Không tích cực", text: "Kém", color: "#dc3545" },
+                             { value: "Tích cực", text: "Tốt", color: "#28a745" },
+                             { value: "Rất tích cực", text: "Xuất sắc", color: "#007bff" }
+                         ];
+                         const initialColor = (scoreOptions.find(opt => opt.value === scoreValue) || scoreOptions[0]).color;
+                         let optionsHTML = scoreOptions.map(opt => `<option value="${opt.value}" data-color="${opt.color}" ${scoreValue === opt.value ? 'selected' : ''}>${opt.text}</option>`).join('');
+                         rowHTML += `<select class="evaluation-select" style="color: ${initialColor}; font-weight: bold; margin-top: 5px; width: 90px;" onchange="this.style.color = this.options[this.selectedIndex].dataset.color; updateHomeworkScore('${classId}', '${studentId}', '${dateKey}', this.value);">${optionsHTML}</select>`;
+                     }
+                 } else {
+                     // Nếu bị disable, hiển thị text thay vì input/select
+                      if (isExam) {
+                          rowHTML += `<div style="margin-top: 5px;">${scoreValue !== "" ? scoreValue : '---'}</div>`;
+                      } else {
+                           const scoreOptions = [ /* ... options ... */
+                               { value: "", text: "Chưa ĐG", color: "#6c757d" },
+                               { value: "Không tích cực", text: "Kém", color: "#dc3545" },
+                               { value: "Tích cực", text: "Tốt", color: "#28a745" },
+                               { value: "Rất tích cực", text: "Xuất sắc", color: "#007bff" }
+                           ];
+                           const selectedOption = scoreOptions.find(opt => opt.value === scoreValue) || scoreOptions[0];
+                          rowHTML += `<div style="color: ${selectedOption.color}; font-weight: bold; margin-top: 5px;">${selectedOption.text}</div>`;
+                      }
+                 }
+
+                rowHTML += `</td>`;
             });
             rowHTML += `</tr>`;
             bodyHTML += rowHTML;
-        }
+        });
         tableBody.innerHTML = bodyHTML;
 
         const modalTitle = document.getElementById("class-attendance-modal-title");
@@ -5525,6 +6068,7 @@ async function renderClassAttendanceTable(classId) {
     } catch (error) {
         console.error("Lỗi khi render bảng điểm danh:", error);
         Swal.fire("Lỗi", "Không thể tải bảng điểm danh: " + error.message, "error");
+        hideClassAttendanceModal();
     } finally {
         showLoading(false);
     }
@@ -5635,6 +6179,18 @@ async function promptAddSession(classId, afterDate) {
   }
 }
 async function deleteSession(classId, dateToDelete, isExam) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    if (!classId || !dateToDelete) {
+        Swal.fire("Lỗi", "Không xác định được buổi học cần xóa.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const sessionType = isExam ? "buổi thi" : "buổi học";
     const result = await Swal.fire({
         title: `Bạn chắc chắn muốn xóa ${sessionType} ngày ${dateToDelete}?`,
@@ -5650,38 +6206,74 @@ async function deleteSession(classId, dateToDelete, isExam) {
     if (result.isConfirmed) {
         showLoading(true);
         try {
-            const classSnap = await database.ref(`classes/${classId}`).once("value");
+            const classRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}`);
+            const classSnap = await classRef.once("value");
             const cls = classSnap.val();
             if (!cls) throw new Error("Không tìm thấy lớp học.");
 
             const studentIds = Object.keys(cls.students || {});
             const updates = {};
             
+            const basePath = `branches/${selectedBranchId}`; // Phần tiền tố cho các đường dẫn cập nhật
+
+            // Đánh dấu để xóa buổi học/thi khỏi node 'classes'
             if (isExam) {
-                updates[`/classes/${classId}/exams/${dateToDelete}`] = null;
+                updates[`/${basePath}/${DB_PATHS.CLASSES}/${classId}/exams/${dateToDelete}`] = null;
             } else {
-                updates[`/classes/${classId}/sessions/${dateToDelete}`] = null;
+                updates[`/${basePath}/${DB_PATHS.CLASSES}/${classId}/sessions/${dateToDelete}`] = null;
             }
 
-            for (const studentId of studentIds) {
-                const attendanceRecordRef = database.ref(`attendance/${classId}/${studentId}/${dateToDelete}`);
+            // Duyệt qua từng học viên để xử lý điểm danh và sessionsAttended
+            const studentUpdatePromises = studentIds.map(async (studentId) => {
+                // --- THAY ĐỔI: Sử dụng getBranchRef ---
+                const attendanceRecordRef = getBranchRef(`${DB_PATHS.ATTENDANCE}/${classId}/${studentId}/${dateToDelete}`);
+                // --- KẾT THÚC THAY ĐỔI ---
                 const attendanceRecordSnap = await attendanceRecordRef.once("value");
+                const attendanceData = attendanceRecordSnap.val();
 
-                // --- PHẦN SỬA LỖI QUAN TRỌNG NHẤT LÀ Ở ĐÂY ---
-                // Kiểm tra đúng định dạng dữ liệu { attended: true }
-                if (attendanceRecordSnap.val()?.attended === true && !isExam) {
-                    const studentAttendedRef = database.ref(`students/${studentId}/sessionsAttended`);
-                    // Thực hiện giảm số buổi đã học
-                    await studentAttendedRef.transaction((currentValue) => (currentValue || 0) - 1);
+                // Kiểm tra xem học viên có điểm danh buổi này không và có cần giảm sessionsAttended không
+                if (attendanceData?.attended === true) {
+                     // Kiểm tra lại logic xem có cần giảm không (dựa trên loại lớp và loại buổi học)
+                     const isCertificateClass = cls.classType === 'Lớp chứng chỉ';
+                     let shouldDecrementCount = false;
+                     if (isCertificateClass) {
+                         shouldDecrementCount = !isExam; // Chỉ giảm nếu là buổi học thường
+                     } else {
+                         shouldDecrementCount = true; // Luôn giảm cho các lớp khác
+                     }
+
+                     if (shouldDecrementCount) {
+                         // --- THAY ĐỔI: Sử dụng getBranchRef ---
+                         const studentAttendedRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/sessionsAttended`);
+                         // --- KẾT THÚC THAY ĐỔI ---
+                         // Thực hiện giảm số buổi đã học bằng transaction
+                         await studentAttendedRef.transaction((currentValue) => {
+                             const newValue = (currentValue || 0) - 1;
+                             return Math.max(0, newValue); // Đảm bảo không âm
+                         });
+                         console.log(`Đã giảm sessionsAttended cho ${studentId} do xóa buổi ${dateToDelete}`);
+                     }
                 }
-                // --- KẾT THÚC PHẦN SỬA LỖI ---
 
-                updates[`/attendance/${classId}/${studentId}/${dateToDelete}`] = null;
-                updates[`/homeworkScores/${classId}/${studentId}/${dateToDelete}`] = null; // Vẫn xóa điểm nếu có
-            }
+                // Đánh dấu để xóa bản ghi điểm danh/điểm số của học viên cho ngày này
+                // --- THAY ĐỔI: Tạo đường dẫn cập nhật trong đúng nhánh ---
+                updates[`/${basePath}/${DB_PATHS.ATTENDANCE}/${classId}/${studentId}/${dateToDelete}`] = null;
+                // Nếu bạn có node homeworkScores riêng, cũng thêm vào đây:
+                // updates[`/${basePath}/${DB_PATHS.HOMEWORK_SCORES}/${classId}/${studentId}/${dateToDelete}`] = null;
+                // --- KẾT THÚC THAY ĐỔI ---
+            });
 
+            // Chờ tất cả các transaction cập nhật sessionsAttended hoàn tất
+            await Promise.all(studentUpdatePromises);
+
+            // Thực hiện xóa đồng bộ buổi học và điểm danh/điểm số
             await database.ref().update(updates);
-            await renderClassAttendanceTable(classId);
+
+            // Ghi log (không cần thêm cơ sở vì hàm logActivity đã làm)
+            await logActivity(`Đã xóa ${sessionType} ngày ${dateToDelete} của lớp ${cls.name}`);
+
+            // Tải lại bảng điểm danh để hiển thị sự thay đổi
+            await renderClassAttendanceTable(classId); // Hàm này đã được sửa
             Swal.fire('Đã xóa!', `${sessionType.charAt(0).toUpperCase() + sessionType.slice(1)} ngày ${dateToDelete} đã được xóa.`, 'success');
 
         } catch (error) {
@@ -5730,45 +6322,69 @@ async function deleteSession(classId, dateToDelete, isExam) {
 // script.js
 
 /**
- * HÀM NÂNG CẤP: Cập nhật trạng thái điểm danh và tăng/giảm số buổi đã học
+ * HÀM NÂNG CẤP: Cập nhật trạng thái điểm danh và tăng/giảm số buổi đã học (với logic đếm mới)
  */
 async function toggleAttendance(classId, studentId, dateStr, isChecked, isExamSession) {
-    const attendanceRef = database.ref(`attendance/${classId}/${studentId}/${dateStr}`);
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
+    const attendanceRef = getBranchRef(`${DB_PATHS.ATTENDANCE}/${classId}/${studentId}/${dateStr}`);
 
     try {
-        // Cập nhật trạng thái điểm danh
+        // Cập nhật trạng thái điểm danh (giữ nguyên)
         await attendanceRef.transaction(currentData => {
             const data = (currentData && typeof currentData === 'object') ? currentData : {};
             data.attended = isChecked;
             return data;
         });
+        console.log(`Điểm danh ${studentId} ngày ${dateStr}: ${isChecked}`);
 
-        // Chỉ xử lý logic đếm buổi và tự động gia hạn cho các buổi học thông thường
-        if (!isExamSession) {
-            const studentSessionsRef = database.ref(`students/${studentId}/sessionsAttended`);
+        // === THAY ĐỔI LOGIC ĐẾM BUỔI ===
+        // 1. Lấy thông tin loại lớp từ biến toàn cục
+        const classData = allClassesData[classId];
+        const isCertificateClass = classData?.classType === 'Lớp chứng chỉ';
+
+        // 2. Quyết định xem có cần cập nhật sessionsAttended không
+        let shouldUpdateSessionCount = false;
+        if (isCertificateClass) {
+            // Lớp chứng chỉ: Chỉ cập nhật nếu KHÔNG phải buổi thi
+            shouldUpdateSessionCount = !isExamSession;
+        } else {
+            // Lớp khác (Phổ thông, Môn trường): Luôn cập nhật
+            shouldUpdateSessionCount = true;
+        }
+
+        // 3. Thực hiện cập nhật nếu cần
+        if (shouldUpdateSessionCount) {
+            console.log(` -> Buổi này sẽ được tính vào sessionsAttended.`);
+            const studentSessionsRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/sessionsAttended`);
             const delta = isChecked ? 1 : -1;
-            
-            // Cập nhật số buổi đã học và lấy giá trị mới nhất
-            const { committed, snapshot } = await studentSessionsRef.transaction(currentValue => {
-                return (currentValue || 0) + delta;
-            });
 
-            // --- THÊM ĐOẠN CODE MỚI ĐỂ KIỂM TRA VÀ KÍCH HOẠT GIA HẠN ---
+            const { committed, snapshot } = await studentSessionsRef.transaction(currentValue => {
+                const newValue = (currentValue || 0) + delta;
+                return Math.max(0, newValue); // Đảm bảo không âm
+            });
+            console.log(`Cập nhật sessionsAttended cho ${studentId}: ${delta > 0 ? '+' : ''}${delta}`);
+
+            // Tự động gia hạn nếu cần (logic giữ nguyên)
             if (committed && isChecked) {
                 const newAttendedCount = snapshot.val();
-                const classData = allClassesData[classId];
-
-                // Kiểm tra nếu đây là lớp phổ thông/môn trên trường và số buổi đã học là bội số của 16
+                 // classData đã lấy ở trên
                 if (classData && (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường') && newAttendedCount > 0 && newAttendedCount % 16 === 0) {
-                    // Gọi hàm tự động thêm 16 buổi mới (hàm này sẽ chạy ngầm)
-                    autoExtendSchedule(classId);
+                    autoExtendSchedule(classId); // Hàm này cũng cần sửa sau
                 }
             }
-            // --- KẾT THÚC ĐOẠN CODE MỚI ---
+        } else {
+             console.log(` -> Buổi này KHÔNG được tính vào sessionsAttended (Lớp chứng chỉ & là buổi thi).`);
         }
+        // === KẾT THÚC THAY ĐỔI LOGIC ĐẾM BUỔI ===
+
     } catch (error) {
         console.error("Lỗi khi cập nhật điểm danh:", error);
         Swal.fire("Lỗi", "Không thể cập nhật điểm danh.", "error");
+        renderClassAttendanceTable(classId); // Reload lại bảng nếu lỗi
     }
 }
 /**
@@ -5776,9 +6392,17 @@ async function toggleAttendance(classId, studentId, dateStr, isChecked, isExamSe
  * @param {string} classId - ID của lớp cần thêm buổi.
  */
 async function autoExtendSchedule(classId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi autoExtend: Chưa chọn cơ sở.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     console.log(`Bắt đầu kiểm tra và tự động thêm buổi cho lớp: ${classId}`);
     try {
-        const classRef = database.ref(`classes/${classId}`);
+        const classRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}`);
         const classSnap = await classRef.once('value');
         const classData = classSnap.val();
 
@@ -5792,6 +6416,11 @@ async function autoExtendSchedule(classId) {
         const existingSessions = Object.keys(classData.sessions).sort();
         const lastSessionDateStr = existingSessions[existingSessions.length - 1];
         
+        if (!lastSessionDateStr) {
+             console.warn(`Lớp ${classId} không có buổi học nào để xác định ngày cuối cùng.`);
+             return;
+        }
+
         const nextDay = new Date(lastSessionDateStr);
         nextDay.setDate(nextDay.getDate() + 1);
         const newStartDateStr = nextDay.toISOString().split('T')[0];
@@ -5802,18 +6431,31 @@ async function autoExtendSchedule(classId) {
         // Tạo ra 16 buổi học mới
         const newSessions = generateRollingSessions(newStartDateStr, sessionsToGenerate, classData.fixedSchedule);
 
-        // Chuẩn bị dữ liệu để cập nhật
+        // --- THAY ĐỔI: Chuẩn bị cập nhật hàng loạt trong đúng nhánh ---
         const updates = {};
+        const basePath = `branches/${selectedBranchId}/${DB_PATHS.CLASSES}/${classId}/sessions`;
         for (const dateKey in newSessions) {
-            updates[`/classes/${classId}/sessions/${dateKey}`] = newSessions[dateKey];
+            // Chỉ thêm nếu buổi đó chưa tồn tại (phòng trường hợp chạy trùng lặp)
+            if (!classData.sessions[dateKey]) {
+                updates[`/${basePath}/${dateKey}`] = newSessions[dateKey];
+            }
         }
-        
-        // Cập nhật lên Firebase
-        await database.ref().update(updates);
-        console.log(`THÀNH CÔNG: Đã tự động thêm ${sessionsToGenerate} buổi học mới cho lớp ${classId}.`);
+
+        // Cập nhật lên Firebase nếu có buổi mới để thêm
+        if (Object.keys(updates).length > 0) {
+            await database.ref().update(updates);
+            console.log(`THÀNH CÔNG: Đã tự động thêm ${Object.keys(updates).length} buổi học mới cho lớp ${classId} tại cơ sở ${selectedBranchId}.`);
+             // (Không cần logActivity cho hành động tự động này)
+             // Thông báo ngầm cho người dùng (nếu cần)
+             // Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: `Đã tự động thêm lịch cho lớp ${classData.name}`, showConfirmButton: false, timer: 3000 });
+        } else {
+             console.log(`Không có buổi học mới nào cần thêm cho lớp ${classId} tại cơ sở ${selectedBranchId}.`);
+        }
+        // --- KẾT THÚC THAY ĐỔI ---
 
     } catch (error) {
-        console.error(`Lỗi khi tự động thêm buổi cho lớp ${classId}:`, error);
+        console.error(`Lỗi khi tự động thêm buổi cho lớp ${classId} tại cơ sở ${selectedBranchId}:`, error);
+        // Không nên hiện Swal lỗi cho hành động chạy ngầm
     }
 }
 /**
@@ -5843,18 +6485,34 @@ async function generateAndAddExam(classId, examData) {
   }
 }
 function updateHomeworkScore(classId, studentId, dateStr, value) {
-  const scoreRef = database.ref(`attendance/${classId}/${studentId}/${dateStr}`);
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi: Chưa chọn cơ sở khi cập nhật điểm.");
+        // Không nên hiện Swal ở đây vì nó sẽ làm gián đoạn việc nhập liệu
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
+  const scoreRef = getBranchRef(`${DB_PATHS.ATTENDANCE}/${classId}/${studentId}/${dateStr}`);
   
   scoreRef.transaction(currentData => {
-    const data = (currentData && typeof currentData === 'object') ? currentData : {};
-    if (value === "") {
-      // Nếu giá trị rỗng, xóa thuộc tính score
-      delete data.score;
-    } else {
-      data.score = value;
-    }
-    return data;
-  });
+        const data = (currentData && typeof currentData === 'object') ? currentData : {};
+        if (value === "" || value === undefined || value === null) {
+            // Nếu giá trị rỗng/không hợp lệ, xóa thuộc tính score
+            delete data.score;
+        } else {
+            // Kiểm tra nếu là điểm số (number) thì parse, nếu không thì giữ nguyên (string)
+            const numericValue = parseFloat(value);
+            data.score = !isNaN(numericValue) ? numericValue : value;
+        }
+        return data;
+    }).then(() => {
+        console.log(`Đã cập nhật điểm/đánh giá cho ${studentId} ngày ${dateStr} thành: ${value}`);
+    }).catch(error => {
+        console.error(`Lỗi cập nhật điểm/đánh giá cho ${studentId} ngày ${dateStr}:`, error);
+        // Có thể thêm thông báo lỗi nhỏ nếu cần
+    });
 }
 
 // Render danh sách lớp trong Quản lý bài tập
@@ -6562,12 +7220,21 @@ async function renderTuitionView(query = '', type = 'fee') {
  * @param {string} studentId - ID của học viên
  */
 async function showTuitionModal(studentId, classId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi autoExtend: Chưa chọn cơ sở.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     try {
-        const studentSnap = await database.ref(`students/${studentId}`).once('value');
+        const studentSnap = await getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`).once('value');
         const student = studentSnap.val();
         if (!student) {
             Swal.fire("Lỗi", "Không tìm thấy dữ liệu học viên!", "error");
+            hideTuitionModal();
             return;
         }
 
@@ -6603,7 +7270,34 @@ async function showTuitionModal(studentId, classId) {
             });
         }
         
+       // Hiển thị lịch sử đóng tiền sách (bookFeeHistory)
+        const bookHistoryList = document.getElementById("book-fee-history-list");
+        bookHistoryList.innerHTML = ""; // Xóa cũ
+        if (student.bookFeeHistory) {
+             const sortedBookHistory = Object.entries(student.bookFeeHistory).sort(([,a], [,b]) => (b.paymentDate || "").localeCompare(a.paymentDate || ""));
+             sortedBookHistory.forEach(([paymentId, payment]) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${payment.paymentDate || ''}</td>
+                    <td>${(payment.amountPaid || 0).toLocaleString('vi-VN')}</td>
+                    <td>${payment.bookTitle || ''}</td>
+                    <td>${payment.note || ''}</td>
+                    <td>${payment.recordedBy || 'N/A'}</td>
+                    <td><button class="delete-btn" onclick="deleteBookFeePayment('${studentId}', '${paymentId}')">Xóa</button></td>
+                `;
+                bookHistoryList.appendChild(row);
+            });
+        }
+
+        // Khởi tạo book selection (nếu cần)
+        initializeBookSelection(studentId); // Hàm này có thể cần sửa nếu đọc classId từ student
+
+        // Hiển thị modal
         document.getElementById("tuition-modal").style.display = "flex";
+        // Mặc định mở tab học phí
+        openPageTab({ currentTarget: document.querySelector('#tuition-modal .tabs__button.active') || document.querySelector('#tuition-modal .tabs__button') }, 'payment-tab', 'tuition-modal');
+
+
     } catch (error) {
         console.error("Lỗi khi hiển thị modal học phí:", error);
         Swal.fire("Lỗi", "Không thể hiển thị thông tin học phí: " + error.message, "error");
@@ -6612,13 +7306,22 @@ async function showTuitionModal(studentId, classId) {
     }
 }
 async function promptSetBookFeeDue() {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi autoExtend: Chưa chọn cơ sở.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const studentId = document.getElementById("tuition-student-id").value;
     // Lấy classId từ trường ẩn mà chúng ta đã lưu
     const classId = document.getElementById("tuition-modal-class-id").value;
-    const studentRef = database.ref(`students/${studentId}`);
+    const studentRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`);
 
-    const oldData = (await studentRef.once('value')).val();
-    const oldBookFeeDue = oldData.totalBookFeeDue || 0;
+    const oldDataSnap = await studentRef.once('value');
+    const oldData = oldDataSnap.val();
+    const oldBookFeeDue = oldData?.totalBookFeeDue || 0; // Thêm ?. để an toàn
 
     const { value: newTotalBookFeeDue } = await Swal.fire({
         title: 'Cập nhật Tổng nợ Tiền sách',
@@ -6638,16 +7341,26 @@ async function promptSetBookFeeDue() {
     if (newTotalBookFeeDue !== undefined) {
         showLoading(true);
         try {
+            // --- THAY ĐỔI: Ghi vào đúng nhánh ---
             await studentRef.update({ totalBookFeeDue: parseInt(newTotalBookFeeDue) });
-            
-            // Tải lại modal chi tiết của học viên để cập nhật số liệu
+            // --- KẾT THÚC THAY ĐỔI ---
+
+             // Log hành động
+             await logActivity(`Cập nhật tổng nợ tiền sách cho ${oldData?.name || studentId} thành ${parseInt(newTotalBookFeeDue).toLocaleString('vi-VN')} tại cơ sở ${selectedBranchId}`);
+
+            // Tải lại modal chi tiết của học viên
             await showTuitionModal(studentId, classId);
             Swal.fire('Thành công!', 'Đã cập nhật tổng nợ tiền sách.', 'success');
-            
-            // Nếu có classId, tức là người dùng đi từ bảng tổng quan, hãy tải lại nó
-            if(classId) {
-                await showTuitionManagementForClass(classId);
+
+            // Tải lại bảng tổng quan tiền sách lớp nếu đang mở
+            if(classId && document.getElementById("class-book-fee-modal").style.display === "flex") {
+                 await showClassBookFeeModal(classId);
             }
+             // Tải lại bảng tổng quan học phí lớp nếu đang mở (vì nó cũng có thể hiển thị tiền sách)
+             if(classId && document.getElementById("class-tuition-modal").style.display === "flex") {
+                 await showTuitionManagementForClass(classId);
+             }
+
         } catch(error) {
              Swal.fire('Lỗi!', 'Không thể cập nhật.', 'error');
         } finally {
@@ -6657,12 +7370,24 @@ async function promptSetBookFeeDue() {
 }
 
 async function showTuitionManagementForClass(classId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    if (!classId || !dateToDelete) {
+        Swal.fire("Lỗi", "Không xác định được buổi học cần xóa.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     const studentListBody = document.getElementById("class-tuition-student-list");
     studentListBody.innerHTML = ''; 
 
     try {
-        const classSnap = await database.ref(`classes/${classId}`).once('value');
+        const classSnap = await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).once('value');
         const classData = classSnap.val();
         if (!classData) throw new Error("Không tìm thấy dữ liệu lớp học.");
         
@@ -6677,7 +7402,7 @@ async function showTuitionManagementForClass(classId) {
             return;
         }
 
-        const studentPromises = studentIds.map(id => database.ref(`students/${id}`).once('value'));
+        const studentPromises = studentIds.map(id => getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).once('value'));
         const studentSnapshots = await Promise.all(studentPromises);
         let tableRowsHtml = "";
 
@@ -6756,7 +7481,16 @@ function getStatusHtml(totalDue, remaining, totalPaid) {
  * HÀM MỚI: Lưu một khoản thanh toán mới cho học viên
  */
 async function savePayment() {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi autoExtend: Chưa chọn cơ sở.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const studentId = document.getElementById("tuition-student-id").value;
+    const classId = document.getElementById("tuition-modal-class-id").value;
     const amountPaid = parseInt(document.getElementById("tuition-amount-input").value);
     const method = document.getElementById("tuition-method-select").value;
     const note = document.getElementById("tuition-note-input").value.trim();
@@ -6780,11 +7514,23 @@ async function savePayment() {
 
     showLoading(true);
     try {
-        const paymentRef = database.ref(`students/${studentId}/paymentHistory`);
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const paymentRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/paymentHistory`);
+        // --- KẾT THÚC THAY ĐỔI ---
         await paymentRef.push(paymentData);
+
+        await logActivity(`Ghi nhận thanh toán học phí ${amountPaid.toLocaleString('vi-VN')} cho ${document.getElementById("tuition-student-name").textContent} tại cơ sở ${selectedBranchId}`);
+
         Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Đã ghi nhận thanh toán mới.', timer: 1500, showConfirmButton: false });
         document.getElementById("tuition-payment-form").reset();
-        await showTuitionModal(studentId);
+
+        // Tải lại modal chi tiết của học viên
+        await showTuitionModal(studentId, classId);
+        // Nếu đang xem từ bảng tổng quan lớp, tải lại bảng đó
+        if(classId && document.getElementById("class-tuition-modal").style.display === "flex") {
+             await showTuitionManagementForClass(classId);
+        }
+
     } catch (error) {
         console.error("Lỗi khi lưu thanh toán:", error);
         Swal.fire("Lỗi", "Không thể lưu thanh toán: " + error.message, "error");
@@ -6798,6 +7544,15 @@ async function savePayment() {
  * @param {string} paymentId - ID của lần thanh toán cần xóa (do Firebase tự tạo)
  */
 async function deletePayment(studentId, paymentId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi autoExtend: Chưa chọn cơ sở.");
+        return;
+    }
+    const classId = document.getElementById("tuition-modal-class-id").value;
+    // --- KẾT THÚC KIỂM TRA ---
+
     // 1. Hỏi xác nhận trước khi xóa để đảm bảo an toàn
     const result = await Swal.fire({
         title: 'Bạn chắc chắn muốn xóa?',
@@ -6818,19 +7573,24 @@ async function deletePayment(studentId, paymentId) {
     // 3. Tiến hành xóa trên Firebase
     showLoading(true);
     try {
-        const paymentRef = database.ref(`students/${studentId}/paymentHistory/${paymentId}`);
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const paymentRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/paymentHistory/${paymentId}`);
+        // --- KẾT THÚC THAY ĐỔI ---
         await paymentRef.remove();
 
-        Swal.fire({
-            icon: 'success',
-            title: 'Đã xóa!',
-            text: 'Khoản thanh toán đã được xóa.',
-            timer: 1500,
-            showConfirmButton: false
-        });
+        // Lấy thông tin để log
+        const studentName = document.getElementById("tuition-student-name").textContent;
+        // Có thể cần lấy thêm thông tin payment bị xóa nếu muốn log chi tiết hơn
+        await logActivity(`Đã xóa một khoản thanh toán học phí của ${studentName} tại cơ sở ${selectedBranchId}`);
 
-        // 4. Tải lại modal để cập nhật lại bảng lịch sử và các số liệu
-        await showTuitionModal(studentId);
+        Swal.fire({ icon: 'success', title: 'Đã xóa!', text: 'Khoản thanh toán đã được xóa.', timer: 1500, showConfirmButton: false });
+
+        // Tải lại modal chi tiết
+        await showTuitionModal(studentId, classId);
+         // Nếu đang xem từ bảng tổng quan lớp, tải lại bảng đó
+        if(classId && document.getElementById("class-tuition-modal").style.display === "flex") {
+             await showTuitionManagementForClass(classId);
+        }
 
     } catch (error) {
         console.error("Lỗi khi xóa thanh toán:", error);
@@ -7017,6 +7777,7 @@ async function promptAddExam(classId) {
 function initUsersListener() {
     database.ref(DB_PATHS.USERS).on("value", (snapshot) => {
         allUsersData = snapshot.val() || {};
+        console.log("Listener: Dữ liệu người dùng (chung) đã cập nhật."); // Thêm log
         const currentPage = window.location.hash.slice(1);
 
         // Khi dữ liệu người dùng thay đổi, render lại trang tương ứng nếu đang mở
@@ -7025,9 +7786,18 @@ function initUsersListener() {
         }
         if (currentPage === "personnel-management") {
             // Chỉ render phần danh sách nhân sự, không phải toàn bộ trang
-            renderPersonnelListForAttendance(); 
+            renderPersonnelListForAttendance();
             renderStaffSalaryTable();
         }
+         // Cập nhật dropdown giáo viên/trợ giảng nếu form đang mở
+         if (document.getElementById('class-form-modal').style.display === 'flex') {
+             populateTeacherDropdown();
+             populateAssistantTeacherDropdown();
+         }
+         if (document.getElementById('temp-class-form-modal').style.display === 'flex') {
+             populatePersonnelDropdown(document.getElementById('temp-class-teacher'));
+             populatePersonnelDropdown(document.getElementById('temp-class-assistant'));
+         }
     });
 }
 let progressTimeChart = null;
@@ -7355,8 +8125,13 @@ async function migrateAttendanceData() {
  * Hàm Lưu Tiền Sách
  */
 async function saveBookFeePayment() {
+
+    // --- THÊM KIỂM TRA ----
+    if (!selectedBranchId) {console.error("Lỗi autoExtend: Chưa chọn cơ sở.");return;}
+    // --- KẾT THÚC KIỂM TRA ---
+
     const studentId = document.getElementById("tuition-student-id").value;
-    
+    const classId = document.getElementById("tuition-modal-class-id").value;
     // === THAY ĐỔI DÒNG NÀY ===
     const bookTitle = document.getElementById("book-fee-title-final").value.trim();
     // ========================
@@ -7382,15 +8157,27 @@ async function saveBookFeePayment() {
 
     showLoading(true);
     try {
-        const bookFeeRef = database.ref(`students/${studentId}/bookFeeHistory`);
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const bookFeeRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/bookFeeHistory`);
+        // --- KẾT THÚC THAY ĐỔI ---
         await bookFeeRef.push(paymentData);
+
+        await logActivity(`Ghi nhận thanh toán tiền sách (${bookTitle}) ${amountPaid.toLocaleString('vi-VN')} cho ${document.getElementById("tuition-student-name").textContent} tại cơ sở ${selectedBranchId}`);
+
         Swal.fire({ icon: 'success', title: 'Thành công!', text: 'Đã ghi nhận thanh toán tiền sách.', timer: 1500, showConfirmButton: false });
-        
+
         // Reset lại các lựa chọn sách sau khi lưu
+        document.getElementById("book-fee-payment-form").reset(); // Reset form thay vì từng input
         document.getElementById("book-selection-container").innerHTML = '';
         document.getElementById("book-fee-title-final").value = '';
-        
-        await showTuitionModal(studentId);
+
+        // Tải lại modal chi tiết của học viên
+        await showTuitionModal(studentId, classId);
+         // Tải lại bảng tổng quan tiền sách lớp nếu đang mở
+        if(classId && document.getElementById("class-book-fee-modal").style.display === "flex") {
+            await showClassBookFeeModal(classId);
+        }
+
     } catch (error) {
         console.error("Lỗi khi lưu tiền sách:", error);
         Swal.fire("Lỗi", "Không thể lưu thanh toán: " + error.message, "error");
@@ -7402,6 +8189,12 @@ async function saveBookFeePayment() {
  * HÀM MỚI: Xóa một khoản thanh toán tiền sách đã ghi nhận.
  */
 async function deleteBookFeePayment(studentId, paymentId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {console.error("Lỗi autoExtend: Chưa chọn cơ sở.");return;}
+    const classId = document.getElementById("tuition-modal-class-id").value;
+    // --- KẾT THÚC KIỂM TRA ---
+
     const result = await Swal.fire({
         title: 'Bạn chắc chắn muốn xóa?',
         text: "Hành động này sẽ xóa vĩnh viễn khoản thanh toán tiền sách này!",
@@ -7412,20 +8205,32 @@ async function deleteBookFeePayment(studentId, paymentId) {
         cancelButtonText: 'Hủy'
     });
 
-    if (result.isConfirmed) {
+    if (result.isConfirmed) return;
         showLoading(true);
         try {
-            const paymentRef = database.ref(`students/${studentId}/bookFeeHistory/${paymentId}`);
-            await paymentRef.remove();
-            Swal.fire({ icon: 'success', title: 'Đã xóa!', text: 'Khoản thanh toán tiền sách đã được xóa.', timer: 1500, showConfirmButton: false });
-            // Tải lại toàn bộ modal để cập nhật
-            await showTuitionModal(studentId);
-        } catch (error) {
-            console.error("Lỗi khi xóa tiền sách:", error);
-            Swal.fire("Lỗi", "Không thể xóa thanh toán: " + error.message, "error");
-        } finally {
-            showLoading(false);
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const paymentRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/bookFeeHistory/${paymentId}`);
+        // --- KẾT THÚC THAY ĐỔI ---
+        await paymentRef.remove();
+
+        // Log hành động
+        const studentName = document.getElementById("tuition-student-name").textContent;
+        await logActivity(`Đã xóa một khoản thanh toán tiền sách của ${studentName} tại cơ sở ${selectedBranchId}`);
+
+        Swal.fire({ icon: 'success', title: 'Đã xóa!', text: 'Khoản thanh toán tiền sách đã được xóa.', timer: 1500, showConfirmButton: false });
+
+        // Tải lại toàn bộ modal để cập nhật
+        await showTuitionModal(studentId, classId);
+        // Tải lại bảng tổng quan tiền sách lớp nếu đang mở
+        if(classId && document.getElementById("class-book-fee-modal").style.display === "flex") {
+            await showClassBookFeeModal(classId);
         }
+
+    } catch (error) {
+        console.error("Lỗi khi xóa tiền sách:", error);
+        Swal.fire("Lỗi", "Không thể xóa thanh toán: " + error.message, "error");
+    } finally {
+        showLoading(false);
     }
 }
 // ======================================================
@@ -7437,29 +8242,45 @@ async function deleteBookFeePayment(studentId, paymentId) {
  * @param {string} studentId - ID của học viên đang được xem
  */
 async function initializeBookSelection(studentId) {
+     // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !studentId) {
+        console.error("Lỗi: Không xác định cơ sở/học viên khi khởi tạo chọn sách.");
+        populateMainBookDropdown(null); // Hiển thị tất cả nếu lỗi
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
     try {
-        const studentSnap = await database.ref(`students/${studentId}`).once('value');
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const studentSnap = await getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`).once('value');
+        // --- KẾT THÚC THAY ĐỔI ---
         const student = studentSnap.val();
-        if (!student || !student.classes) {
-            populateMainBookDropdown(null); // Hiển thị cả 2 loại nếu không xác định được lớp
-            return;
+        let classId = null;
+        let classData = null;
+
+        // Tìm lớp học HIỆN TẠI của học viên (ưu tiên lớp đang active)
+        if (student && student.classes) {
+            // Sử dụng hàm findActiveStudentClassId để tìm lớp phù hợp nhất
+             classId = findActiveStudentClassId(studentId, student); // Hàm này đọc allClassesData đã load đúng nhánh
         }
 
-        const classId = Object.keys(student.classes)[0]; // Lấy lớp đầu tiên của học viên
-        const classSnap = await database.ref(`classes/${classId}`).once('value');
-        const classData = classSnap.val();
+        if (classId) {
+             // Lấy classData từ biến toàn cục
+             classData = allClassesData[classId];
+        }
 
-        // Logic "thông minh": xác định ngôn ngữ
+        // Logic xác định ngôn ngữ dựa trên tên lớp (giữ nguyên)
         let language = null;
         if (classData && classData.name) {
             const classNameLower = classData.name.toLowerCase();
             if (classNameLower.includes('trung') || classNameLower.includes('hsk') || classNameLower.includes('yct')) {
                 language = 'chinese';
-            } else if (classNameLower.includes('anh') || classNameLower.includes('ielts') || classNameLower.includes('oxford')) {
+            } else if (classNameLower.includes('anh') || classNameLower.includes('ielts') || classNameLower.includes('oxford') || classNameLower.includes('thpt') || classNameLower.includes('thcs') || classNameLower.includes('tiểu học') || classNameLower.includes('mầm non')) { // Thêm các từ khóa tiếng Anh
                 language = 'english';
             }
+             // Có thể thêm logic cho các môn học khác nếu cần
         }
-        
+
+        // Điền dropdown dựa trên ngôn ngữ đã xác định
         populateMainBookDropdown(language);
 
     } catch (error) {
@@ -7646,13 +8467,31 @@ function renderDeletedClasses() {
 
 // Khôi phục học viên
 async function restoreStudent(id) {
-    await database.ref(`${DB_PATHS.STUDENTS}/${id}`).update({ status: 'active' });
-    Swal.fire('Đã khôi phục!', 'Học viên đã được đưa trở lại danh sách.', 'success');
-    renderTrashPage(); // Cập nhật lại trang thùng rác
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+try { // Thêm try...catch
+        // --- THAY ĐỔI ---
+        await getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).update({ status: 'active', deletedAt: null }); // Xóa cả deletedAt
+        // --- KẾT THÚC THAY ĐỔI ---
+        Swal.fire('Đã khôi phục!', 'Học viên đã được đưa trở lại danh sách.', 'success');
+        // Listener sẽ tự cập nhật allStudentsData, chỉ cần render lại trang thùng rác
+        renderTrashPage();
+    } catch (error) {
+         Swal.fire('Lỗi', 'Không thể khôi phục học viên: ' + error.message, 'error');
+    }
 }
 
 // Xóa vĩnh viễn học viên
 async function permanentlyDeleteStudent(id) {
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
     const isConfirmed = await Swal.fire({
         title: 'Bạn chắc chắn muốn XÓA VĨNH VIỄN?',
         text: "Hành động này không thể hoàn tác!",
@@ -7662,22 +8501,51 @@ async function permanentlyDeleteStudent(id) {
     }).then(result => result.isConfirmed);
 
     if (isConfirmed) {
-        await database.ref(`${DB_PATHS.STUDENTS}/${id}`).remove();
-        Swal.fire('Đã xóa!', 'Học viên đã bị xóa vĩnh viễn.', 'success');
-        delete allStudentsData[id]; // Xóa khỏi dữ liệu local
-        renderTrashPage();
+        showLoading(true);
+        try { // Thêm try...catch
+            // --- THAY ĐỔI ---
+            await getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).remove();
+            // --- KẾT THÚC THAY ĐỔI ---
+            Swal.fire('Đã xóa!', 'Học viên đã bị xóa vĩnh viễn.', 'success');
+            // Xóa khỏi dữ liệu local để cập nhật ngay lập tức
+            if (allStudentsData[id]) {
+                 delete allStudentsData[id];
+            }
+            renderTrashPage();
+        } catch (error) {
+             Swal.fire('Lỗi', 'Không thể xóa vĩnh viễn học viên: ' + error.message, 'error');
+        } finally {
+            showLoading(false);
+        }
     }
 }
 
 // Khôi phục lớp học
 async function restoreClass(id) {
-    await database.ref(`${DB_PATHS.CLASSES}/${id}`).update({ status: 'active' });
-    Swal.fire('Đã khôi phục!', 'Lớp học đã được đưa trở lại danh sách.', 'success');
-    renderTrashPage();
+
+     if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+try { // Thêm try...catch
+        // --- THAY ĐỔI ---
+        await getBranchRef(`${DB_PATHS.CLASSES}/${id}`).update({ status: 'active', deletedAt: null }); // Xóa cả deletedAt
+        // --- KẾT THÚC THAY ĐỔI ---
+        Swal.fire('Đã khôi phục!', 'Lớp học đã được đưa trở lại danh sách.', 'success');
+        renderTrashPage();
+     } catch (error) {
+          Swal.fire('Lỗi', 'Không thể khôi phục lớp học: ' + error.message, 'error');
+     }
 }
 
 // Xóa vĩnh viễn lớp học
 async function permanentlyDeleteClass(id) {
+
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+
     const isConfirmed = await Swal.fire({
         title: 'Bạn chắc chắn muốn XÓA VĨNH VIỄN?',
         text: "Hành động này không thể hoàn tác và sẽ xóa toàn bộ dữ liệu liên quan đến lớp học này!",
@@ -7689,32 +8557,49 @@ async function permanentlyDeleteClass(id) {
     if (isConfirmed) {
         showLoading(true);
         try {
-            // 1. Lấy thông tin lớp học để biết nó có những học viên nào
+            // Lấy thông tin lớp học TỪ CHI NHÁNH HIỆN TẠI
             const classData = allClassesData[id];
             const studentIds = classData ? Object.keys(classData.students || {}) : [];
             const className = classData?.name || 'Không rõ tên';
 
-            // 2. Chuẩn bị một lệnh cập nhật lớn để xóa đồng bộ
+            // --- THAY ĐỔI: Tạo đường dẫn đầy đủ trong updates ---
             const updates = {};
+            const basePath = `branches/${selectedBranchId}`;
 
             // Đánh dấu lớp học sẽ bị xóa
-            updates[`/classes/${id}`] = null;
+            updates[`/${basePath}/${DB_PATHS.CLASSES}/${id}`] = null;
+            // Xóa cả điểm danh của lớp này
+            updates[`/${basePath}/${DB_PATHS.ATTENDANCE}/${id}`] = null;
+            // Xóa cả điểm danh nhân sự của lớp này
+            updates[`/${basePath}/${DB_PATHS.PERSONNEL_ATTENDANCE}/${id}`] = null;
+            // Xóa cả điểm số (nếu có node riêng)
+            updates[`/${basePath}/${DB_PATHS.HOMEWORK_SCORES}/${id}`] = null;
 
             // Đánh dấu để xóa ID lớp này khỏi hồ sơ của từng học viên
             studentIds.forEach(studentId => {
-                updates[`/students/${studentId}/classes/${id}`] = null;
+                updates[`/${basePath}/${DB_PATHS.STUDENTS}/${studentId}/classes/${id}`] = null;
+                // Có thể cân nhắc xóa cả bookPayments[classId] của học viên nếu cần
+                // updates[`/${basePath}/${DB_PATHS.STUDENTS}/${studentId}/bookPayments/${id}`] = null;
             });
-            
-            // 3. Thực hiện xóa đồng bộ
-            await database.ref().update(updates);
-            
-            // Ghi lại nhật ký (nếu cần)
-            // await logActivity(`Đã xóa vĩnh viễn lớp: ${className}`);
+            // --- KẾT THÚC THAY ĐỔI ---
 
-            Swal.fire('Đã xóa!', 'Lớp học đã bị xóa vĩnh viễn.', 'success');
-            
+            // Thực hiện xóa đồng bộ
+            await database.ref().update(updates);
+
+            // Ghi log (không cần thêm cơ sở vì hàm logActivity đã làm)
+            await logActivity(`Đã xóa vĩnh viễn lớp: ${className}`);
+
+            Swal.fire('Đã xóa!', 'Lớp học và dữ liệu liên quan đã bị xóa vĩnh viễn.', 'success');
+
             // Cập nhật lại dữ liệu local và giao diện
-            delete allClassesData[id];
+             if (allClassesData[id]) {
+                delete allClassesData[id];
+             }
+             // Nên xóa cả dữ liệu attendance khỏi biến toàn cục nếu có
+             // if (allAttendanceData[id]) delete allAttendanceData[id];
+             // if (allPersonnelAttendanceData[id]) delete allPersonnelAttendanceData[id];
+             // if (allHomeworkScoresData[id]) delete allHomeworkScoresData[id];
+
             renderTrashPage();
 
         } catch (error) {
@@ -7917,30 +8802,45 @@ function openPageTab(evt, tabName, containerId) {
 }
 // Hiển thị modal tổng quan tiền sách của một lớp
 async function showClassBookFeeModal(classId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    if (!classId || !dateToDelete) {
+        Swal.fire("Lỗi", "Không xác định được buổi học cần xóa.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     const modal = document.getElementById('class-book-fee-modal');
     const studentListBody = document.getElementById("class-book-fee-student-list");
     studentListBody.innerHTML = ''; 
 
     try {
-        const classSnap = await database.ref(`classes/${classId}`).once('value');
+        // --- THAY ĐỔI: Sử dụng getBranchRef để đọc lớp ---
+        const classSnap = await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).once('value');
+        // --- KẾT THÚC THAY ĐỔI ---
         const classData = classSnap.val();
         if (!classData) throw new Error("Không tìm thấy dữ liệu lớp học.");
 
         document.getElementById("class-book-fee-name").textContent = classData.name || "Không tên";
-        document.getElementById("update-book-class-id").value = classId;
+        document.getElementById("update-book-class-id").value = classId; // Lưu classId vào form ẩn
 
-        // Lấy thông tin của đợt sách HIỆN TẠI
+        // Lấy thông tin đợt sách hiện tại (giữ nguyên logic)
         const currentDriveId = classData.currentBookDriveId;
         const currentBookInfo = (currentDriveId && classData.bookDrives) ? classData.bookDrives[currentDriveId] : {};
 
         const studentIds = Object.keys(classData.students || {});
         if (studentIds.length === 0) {
-            // ... (phần xử lý lớp rỗng giữ nguyên)
+            studentListBody.innerHTML = '<tr><td colspan="5">Lớp này chưa có học viên.</td></tr>';
+            modal.style.display = "flex";
+            showLoading(false);
             return;
         }
-
-        const studentPromises = studentIds.map(id => database.ref(`students/${id}`).once('value'));
+        const studentPromises = studentIds.map(id => getBranchRef(`${DB_PATHS.STUDENTS}/${id}`).once('value'));
         const studentSnapshots = await Promise.all(studentPromises);
         
         let tableRowsHtml = "";
@@ -7982,8 +8882,9 @@ async function showClassBookFeeModal(classId) {
         });
         studentListBody.innerHTML = tableRowsHtml;
 
-    } catch (error) {
-        // ... (phần xử lý lỗi giữ nguyên)
+   } catch (error) {
+        console.error("Lỗi khi hiển thị tổng quan tiền sách:", error);
+        studentListBody.innerHTML = `<tr><td colspan="5">Có lỗi xảy ra: ${error.message}</td></tr>`;
     } finally {
         showLoading(false);
         modal.style.display = "flex";
@@ -8006,8 +8907,14 @@ function showUpdateClassBookModal() {
 }
 
 async function saveClassBookInfo() {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {console.error("Lỗi autoExtend: Chưa chọn cơ sở.");return;}
+    // --- KẾT THÚC KIỂM TRA ---
+
     const classId = document.getElementById("update-book-class-id").value;
     const bookName = document.getElementById("class-book-name").value.trim();
+    const bookType = document.getElementById("class-book-type").value.trim();
     const bookFee = parseInt(document.getElementById("class-book-fee").value) || 0;
 
     if (!bookName || bookFee < 0) {
@@ -8018,21 +8925,26 @@ async function saveClassBookInfo() {
     showLoading(true);
     try {
         // 1. Tạo một "đợt thu tiền sách" mới bằng lệnh push() để có ID duy nhất
-        const bookDrivesRef = database.ref(`classes/${classId}/bookDrives`);
+        const bookDrivesRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}/bookDrives`);
+        const currentDriveIdRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}/currentBookDriveId`);
         const newDriveRef = await bookDrivesRef.push({
             bookName: bookName,
+            bookType: bookType,
             bookFee: bookFee,
             createdAt: new Date().toISOString().split("T")[0] // Lưu ngày tạo đợt thu
         });
 
         // 2. Lấy ID của đợt mới và đặt nó làm "đợt thu hiện tại" của lớp
-        const newDriveId = newDriveRef.key;
-        await database.ref(`classes/${classId}/currentBookDriveId`).set(newDriveId);
+        await currentDriveIdRef.set(newDriveId);
+
+        // Log hành động
+        const className = allClassesData[classId]?.name || classId;
+        await logActivity(`Cập nhật/Thêm đợt thu tiền sách "${bookName}" (${bookFee.toLocaleString('vi-VN')}) cho lớp ${className} tại cơ sở ${selectedBranchId}`);
 
         document.getElementById("update-class-book-modal").style.display = "none";
-        Swal.fire("Thành công!", "Đã tạo một đợt thu tiền sách mới cho lớp.", "success");
-        
-        // Tải lại modal tổng quan để hiển thị dữ liệu mới
+        Swal.fire("Thành công!", "Đã tạo/cập nhật đợt thu tiền sách mới cho lớp.", "success");
+
+        // Tải lại modal tổng quan
         await showClassBookFeeModal(classId);
 
     } catch (error) {
@@ -8045,36 +8957,80 @@ async function saveClassBookInfo() {
 
 // Tick/bỏ tick ô đã đóng tiền sách
 async function toggleBookFeePaid(studentId, classId, driveId, isPaid) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi: Chưa chọn cơ sở khi tick tiền sách.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     if (!driveId || driveId === 'undefined') {
         Swal.fire("Lỗi", "Chưa có đợt thu tiền sách nào được tạo cho lớp này.", "error");
+        const checkbox = event?.target; // Lấy checkbox từ sự kiện (nếu có)
+        if (checkbox) checkbox.checked = !isPaid;
         return;
     }
     // Đường dẫn mới, lưu trạng thái theo từng đợt sách
-    const statusRef = database.ref(`students/${studentId}/bookPayments/${classId}/${driveId}`);
+    const statusRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/bookPayments/${classId}/${driveId}`);
     try {
         if (isPaid) {
             await statusRef.set({
                 paid: true,
                 paidDate: new Date().toISOString().split("T")[0],
-                recordedBy: currentUserData.name || "System"
+                recordedBy: currentUserData?.name || "System" // Thêm ?. cho an toàn
             });
+             // Log hành động
+             const studentName = allStudentsData[studentId]?.name || studentId;
+             const className = allClassesData[classId]?.name || classId;
+             // Lấy tên sách từ driveId (cần đọc lại classData hoặc lưu tạm)
+             const bookName = allClassesData[classId]?.bookDrives?.[driveId]?.bookName || '?';
+             await logActivity(`Xác nhận ${studentName} đã đóng tiền sách "${bookName}" lớp ${className} tại cơ sở ${selectedBranchId}`);
         } else {
             await statusRef.remove();
+             // Log hành động hủy
+             const studentName = allStudentsData[studentId]?.name || studentId;
+             const className = allClassesData[classId]?.name || classId;
+             const bookName = allClassesData[classId]?.bookDrives?.[driveId]?.bookName || '?';
+             await logActivity(`Hủy xác nhận đóng tiền sách "${bookName}" của ${studentName} lớp ${className} tại cơ sở ${selectedBranchId}`);
         }
+         // Không cần reload modal ở đây, chỉ cần cập nhật thành công là được
+         console.log(`Cập nhật trạng thái đóng tiền sách drive ${driveId} cho ${studentId}: ${isPaid}`);
+
     } catch (error) {
         console.error("Lỗi cập nhật trạng thái tiền sách:", error);
+         // Nếu lỗi, có thể cần reload lại modal để đảm bảo đồng bộ
+         showClassBookFeeModal(classId);
     }
 }
-
 // Xem lịch sử đóng tiền sách của học viên
 async function showBookFeeHistory(studentId, classId) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi: Chưa chọn cơ sở khi tick tiền sách.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     try {
-        const student = allStudentsData[studentId];
-        const classData = allClassesData[classId];
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const studentSnap = await getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`).once('value');
+        const classSnap = await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).once('value');
+        // --- KẾT THÚC THAY ĐỔI ---
+
+        const student = studentSnap.val();
+        const classData = classSnap.val();
+
+        if (!student || !classData) {
+             Swal.fire("Lỗi", "Không tìm thấy dữ liệu học viên hoặc lớp học.", "error");
+             return;
+        }
 
         const allDrives = classData.bookDrives || {};
-        const studentPayments = student.bookPayments ? (student.bookPayments[classId] || {}) : {};
+        // Lấy dữ liệu thanh toán của lớp này thôi
+        const studentPaymentsForClass = student.bookPayments ? (student.bookPayments[classId] || {}) : {};
 
         if (Object.keys(allDrives).length === 0) {
             Swal.fire("Chưa có dữ liệu", "Lớp này chưa có đợt thu tiền sách nào.", "info");
@@ -8102,7 +9058,7 @@ async function showBookFeeHistory(studentId, classId) {
         `;
 
         sortedDrives.forEach(([driveId, driveData]) => {
-            const payment = studentPayments[driveId];
+           const payment = studentPaymentsForClass[driveId];
             const status = payment && payment.paid ? 
                 '<span style="color: green; font-weight: bold;">Đã đóng</span>' : 
                 '<span style="color: red;">Chưa đóng</span>';
@@ -8121,7 +9077,7 @@ async function showBookFeeHistory(studentId, classId) {
         historyHtml += `</tbody></table></div>`;
 
         Swal.fire({
-            title: `Lịch sử đóng tiền sách<br><small>${student.name}</small>`,
+            title: `Lịch sử đóng tiền sách<br><small>${student.name} - Lớp: ${classData.name}</small>`,
             html: historyHtml,
             width: '800px'
         });
@@ -8162,6 +9118,14 @@ function openPageTab(evt, tabName, containerId) {
     evt.currentTarget.className += " active";
 }
 async function promptResetClassBookFee() {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        console.error("Lỗi: Chưa chọn cơ sở khi tick tiền sách.");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const classId = document.getElementById("update-book-class-id").value;
     if (!classId) return;
 
@@ -8175,42 +9139,50 @@ async function promptResetClassBookFee() {
         confirmButtonText: 'Vâng, Reset cho cả lớp!'
     });
 
-    if (result.isConfirmed) {
+    if (result.isConfirmed) return;
         showLoading(true);
         try {
-            const classData = allClassesData[classId];
-            if (!classData) throw new Error("Không tìm thấy dữ liệu lớp.");
+            // --- THAY ĐỔI: Sử dụng getBranchRef để đọc lớp ---
+        const classRef = getBranchRef(`${DB_PATHS.CLASSES}/${classId}`);
+        // --- KẾT THÚC THAY ĐỔI ---
+        const classSnap = await classRef.once('value');
+        const classData = classSnap.val();
+        if (!classData) throw new Error("Không tìm thấy dữ liệu lớp.");
 
-            const studentIds = Object.keys(classData.students || {});
-            const updates = {};
-            const className = classData.name || 'Không rõ tên';
+        const studentIds = Object.keys(classData.students || {});
+        const updates = {};
+        const className = classData.name || 'Không rõ tên';
+        // --- THAY ĐỔI: Tạo basePath ---
+        const basePath = `branches/${selectedBranchId}`;
+        // --- KẾT THÚC THAY ĐỔI ---
 
-            // 1. Xóa thông tin sách và các đợt thu của lớp
-            updates[`/classes/${classId}/bookInfo`] = null;
-            updates[`/classes/${classId}/bookDrives`] = null;
-            updates[`/classes/${classId}/currentBookDriveId`] = null;
+        // 1. Xóa thông tin sách và các đợt thu của lớp trong đúng nhánh
+        updates[`/${basePath}/${DB_PATHS.CLASSES}/${classId}/bookDrives`] = null;
+        updates[`/${basePath}/${DB_PATHS.CLASSES}/${classId}/currentBookDriveId`] = null;
+        // Giữ lại bookInfo cũ nếu có, chỉ xóa drives và currentDriveId
+        // updates[`/${basePath}/${DB_PATHS.CLASSES}/${classId}/bookInfo`] = null; // Bỏ dòng này nếu muốn giữ bookInfo
 
-            // 2. Xóa lịch sử đóng tiền sách của từng học viên trong lớp đó
-            studentIds.forEach(studentId => {
-                updates[`/students/${studentId}/bookPayments/${classId}`] = null;
-                updates[`/students/${studentId}/bookFeeStatus/${classId}`] = null; // Dành cho cấu trúc cũ (nếu có)
-            });
+        // 2. Xóa lịch sử đóng tiền sách của từng học viên trong lớp đó trong đúng nhánh
+        studentIds.forEach(studentId => {
+            updates[`/${basePath}/${DB_PATHS.STUDENTS}/${studentId}/bookPayments/${classId}`] = null;
+            // Xóa cả cấu trúc cũ nếu còn tồn tại
+            // updates[`/${basePath}/${DB_PATHS.STUDENTS}/${studentId}/bookFeeStatus/${classId}`] = null;
+        });
 
-            // 3. Gửi một lệnh cập nhật duy nhất lên Firebase
-            await database.ref().update(updates);
-            await logActivity(`Đã reset tiền sách cho lớp: ${className}`);
+        // 3. Gửi một lệnh cập nhật duy nhất lên Firebase
+        await database.ref().update(updates);
+        await logActivity(`Đã reset tiền sách cho lớp: ${className} tại cơ sở ${selectedBranchId}`);
 
-            Swal.fire('Đã Reset!', 'Toàn bộ thông tin tiền sách của lớp đã được xóa.', 'success');
+        Swal.fire('Đã Reset!', 'Toàn bộ thông tin tiền sách của lớp đã được xóa.', 'success');
 
-            // Tải lại modal để thấy sự thay đổi
-            await showClassBookFeeModal(classId);
+        // Tải lại modal để thấy sự thay đổi
+        await showClassBookFeeModal(classId);
 
-        } catch (error) {
-            console.error("Lỗi khi reset tiền sách lớp:", error);
-            Swal.fire("Lỗi!", "Đã xảy ra lỗi khi reset tiền sách của lớp.", "error");
-        } finally {
-            showLoading(false);
-        }
+    } catch (error) {
+        console.error("Lỗi khi reset tiền sách lớp:", error);
+        Swal.fire("Lỗi!", "Đã xảy ra lỗi khi reset tiền sách của lớp.", "error");
+    } finally {
+        showLoading(false);
     }
 }
 function toggleCollapsible(headerElement) {
@@ -8357,12 +9329,39 @@ async function convertAndExtendClass(classId) {
  * HÀM MỚI: Cập nhật trạng thái thông báo (Zalo/Điện thoại) cho học viên
  */
 async function updateNotificationStatus(studentId, type, isChecked) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !studentId) {
+        console.error("Lỗi: Không xác định cơ sở hoặc học viên khi cập nhật trạng thái thông báo.");
+        // Tìm checkbox và đặt lại trạng thái cũ
+        const checkbox = event?.target;
+        if(checkbox) checkbox.checked = !isChecked;
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     try {
-        const statusRef = database.ref(`students/${studentId}/notificationStatus/${type}`);
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const statusRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}/notificationStatus/${type}`);
+        // --- KẾT THÚC THAY ĐỔI ---
         await statusRef.set(isChecked);
+        console.log(`Cập nhật notificationStatus.${type} = ${isChecked} cho ${studentId} tại ${selectedBranchId}`);
+        // Không cần Swal thông báo thành công cho thao tác nhỏ này
+
+        // Cập nhật lại biến toàn cục allStudentsData nếu cần thiết để UI khác đồng bộ
+        if (allStudentsData[studentId]) {
+             if (!allStudentsData[studentId].notificationStatus) {
+                 allStudentsData[studentId].notificationStatus = {};
+             }
+             allStudentsData[studentId].notificationStatus[type] = isChecked;
+        }
+
     } catch (error) {
         console.error("Lỗi khi cập nhật trạng thái thông báo:", error);
         Swal.fire("Lỗi", "Không thể lưu trạng thái thông báo.", "error");
+         // Tìm checkbox và đặt lại trạng thái cũ
+         const checkbox = event?.target;
+         if(checkbox) checkbox.checked = !isChecked;
     }
 }
 /**
@@ -8371,63 +9370,116 @@ async function updateNotificationStatus(studentId, type, isChecked) {
  * in ra báo cáo chi tiết và hỏi xác nhận trước khi ghi đè.
  */
 async function auditAndRecalculateGeneralEnglish() {
+
+// --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     console.clear();
-    console.log("Bắt đầu quá trình kiểm toán và tính toán lại...");
+    console.log(`Bắt đầu quá trình kiểm toán và tính toán lại cho cơ sở: ${selectedBranchId}...`);
     showLoading(true);
 
     try {
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
         const [studentsSnap, attendanceSnap, classesSnap] = await Promise.all([
-            database.ref('students').once('value'),
-            database.ref('attendance').once('value'),
-            database.ref('classes').once('value')
+            getBranchRef(DB_PATHS.STUDENTS).once('value'),       // Đọc students của nhánh hiện tại
+            getBranchRef(DB_PATHS.ATTENDANCE).once('value'),     // Đọc attendance của nhánh hiện tại
+            getBranchRef(DB_PATHS.CLASSES).once('value')         // Đọc classes của nhánh hiện tại
         ]);
-        
-        const allStudents = studentsSnap.val() || {};
-        const allAttendance = attendanceSnap.val() || {};
-        const allClasses = classesSnap.val() || {};
+        // --- KẾT THÚC THAY ĐỔI ---
 
-        const auditLogs = []; // Mảng để lưu báo cáo chi tiết
+        // Lấy dữ liệu toàn cục (chung)
+        const usersSnap = await database.ref(DB_PATHS.USERS).once('value'); // Users vẫn là chung
+
+        const allStudentsInBranch = studentsSnap.val() || {};
+        const allAttendanceInBranch = attendanceSnap.val() || {};
+        const allClassesInBranch = classesSnap.val() || {};
+        // allUsersData = usersSnap.val() || {}; // Cập nhật users nếu cần
+
+        const auditLogs = [];
         const updates = {};
         let studentsProcessed = 0;
 
-        for (const studentId in allStudents) {
+        // Lặp qua học viên TRONG CHI NHÁNH HIỆN TẠI
+        for (const studentId in allStudentsInBranch) {
             studentsProcessed++;
-            const studentData = allStudents[studentId];
-            
-            // --- BƯỚC A: TÌM TẤT CẢ CÁC LỚP PHỔ THÔNG HỢP LỆ CỦA HỌC VIÊN ---
+            const studentData = allStudentsInBranch[studentId];
+
+            // Tìm lớp phổ thông hợp lệ TRONG CHI NHÁNH HIỆN TẠI
             const applicableClasses = [];
             if (studentData.classes) {
                 for (const classId in studentData.classes) {
-                    const classData = allClasses[classId];
+                    // Lấy classData từ dữ liệu đã đọc của nhánh
+                    const classData = allClassesInBranch[classId];
                     const isGeneralClass = classData?.classType === 'Lớp tiếng Anh phổ thông' || classData?.classType === 'Lớp các môn trên trường';
                     const isActiveOrCompleted = classData && (classData.status !== 'deleted');
 
                     if (isGeneralClass && isActiveOrCompleted) {
-                        applicableClasses.push({ id: classId, name: classData.name });
+                        applicableClasses.push({ id: classId, name: classData.name || 'Không tên', type: classData.classType }); // Lưu lại type để kiểm tra
                     }
                 }
             }
-            
-            // --- BƯỚC B: CỘNG DỒN SỐ BUỔI TỪ CÁC LỚP ĐÓ ---
+
+            // Cộng dồn số buổi từ attendance TRONG CHI NHÁNH HIỆN TẠI
             let totalAttendedCount = 0;
+            console.log(`\n--- Đang xử lý học viên: ${studentData.name || studentId} ---`); // Log tên học viên
+
             applicableClasses.forEach(cls => {
                 const classId = cls.id;
-                if (allAttendance[classId]?.[studentId]) {
-                    const studentAttendanceInClass = allAttendance[classId][studentId];
-                    const classData = allClasses[classId];
-                    
-                    for (const date in studentAttendanceInClass) {
-                        const sessionExists = classData.sessions?.[date] || classData.exams?.[date];
-                        if (sessionExists && studentAttendanceInClass[date]?.attended === true) {
-                            const isExam = classData.exams?.[date];
-                            if (!isExam || (isExam && (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường'))) {
-                                totalAttendedCount++;
+                const classData = allClassesInBranch[classId]; // Lấy lại classData để kiểm tra type
+                console.log(` -> Đang quét lớp: "${cls.name}" (Type: ${cls.type})`); // Log cả classType
+                if (allAttendanceInBranch[classId]?.[studentId]) {
+                    const studentAttendanceInClass = allAttendanceInBranch[classId][studentId];
+
+                    let countForThisClass = 0; // Đếm riêng cho lớp này để debug
+
+                    // Sắp xếp ngày cho dễ theo dõi log
+                    const sortedDates = Object.keys(studentAttendanceInClass).sort();
+                    for (const date of sortedDates) {
+                        const sessionExists = classData?.sessions?.[date] || classData?.exams?.[date];
+                        const attended = studentAttendanceInClass[date]?.attended === true;
+
+                        if (sessionExists && attended) {
+                            const isExam = classData?.exams?.[date];
+
+                            // === LOGIC ĐẾM ĐƯỢC SỬA LẠI ===
+                            let shouldCount = false;
+                            // 1. Nếu là lớp "Các môn trên trường" -> Luôn đếm (cả exam)
+                            if (cls.type === 'Lớp các môn trên trường') {
+                                shouldCount = true;
+                                console.log(`    [${date}]: Lớp môn trường & đã điểm danh -> ĐẾM`);
                             }
+                            // 2. Nếu là lớp "Phổ thông" -> Luôn đếm (cả exam)
+                            else if (cls.type === 'Lớp tiếng Anh phổ thông') {
+                                shouldCount = true;
+                                console.log(`    [${date}]: Lớp phổ thông & đã điểm danh -> ĐẾM`);
+                            }
+                            // 3. (Trường hợp khác - Lớp chứng chỉ đã bị loại từ trước, nhưng để đây cho rõ)
+                            // else if (cls.type === 'Lớp chứng chỉ') {
+                            //     shouldCount = !isExam; // Chỉ đếm buổi thường
+                            // }
+
+                            if (shouldCount) {
+                                totalAttendedCount++;
+                                countForThisClass++;
+                            } else {
+                                 console.log(`    [${date}]: Đã điểm danh nhưng không được tính (logic loại trừ).`);
+                            }
+                        } else if (attended) {
+                             console.log(`    [${date}]: Đã điểm danh nhưng buổi học/thi không còn tồn tại -> KHÔNG ĐẾM`);
                         }
                     }
+                    console.log(` -> Số buổi được đếm từ lớp "${cls.name}": ${countForThisClass}`);
+                } else {
+                     console.log(` -> Không có dữ liệu điểm danh cho học viên này trong lớp.`);
                 }
             });
-            
+            console.log(` -> Tổng số buổi đếm được cuối cùng: ${totalAttendedCount}`);
+            // --- Kết thúc phần đếm ---
+
             // --- BƯỚC C: GHI NHẬN KẾT QUẢ ---
             const currentAttendedCount = studentData.sessionsAttended || 0;
             const classNames = applicableClasses.map(c => c.name).join(', ') || 'Không có';
@@ -8435,7 +9487,7 @@ async function auditAndRecalculateGeneralEnglish() {
             auditLogs.push(`Học viên: ${studentData.name} | Số cũ: ${currentAttendedCount} -> Số mới: ${totalAttendedCount} ${status} | Quét từ lớp: [${classNames}]`);
             
             // Luôn ghi đè, kể cả khi không thay đổi
-            updates[`/students/${studentId}/sessionsAttended`] = totalAttendedCount;
+            updates[`/branches/${selectedBranchId}/${DB_PATHS.STUDENTS}/${studentId}/sessionsAttended`] = totalAttendedCount;
         }
         
         // --- BƯỚC D: HIỂN THỊ BÁO CÁO VÀ HỎI XÁC NHẬN ---
@@ -8456,8 +9508,28 @@ async function auditAndRecalculateGeneralEnglish() {
 
         if (result.isConfirmed) {
             showLoading(true);
-            await database.ref().update(updates);
-            Swal.fire('Thành công!', `Đã ghi đè lại số buổi đã học cho ${studentsProcessed} học viên.`, 'success');
+            // --- THAY ĐỔI: Thực hiện update trên gốc DB ---
+            await database.ref().update(updates); // updates đã chứa đường dẫn đầy đủ
+            // --- KẾT THÚC THAY ĐỔI ---
+            Swal.fire('Thành công!', `Đã ghi đè lại số buổi đã học cho ${studentsProcessed} học viên tại cơ sở ${selectedBranchId}.`, 'success');
+             // Cập nhật lại allStudentsData cục bộ
+             Object.keys(updates).forEach(path => {
+                 const parts = path.split('/'); // Tách path
+                 if (parts[1] === 'branches' && parts[3] === 'students') {
+                     const branch = parts[2];
+                     const studentId = parts[4];
+                     const field = parts[5];
+                     const value = updates[path];
+                     if (branch === selectedBranchId && allStudentsData[studentId]) {
+                         allStudentsData[studentId][field] = value;
+                     }
+                 }
+             });
+             // Vẽ lại bảng học viên nếu đang xem
+             if(window.location.hash === '#student-management') {
+                 applyStudentFilters();
+             }
+
         } else {
              Swal.fire('Đã hủy', 'Không có thay đổi nào được thực hiện.', 'info');
         }
@@ -8813,6 +9885,36 @@ async function showStudentSelectorForCycleReport() {
     }
 }
 /**
+ * HÀM MỚI (THAY THẾ 2 HÀM CŨ): Áp dụng đồng thời cả bộ lọc lớp và bộ lọc tên trong Swal
+ */
+function applySwalFilters() {
+    // Lấy giá trị bộ lọc lớp và từ khóa tìm kiếm
+    const selectedClassId = document.getElementById('swal-class-filter')?.value || ""; // Thêm ?. và || "" cho an toàn
+    const searchQuery = document.getElementById('swal-student-search')?.value.toLowerCase() || ""; // Thêm ?. và || ""
+    const studentSelect = document.getElementById('swal-student-select');
+
+    if (!studentSelect) return; // Thoát nếu không tìm thấy select box
+
+    const options = studentSelect.getElementsByTagName('option');
+
+    // Lặp qua từng option học viên
+    for (const option of options) {
+        const studentName = option.textContent.toLowerCase();
+        const studentClassId = option.dataset.classId; // Lấy classId từ data attribute
+
+        // Kiểm tra xem học viên có thỏa mãn CẢ HAI điều kiện không
+        const classMatch = (selectedClassId === "" || studentClassId === selectedClassId); // Khớp nếu không lọc lớp hoặc đúng lớp
+        const searchMatch = studentName.includes(searchQuery); // Khớp nếu tên chứa từ khóa
+
+        // Hiển thị hoặc ẩn option
+        if (classMatch && searchMatch) {
+            option.style.display = ''; // Hiển thị nếu khớp cả hai
+        } else {
+            option.style.display = 'none'; // Ẩn nếu không khớp
+        }
+    }
+}
+/**
  * LOGIC CHÍNH ĐỂ TẠO BÁO CÁO CHU KỲ (PHIÊN BẢN HOÀN CHỈNH)
  * Tự động bù thêm các buổi học dự đoán để đảm bảo đủ 24 buổi/chu kì.
  */
@@ -8978,15 +10080,47 @@ async function generateCycleReport(studentIds) {
  * HÀM MỚI: Cập nhật ngày bắt đầu chu kì trực tiếp từ bảng
  */
 async function updateCycleStartDate(studentId, newDate) {
-    if (!studentId) return;
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !studentId) {
+        console.error("Lỗi: Không xác định cơ sở/học viên khi cập nhật ngày bắt đầu chu kỳ.");
+        // Có thể cần reload lại trang hoặc hàng đó để reset giá trị input nếu lỗi
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
+    // Kiểm tra newDate có hợp lệ không (tùy chọn)
+    if (!newDate) {
+         console.warn("Ngày bắt đầu chu kỳ không hợp lệ.");
+         // Reset lại input về giá trị cũ nếu có thể
+         const inputElement = event?.target;
+         if (inputElement && allStudentsData[studentId]) {
+             inputElement.value = allStudentsData[studentId].cycleStartDate || '';
+         }
+         return;
+    }
+
 
     try {
-        await database.ref(`students/${studentId}`).update({
+        // --- THAY ĐỔI: Sử dụng getBranchRef ---
+        const studentRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`);
+        // --- KẾT THÚC THAY ĐỔI ---
+        await studentRef.update({
             cycleStartDate: newDate,
             updatedAt: firebase.database.ServerValue.TIMESTAMP
         });
-        
-        // Thông báo nhỏ ở góc màn hình
+
+        // Cập nhật lại allStudentsData
+        if(allStudentsData[studentId]) {
+             allStudentsData[studentId].cycleStartDate = newDate;
+             allStudentsData[studentId].updatedAt = Date.now(); // Ước lượng timestamp
+        }
+
+        // Log hành động
+        const studentName = allStudentsData[studentId]?.name || studentId;
+        await logActivity(`Cập nhật ngày bắt đầu chu kỳ thành ${newDate} cho ${studentName} tại cơ sở ${selectedBranchId}`);
+
+
+        // Thông báo nhỏ (giữ nguyên)
         Swal.fire({
             toast: true,
             position: 'top-end',
@@ -8999,21 +10133,39 @@ async function updateCycleStartDate(studentId, newDate) {
     } catch (error) {
         console.error("Lỗi cập nhật ngày bắt đầu chu kì:", error);
         Swal.fire("Lỗi", "Không thể cập nhật ngày.", "error");
+         // Reset lại input về giá trị cũ
+         const inputElement = event?.target;
+         if (inputElement && allStudentsData[studentId]) {
+             inputElement.value = allStudentsData[studentId].cycleStartDate || '';
+         }
     }
+    // Không cần loading cho thao tác nhỏ này
 }
 /**
  * HÀM HỖ TRỢ MỚI: Tìm ngày điểm danh đầu tiên của học viên trên tất cả các lớp
  */
 async function findFirstAttendanceDate(studentId) {
+     // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !studentId) {
+        console.error("Lỗi: Không xác định cơ sở/học viên khi tìm ngày đi học đầu tiên.");
+        return null;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     try {
-        const attendanceSnap = await database.ref('attendance').once('value');
-        const allAttendance = attendanceSnap.val() || {};
+        // --- THAY ĐỔI: Sử dụng getBranchRef để đọc attendance của cả nhánh ---
+        const attendanceSnap = await getBranchRef(DB_PATHS.ATTENDANCE).once('value');
+        // --- KẾT THÚC THAY ĐỔI ---
+        const attendanceInBranch = attendanceSnap.val() || {};
         const attendedDates = [];
 
-        for (const classId in allAttendance) {
-            if (allAttendance[classId][studentId]) {
-                const studentAttendanceInClass = allAttendance[classId][studentId];
+        // Duyệt qua các lớp trong chi nhánh này
+        for (const classId in attendanceInBranch) {
+            // Kiểm tra xem học viên có điểm danh trong lớp này không
+            if (attendanceInBranch[classId][studentId]) {
+                const studentAttendanceInClass = attendanceInBranch[classId][studentId];
                 for (const date in studentAttendanceInClass) {
+                    // Chỉ lấy ngày có attended = true
                     if (studentAttendanceInClass[date]?.attended === true) {
                         attendedDates.push(date);
                     }
@@ -9022,14 +10174,16 @@ async function findFirstAttendanceDate(studentId) {
         }
 
         if (attendedDates.length === 0) {
+            console.log(`Không tìm thấy ngày điểm danh nào cho ${studentId} tại ${selectedBranchId}`);
             return null; // Không tìm thấy ngày nào
         }
 
         attendedDates.sort(); // Sắp xếp để tìm ngày sớm nhất
+        console.log(`Ngày đi học đầu tiên của ${studentId} tại ${selectedBranchId} là: ${attendedDates[0]}`);
         return attendedDates[0];
 
     } catch (error) {
-        console.error("Lỗi khi tìm ngày đi học đầu tiên:", error);
+        console.error(`Lỗi khi tìm ngày đi học đầu tiên cho ${studentId} tại ${selectedBranchId}:`, error);
         return null;
     }
 }
@@ -9094,73 +10248,87 @@ async function showTuitionCycleHistory(studentId) {
  * HÀM MỚI: Xử lý việc tick/bỏ tick ô đã thanh toán
  */
 async function toggleTuitionCyclePaid(studentId, cycleId, isPaid) {
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !studentId) {
+        console.error("Lỗi: Không xác định cơ sở/học viên khi cập nhật thanh toán chu kỳ.");
+        const checkbox = event?.target; if(checkbox) checkbox.checked = !isPaid;
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     showLoading(true);
     try {
-        const studentRef = database.ref(`${DB_PATHS.STUDENTS}/${studentId}`);
+        // --- THAY ĐỔI: Sử dụng getBranchRef để đọc và ghi ---
+        const studentRef = getBranchRef(`${DB_PATHS.STUDENTS}/${studentId}`);
+        // --- KẾT THÚC THAY ĐỔI ---
         const studentSnap = await studentRef.once('value');
         const studentData = studentSnap.val();
-        
-        let tuitionCycles = studentData.tuitionCycles || [];
 
-        // Nếu là 'new_cycle', nghĩa là đây là lần tick đầu tiên cho học viên cũ
-        if (cycleId === 'new_cycle') {
+        if (!studentData) {
+             throw new Error("Không tìm thấy dữ liệu học viên.");
+        }
+
+        let tuitionCycles = studentData.tuitionCycles || [];
+        let updated = false; // Cờ để kiểm tra xem có thay đổi không
+
+        // Xử lý 'new_cycle' (giữ nguyên logic)
+        if (cycleId === 'new_cycle' && isPaid) { // Chỉ tạo mới khi tick lần đầu
             const newCycle = {
                 cycleId: `cycle_${Date.now()}`,
                 packageName: studentData.package,
-                renewalDate: formatTimestamp(studentData.updatedAt || studentData.createdAt),
-                isPaid: isPaid,
-                paidDate: isPaid ? new Date().toISOString().split("T")[0] : null
+                 // Lấy ngày gia hạn gần nhất (updatedAt hoặc createdAt)
+                 renewalDate: formatTimestamp(studentData.updatedAt || studentData.createdAt || Date.now()), // Thêm Date.now() làm fallback
+                isPaid: true,
+                paidDate: new Date().toISOString().split("T")[0]
             };
             tuitionCycles.push(newCycle);
+            updated = true;
         } else {
             // Tìm và cập nhật chu kỳ đã có
             const cycleIndex = tuitionCycles.findIndex(c => c.cycleId === cycleId);
             if (cycleIndex !== -1) {
-                tuitionCycles[cycleIndex].isPaid = isPaid;
-                tuitionCycles[cycleIndex].paidDate = isPaid ? new Date().toISOString().split("T")[0] : null;
+                // Chỉ cập nhật nếu trạng thái thay đổi
+                if (tuitionCycles[cycleIndex].isPaid !== isPaid) {
+                    tuitionCycles[cycleIndex].isPaid = isPaid;
+                    tuitionCycles[cycleIndex].paidDate = isPaid ? new Date().toISOString().split("T")[0] : null;
+                    updated = true;
+                }
+            } else if (cycleId !== 'new_cycle') {
+                 // Trường hợp bỏ tick 'new_cycle' hoặc cycleId không tồn tại
+                 console.warn(`Không tìm thấy cycleId ${cycleId} để cập nhật cho student ${studentId}`);
+                 // Bỏ tick checkbox lại trên UI
+                 const checkbox = event?.target; if(checkbox) checkbox.checked = !isPaid;
+                 updated = false; // Không có gì để cập nhật DB
             }
         }
 
-        await studentRef.child('tuitionCycles').set(tuitionCycles);
+        // Chỉ ghi vào DB nếu có thay đổi
+        if (updated) {
+            // --- THAY ĐỔI: Ghi vào đúng nhánh ---
+            await studentRef.child('tuitionCycles').set(tuitionCycles);
+            // --- KẾT THÚC THAY ĐỔI ---
 
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: 'Đã cập nhật!',
-            showConfirmButton: false,
-            timer: 1500
-        });
+             // Cập nhật lại allStudentsData
+             if(allStudentsData[studentId]) {
+                 allStudentsData[studentId].tuitionCycles = tuitionCycles;
+             }
+             // Log hành động
+             await logActivity(`${isPaid ? 'Xác nhận' : 'Hủy'} thanh toán chu kỳ học phí ${cycleId === 'new_cycle' ? '(mới)' : cycleId} cho ${studentData.name} tại cơ sở ${selectedBranchId}`);
+
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Đã cập nhật!', showConfirmButton: false, timer: 1500 });
+        } else {
+             console.log("Không có thay đổi trạng thái thanh toán chu kỳ.");
+        }
+
 
     } catch (error) {
         console.error("Lỗi khi cập nhật trạng thái thanh toán:", error);
-        Swal.fire("Lỗi", "Không thể cập nhật trạng thái.", "error");
+        Swal.fire("Lỗi", "Không thể cập nhật trạng thái: " + error.message, "error");
+         // Bỏ tick checkbox lại trên UI
+         const checkbox = event?.target; if(checkbox) checkbox.checked = !isPaid;
     } finally {
         showLoading(false);
-    }
-}
-/**
- * HÀM MỚI (THAY THẾ 2 HÀM CŨ): Áp dụng đồng thời cả bộ lọc lớp và bộ lọc tên
- */
-function applySwalFilters() {
-    const selectedClassId = document.getElementById('swal-class-filter').value;
-    const searchQuery = document.getElementById('swal-student-search').value.toLowerCase();
-    const studentSelect = document.getElementById('swal-student-select');
-    const options = studentSelect.getElementsByTagName('option');
-
-    for (const option of options) {
-        const studentName = option.textContent.toLowerCase();
-        const studentClassId = option.dataset.classId;
-
-        // Kiểm tra xem học viên có thỏa mãn CẢ HAI điều kiện không
-        const classMatch = (selectedClassId === "" || studentClassId === selectedClassId);
-        const searchMatch = studentName.includes(searchQuery);
-
-        if (classMatch && searchMatch) {
-            option.style.display = ''; // Hiển thị nếu khớp cả hai
-        } else {
-            option.style.display = 'none'; // Ẩn nếu không khớp
-        }
     }
 }
 /**
@@ -9343,6 +10511,14 @@ async function generateRandomCode(inputElement) {
  * HÀM NÂNG CẤP: Yêu cầu mật khẩu, kiểm tra quyền và TỰ ĐỘNG MỞ BẢNG ĐIỂM DANH
  */
 async function promptForAttendancePassword(classId) {
+
+// --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !classId) {
+        Swal.fire("Lỗi", "Không thể xác định cơ sở hoặc lớp học.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const role = currentUserData?.role;
 
     if (role === 'Admin' || role === 'Hội Đồng') {
@@ -9350,17 +10526,19 @@ async function promptForAttendancePassword(classId) {
         return;
     }
 
-    if (role === 'Giáo Viên') {
+    if (role === 'Giáo Viên' || role === 'Trợ Giảng') {
         const { value: enteredCode } = await Swal.fire({
             title: 'Xác thực nhân sự',
-            input: 'password',
+            input: 'password', // Giữ type password
             inputLabel: 'Vui lòng nhập mật mã 6 số của bạn để điểm danh',
             inputPlaceholder: '******',
-            inputAttributes: { 
-                maxlength: 6, 
-                autocapitalize: 'off', 
+            inputAttributes: {
+                maxlength: 6,
+                autocapitalize: 'off',
                 autocorrect: 'off',
-              //  autocomplete: 'new-password' // <-- DÒNG THÊM MỚI
+                // === THÊM DÒNG NÀY ĐỂ VÔ HIỆU HÓA GỢI Ý ===
+                autocomplete: 'new-password' // Hoặc 'off', nhưng 'new-password' thường hiệu quả hơn
+                // ===========================================
             },
             showCancelButton: true,
             confirmButtonText: 'Xác nhận',
@@ -9370,18 +10548,22 @@ async function promptForAttendancePassword(classId) {
         if (enteredCode) {
             showLoading(true);
             try {
+                // Đọc mã nhân sự (chung) và dữ liệu lớp học (theo nhánh) đồng thời
                 const [codesSnapshot, classSnapshot] = await Promise.all([
-                    database.ref(DB_PATHS.PERSONNEL_CODES).once('value'),
-                    database.ref(`${DB_PATHS.CLASSES}/${classId}`).once('value')
+                    database.ref(DB_PATHS.PERSONNEL_CODES).once('value'), // Đọc mã chung
+                    // --- THAY ĐỔI: Sử dụng getBranchRef để đọc lớp ---
+                    getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).once('value')
+                    // --- KẾT THÚC THAY ĐỔI ---
                 ]);
 
                 const personnelList = codesSnapshot.val() || {};
-                const classData = classSnapshot.val();
+                const classData = classSnapshot.val(); // Dữ liệu lớp từ đúng nhánh
 
                 if (!classData) {
-                    throw new Error("Không tìm thấy thông tin lớp học.");
+                    throw new Error(`Không tìm thấy thông tin lớp học (${classId}) trong cơ sở ${selectedBranchId}.`);
                 }
 
+                // Tìm nhân sự khớp với mã nhập vào (giữ nguyên)
                 let matchedPersonnel = null;
                 for (const key in personnelList) {
                     if (personnelList[key].code === enteredCode) {
@@ -9393,16 +10575,15 @@ async function promptForAttendancePassword(classId) {
                 if (!matchedPersonnel) {
                     Swal.fire('Lỗi', 'Mật mã không chính xác.', 'error');
                 } else {
+                    // Lấy tên GV/TG từ classData đã đọc đúng nhánh
                     const teacherName = classData.teacher || "";
                     const assistantName = classData.assistantTeacher || "";
                     const personnelName = matchedPersonnel.name || "";
 
+                    // Kiểm tra xem tên có khớp không
                     if (personnelName === teacherName || personnelName === assistantName) {
-                        // === THAY ĐỔI NẰM Ở ĐÂY ===
-                        // Mã đúng và tên khớp -> Gọi hàm hiển thị bảng điểm danh NGAY LẬP TỨC
-                        showClassAttendanceAndHomeworkTable(classId);
-                        // Không cần return ở đây nữa
-                        // === KẾT THÚC THAY ĐỔI ===
+                        // Khớp -> Mở bảng điểm danh
+                        showClassAttendanceAndHomeworkTable(classId); // Hàm này đã được sửa
                     } else {
                         Swal.fire('Lỗi', 'Mật mã đúng, nhưng bạn không được phân công dạy lớp này.', 'error');
                     }
@@ -9411,15 +10592,16 @@ async function promptForAttendancePassword(classId) {
                 console.error("Lỗi xác thực điểm danh:", error);
                 Swal.fire("Lỗi", "Đã xảy ra lỗi: " + error.message, "error");
             } finally {
-                // Chỉ tắt loading nếu KHÔNG mở được bảng điểm danh (vì hàm kia có loading riêng)
-                 if (!(Swal.isVisible() && Swal.getTitle() === 'Lỗi')) { 
-                    // Nếu không có lỗi nào được hiển thị, nghĩa là đã vào điểm danh thành công
-                 } else {
-                    showLoading(false); // Chỉ tắt loading nếu có lỗi hiện ra
+                // Chỉ tắt loading nếu có lỗi hiển thị (vì showClassAttendanceAndHomeworkTable có loading riêng)
+                 if (Swal.isVisible()) { // Kiểm tra xem có Swal nào đang hiện không
+                     const swalTitle = Swal.getTitle();
+                     if (swalTitle && swalTitle.toLowerCase().includes('lỗi')) {
+                         showLoading(false); // Chỉ tắt nếu là Swal báo lỗi
+                     }
                  }
+                 // Nếu không có Swal lỗi -> đã vào điểm danh -> không tắt loading ở đây
             }
         }
-        // Nếu người dùng bấm Hủy (enteredCode là undefined), không làm gì cả
     } else {
         Swal.fire('Truy cập bị từ chối', 'Vai trò của bạn không được phép thực hiện điểm danh.', 'error');
     }
@@ -9429,6 +10611,7 @@ async function promptForAttendancePassword(classId) {
  */
 function initPersonnelCodesListener() {
     database.ref(DB_PATHS.PERSONNEL_CODES).on("value", snapshot => {
+         console.log("Listener: Dữ liệu mã nhân sự (chung) đã cập nhật."); // Thêm log
         // Khi có bất kỳ thay đổi nào, tự động vẽ lại trang nếu đang mở
         if (window.location.hash === '#code-management') {
             renderCodeManagementPage();
@@ -9443,5 +10626,29 @@ function initPersonnelCodesListener() {
              populatePersonnelDropdown(document.getElementById('temp-class-teacher'));
              populatePersonnelDropdown(document.getElementById('temp-class-assistant'));
         }
+         // Cập nhật lại dropdown giáo viên/trợ giảng trong form lớp học nếu cần
+         // (Logic này đã được xử lý trong initUsersListener, nhưng để đây cho rõ ràng)
     });
+}
+/**
+ * HÀM MỚI: Khởi tạo tất cả các listener cần thiết
+ */
+function initListeners() {
+    console.log(`Khởi tạo listeners cho cơ sở ${selectedBranchId}...`);
+    // Listeners cho dữ liệu theo nhánh (branch-specific)
+    initStudentsListener();
+    initClassesListener();
+    // Thêm các listener khác cho dữ liệu theo nhánh ở đây (vd: attendance, homework,...)
+    // initAttendanceListener(); // Ví dụ
+
+    // Listeners cho dữ liệu chung (global) - chỉ cần chạy MỘT LẦN
+    // Chúng ta cần kiểm tra để tránh gắn listener nhiều lần khi chuyển cơ sở
+    if (!window.globalListenersInitialized) {
+         console.log("Khởi tạo listeners chung (users, personnel_codes)...");
+         initUsersListener();
+         initPersonnelCodesListener();
+         window.globalListenersInitialized = true; // Đánh dấu đã chạy
+    } else {
+         console.log("Listeners chung đã được khởi tạo trước đó.");
+    }
 }
