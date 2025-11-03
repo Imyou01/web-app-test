@@ -3115,32 +3115,31 @@ async function saveClass(event) {
     try {
         if (classId) {
             // --- TRƯỜNG HỢP SỬA LỚP ---
+
             const updates = {};
-            const oldClassData = allClassesData[classId]; // Lấy dữ liệu cũ từ biến toàn cục
-            const oldStudentIds = oldClassData?.students ? Object.keys(oldClassData.students) : [];
+            // Lấy dữ liệu CŨ từ biến toàn cục
+            const oldClassData = (allClassesData && allClassesData[classId]) ? allClassesData[classId] : null;
 
-             // === SỬA LỖI: Tạo đối tượng cập nhật cuối cùng ===
-             // Bắt đầu với dữ liệu cũ (nếu có)
-            const finalClassData = { ...(oldClassData || {}) };
-             // Ghi đè bằng dữ liệu mới từ form
-             Object.assign(finalClassData, classDataFromForm);
-             // Gán danh sách học viên mới
-             finalClassData.students = newStudentsObject;
+            if (!oldClassData) {
+                 throw new Error("Không tìm thấy dữ liệu lớp học gốc để cập nhật.");
+            }
+            const oldStudentIds = oldClassData.students ? Object.keys(oldClassData.students) : [];
 
-             // Đảm bảo các thuộc tính có thể rỗng là null thay vì undefined
-             finalClassData.fixedSchedule = finalClassData.fixedSchedule || null;
-             finalClassData.sessions = finalClassData.sessions || null;
-             finalClassData.exams = finalClassData.exams || null; // Quan trọng!
-             finalClassData.bookDrives = finalClassData.bookDrives || null;
-             finalClassData.currentBookDriveId = finalClassData.currentBookDriveId || null;
-             finalClassData.teacherSalary = finalClassData.teacherSalary || 0;
-             finalClassData.assistantTeacherSalary = finalClassData.assistantTeacherSalary || 0;
-              // Giữ lại createdAt nếu có
-             finalClassData.createdAt = oldClassData?.createdAt || firebase.database.ServerValue.TIMESTAMP;
-             // Giữ ngày bắt đầu cũ
-             finalClassData.startDate = oldClassData?.startDate || classDataFromForm.startDate;
-             // ===============================================
+            // Gộp dữ liệu cũ và mới để tạo đối tượng cuối cùng
+            const finalClassData = {
+                ...oldClassData,         // 1. Lấy nền là dữ liệu cũ (giữ createdAt, startDate, fixedSchedule, sessions, exams,...)
+                ...classDataFromForm,    // 2. Ghi đè bằng dữ liệu mới từ form (name, teacher, classType,...)
+                students: newStudentsObject, // 3. Ghi đè bằng danh sách học viên mới nhất
 
+                // 4. Đảm bảo các trường object/array không bị 'undefined' nếu chưa từng tồn tại
+                fixedSchedule: oldClassData.fixedSchedule || null,
+                sessions: oldClassData.sessions || null,
+                exams: oldClassData.exams || null,
+                bookDrives: oldClassData.bookDrives || null,
+                currentBookDriveId: oldClassData.currentBookDriveId || null,
+                teacherSalary: oldClassData.teacherSalary || 0,
+                assistantTeacherSalary: oldClassData.assistantTeacherSalary || 0
+            };
             // Đường dẫn cập nhật lớp
             updates[`/branches/${selectedBranchId}/${DB_PATHS.CLASSES}/${classId}`] = finalClassData;
 
@@ -3167,6 +3166,7 @@ async function saveClass(event) {
             // Tạo dữ liệu lớp hoàn chỉnh để push
             const newClassData = {
                 ...classDataFromForm, // Dữ liệu từ form
+                startDate: document.getElementById("class-start-date").value, // Lấy startDate khi tạo mới
                 fixedSchedule: fixedSchedule,
                 createdAt: firebase.database.ServerValue.TIMESTAMP,
                 students: newStudentsObject, // Danh sách học viên ban đầu
@@ -3179,17 +3179,19 @@ async function saveClass(event) {
                 currentBookDriveId: null
             };
             
-            let sessionCount = (classData.classType === 'Lớp chứng chỉ')
-                ? (certificateCourses[classData.certificateType]?.find(c => c.name === classData.courseName)?.sessions || 0)
-                : 72;
-            if (sessionCount <= 0 && classData.classType === 'Lớp chứng chỉ') { throw new Error("Không thể xác định số buổi học cho khóa chứng chỉ."); }
-            
-            // Nếu là lớp phổ thông/môn trường, có thể chỉ cần tạo trước 1 lượng buổi nhất định?
-            if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường') {
-                 sessionCount = 24; // Ví dụ: Tạo trước 24 buổi ban đầu
+            // Tính toán số buổi và tạo sessions
+            let sessionCount = 0;
+            if (newClassData.classType === 'Lớp chứng chỉ') {
+                 sessionCount = certificateCourses[newClassData.certificateType]?.find(c => c.name === newClassData.courseName)?.sessions || 0;
+                 if (sessionCount <= 0) { throw new Error("Không thể xác định số buổi học cho khóa chứng chỉ."); }
+            } else {
+                 // Lớp Phổ thông hoặc Môn trường -> tạo 24 buổi ban đầu (ví dụ)
+                 sessionCount = 24;
             }
 
-            newClassData.sessions = generateRollingSessions(newClassData.startDate, sessionCount, fixedSchedule);
+            if(sessionCount > 0) {
+                newClassData.sessions = generateRollingSessions(newClassData.startDate, sessionCount, fixedSchedule);
+            }
             
             // Chuẩn bị cập nhật hàng loạt
             const updates = {};
