@@ -557,6 +557,8 @@ function logout() {
     selectedBranchId = null; // Reset biến toàn cục
     // ======================
 
+    window.globalListenersInitialized = false;
+
     // Ẩn giao diện chính của ứng dụng
     document.getElementById("app-layout").style.display = "none";
 
@@ -10668,9 +10670,7 @@ function initPersonnelCodesListener() {
     database.ref(DB_PATHS.PERSONNEL_CODES).on("value", snapshot => {
          console.log("Listener: Dữ liệu mã nhân sự (chung) đã cập nhật."); // Thêm log
         // Khi có bất kỳ thay đổi nào, tự động vẽ lại trang nếu đang mở
-        if (window.location.hash === '#code-management') {
-            renderCodeManagementPage();
-        }
+      
         // Cập nhật lại dropdown trong form lớp học nếu cần
         if (document.getElementById('class-form-modal').style.display === 'flex') {
              populateTeacherDropdown();
