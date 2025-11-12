@@ -10478,13 +10478,9 @@ async function addNewPersonnelCodeRow() {
     try {
         // Chỉ cần thêm dữ liệu trống vào Firebase
         await database.ref(DB_PATHS.PERSONNEL_CODES).push({ name: "", code: "" });
-        
-        // Listener (initPersonnelCodesListener) sẽ tự động được kích hoạt 
-        // và gọi renderCodeManagementPage() để vẽ lại bảng với dòng mới.
-        
-        // Không cần tự thêm dòng HTML ở đây nữa.
-        // Không cần tự cuộn hay focus nữa, vì listener sẽ vẽ lại toàn bộ.
 
+      await renderCodeManagementPage();
+  
     } catch (error) {
         console.error("Lỗi khi thêm dòng mã nhân sự mới:", error);
         Swal.fire("Lỗi", "Không thể thêm dòng mới.", "error");
