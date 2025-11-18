@@ -1808,7 +1808,9 @@ function renderStudentList(dataset) {
         const isHighlight = query && (
             (st.name || "").toLowerCase().includes(query) ||
             (st.phone || "").toLowerCase().includes(query) ||
-            (st.parentPhone || "").toLowerCase().includes(query)
+            (st.parentPhone || "").toLowerCase().includes(query) ||
+            (st.parentJob || "").toLowerCase().includes(query) ||
+            (st.package || "").toLowerCase().includes(query)
         );
 
         const remainingSessions = (st.totalSessionsPaid || 0) - (st.sessionsAttended || 0);
@@ -1869,6 +1871,12 @@ function renderStudentList(dataset) {
             <tr class="${isHighlight ? 'highlight-row' : ''}">
                 <td data-label="Họ và tên" class="${warningClass}">${iconHtml}${highlight(st.name || "")}</td>
                 <td data-label="Năm sinh">${st.dob || ""}</td>
+
+                <!-- === DỮ LIỆU CỦA 2 CỘT MỚI === -->
+                <td data-label="Tên Phụ Huynh">${highlight(st.parent || "")}</td>
+                <td data-label="SĐT">${highlight(st.parentPhone || "")}</td>
+                <!-- === KẾT THÚC PHẦN THÊM === -->
+
                 <td data-label="Ngày bắt đầu chu kì">${cycleStartDateCellHTML}</td>
                 <td data-label="Gói đăng ký">${highlight(st.package || "")}</td>
                 <td data-label="Ngày tạo">${formatTimestamp(st.createdAt)}</td>
@@ -10478,9 +10486,10 @@ async function addNewPersonnelCodeRow() {
     try {
         // Chỉ cần thêm dữ liệu trống vào Firebase
         await database.ref(DB_PATHS.PERSONNEL_CODES).push({ name: "", code: "" });
+        
+       // await renderPersonnelListForAttendance
+       await renderCodeManagementPage;
 
-      await renderCodeManagementPage();
-  
     } catch (error) {
         console.error("Lỗi khi thêm dòng mã nhân sự mới:", error);
         Swal.fire("Lỗi", "Không thể thêm dòng mới.", "error");
