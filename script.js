@@ -2108,10 +2108,12 @@ function populateClassFilterDropdown() {
   const sortedClasses = Object.entries(allClassesData).sort(([, a], [, b]) => a.name.localeCompare(b.name));
 
   sortedClasses.forEach(([classId, classData]) => {
-    const option = document.createElement('option');
-    option.value = classId;
-    option.textContent = classData.name;
-    select.appendChild(option);
+    if (classData.status !== 'completed' && classData.status !== 'deleted') {
+        const option = document.createElement('option');
+        option.value = classId;
+        option.textContent = classData.name;
+        select.appendChild(option);
+    }
   });
 }
 
