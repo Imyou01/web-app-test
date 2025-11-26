@@ -4791,25 +4791,45 @@ function getSubjectClass(className) {
     
     return 'subject-default';
 }
+// Xóa lớp tạm thời (từ giao diện lịch)
 async function deleteTempClass(event, classId) {
-    // Ngăn các sự kiện khác (như mở menu chuột phải) được kích hoạt
-    event.stopPropagation(); 
-    
+    event.stopPropagation(); // Ngăn click vào block
+
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+
     const result = await Swal.fire({
         title: 'Bạn chắc chắn muốn xóa?',
         text: "Hành động này sẽ xóa vĩnh viễn lớp tạm thời này!",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
         confirmButtonText: 'Vâng, xóa nó!',
         cancelButtonText: 'Hủy'
     });
 
     if (result.isConfirmed) {
         try {
-            await database.ref(`${DB_PATHS.CLASSES}/${classId}`).remove();
-            // Lịch sẽ tự động cập nhật do có listener
+            const classData = allClassesData[classId];
+            const studentIds = classData?.students ? Object.keys(classData.students) : [];
+            const basePath = `branches/${selectedBranchId}`;
+            const updates = {};
+
+            // 1. Xóa lớp học
+            updates[`/${basePath}/${DB_PATHS.CLASSES}/${classId}`] = null;
+
+            // 2. Xóa liên kết trong hồ sơ học viên
+            studentIds.forEach(studentId => {
+                updates[`/${basePath}/${DB_PATHS.STUDENTS}/${studentId}/classes/${classId}`] = null;
+            });
+
+            // Thực hiện xóa
+            await database.ref().update(updates);
+            
             Swal.fire('Đã xóa!', 'Lớp tạm thời đã được xóa.', 'success');
         } catch (error) {
             console.error("Lỗi khi xóa lớp tạm thời:", error);
@@ -5205,21 +5225,29 @@ function populatePersonnelDropdown(selectElement) {
         }
     });
 }
+// Lưu lớp học tạm thời
 async function saveTempClass(event) {
     event.preventDefault();
 
-    // Lấy dữ liệu từ form modal
-    const name = document.getElementById('temp-class-name').value;
-    const teacherSelect = document.getElementById('temp-class-teacher');
-    const teacher = teacherSelect.options[teacherSelect.selectedIndex].text;
-    const teacherUid = teacherSelect.options[teacherSelect.selectedIndex].dataset.uid || '';
-    const assistantSelect = document.getElementById('temp-class-assistant');
-    const assistantTeacher = assistantSelect.options[assistantSelect.selectedIndex].text;
-    const assistantTeacherUid = assistantSelect.options[assistantSelect.selectedIndex].dataset.uid || '';
-    const startDate = document.getElementById('temp-class-start-date').value;
-    const room = document.getElementById('temp-class-room').value; // Lấy từ trường ẩn
+    // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
 
-    // Lấy lịch học cố định từ form mới
+    // Lấy dữ liệu từ form
+    const tempClassId = document.getElementById('temp-class-id')?.value; // ID nếu đang sửa
+    const name = document.getElementById('temp-class-name').value.trim();
+    const teacherSelect = document.getElementById('temp-class-teacher');
+    const teacher = teacherSelect.options[teacherSelect.selectedIndex]?.text || '';
+    const teacherUid = teacherSelect.options[teacherSelect.selectedIndex]?.dataset.uid || '';
+    const assistantSelect = document.getElementById('temp-class-assistant');
+    const assistantTeacher = assistantSelect.options[assistantSelect.selectedIndex]?.text || '';
+    const assistantTeacherUid = assistantSelect.options[assistantSelect.selectedIndex]?.dataset.uid || '';
+    const startDate = document.getElementById('temp-class-start-date').value;
+    const room = document.getElementById('temp-class-room').value;
+
     const fixedSchedule = getTempFixedScheduleFromForm();
 
     if (!name || !teacher || !startDate || Object.keys(fixedSchedule).length === 0) {
@@ -5227,62 +5255,91 @@ async function saveTempClass(event) {
         return;
     }
 
-   // Tạo lịch học cho khoảng 30 buổi tới dựa trên lịch cố định
-const sessionsToGenerate = generateRollingSessions(startDate, 30, fixedSchedule); // Gọi lại hàm với đúng tham số
+    showLoading(true);
 
-// Tạo đối tượng dữ liệu lớp học
-const classData = {
-    name,
-    teacher,
-    teacherUid,
-    assistantTeacher,
-    assistantTeacherUid,
-    room,
-    startDate,
-    fixedSchedule,
-    students: {},
-    sessions: sessionsToGenerate, // Gán trực tiếp kết quả vào đây
-    isTemporary: true, // <-- THÊM DÒNG QUAN TRỌNG NÀY
-    createdAt: firebase.database.ServerValue.TIMESTAMP,
-    updatedAt: firebase.database.ServerValue.TIMESTAMP,
-    teacherSalary: 0,
-    assistantTeacherSalary: 0,
-};
-
-    // Thêm thông tin học viên đã chọn
-    Object.entries(selectedTempStudents).forEach(([studentId, studentName]) => {
-        classData.students[studentId] = {
-            enrolledAt: classData.createdAt,
-            studentName: studentName,
-            packageName: allStudentsData[studentId]?.package || '(Chưa có gói)'
-        };
-    });
-
-    // Lưu vào Firebase
     try {
-        showLoading(true);
-        // THAY ĐỔI: SỬA LỖI KHI SỬA LỚP TẠM THỜI
-        const tempClassId = document.getElementById('temp-class-id')?.value;
+        // Tạo lịch học cho khoảng 30 buổi tới
+        const sessionsToGenerate = generateRollingSessions(startDate, 30, fixedSchedule);
+
+        // Tạo đối tượng dữ liệu lớp học
+        const classData = {
+            name,
+            teacher,
+            teacherUid,
+            assistantTeacher,
+            assistantTeacherUid,
+            room,
+            startDate,
+            fixedSchedule,
+            students: {}, // Sẽ điền bên dưới
+            sessions: sessionsToGenerate, // ĐÃ SỬA: Gán sessions vào đây
+            isTemporary: true, // Cờ đánh dấu lớp tạm
+            createdAt: firebase.database.ServerValue.TIMESTAMP, // Sẽ bị ghi đè nếu sửa (xử lý bên dưới)
+            updatedAt: firebase.database.ServerValue.TIMESTAMP,
+            teacherSalary: 0,
+            assistantTeacherSalary: 0,
+            status: 'active'
+        };
+
+        // Thêm thông tin học viên đã chọn vào classData
+        Object.entries(selectedTempStudents).forEach(([studentId, studentName]) => {
+            classData.students[studentId] = {
+                enrolledAt: firebase.database.ServerValue.TIMESTAMP, // Có thể cần giữ lại enrolledAt cũ nếu sửa
+                studentName: studentName,
+                packageName: allStudentsData[studentId]?.package || '(Chưa có gói)'
+            };
+        });
+
+        // Chuẩn bị cập nhật hàng loạt (Atomic Update)
+        const updates = {};
+        const basePath = `branches/${selectedBranchId}`;
+        let targetClassId = tempClassId;
+
         if (tempClassId) {
-             // Nếu có ID, nghĩa là đang sửa
-            await database.ref(`${DB_PATHS.CLASSES}/${tempClassId}`).update(classData);
+            // --- TRƯỜNG HỢP SỬA ---
+            // ĐÃ SỬA: Loại bỏ lệnh update trực tiếp vào đường dẫn cũ
+            const oldClassData = allClassesData[tempClassId];
+            // Giữ lại createdAt cũ
+            classData.createdAt = oldClassData?.createdAt || firebase.database.ServerValue.TIMESTAMP;
+            // Giữ lại các trường khác nếu cần thiết (ví dụ sessions cũ nếu không muốn tạo lại toàn bộ)
+            // ...
         } else {
-            // Nếu không có ID, là tạo mới
-            const newClassRef = database.ref(DB_PATHS.CLASSES).push();
-            const newClassId = newClassRef.key;
-            await newClassRef.set(classData);
-             // Cập nhật thông tin lớp học cho từng học viên
-            const studentUpdatePromises = Object.keys(selectedTempStudents).map(studentId => {
-                return database.ref(`students/${studentId}/classes/${newClassId}`).set({ enrolledAt: classData.createdAt });
-            });
-            await Promise.all(studentUpdatePromises);
+            // --- TRƯỜNG HỢP TẠO MỚI ---
+            // Tạo key mới trong đúng nhánh
+            const newClassRef = getBranchRef(DB_PATHS.CLASSES).push();
+            targetClassId = newClassRef.key;
         }
+
+        // 1. Cập nhật dữ liệu lớp học
+        updates[`/${basePath}/${DB_PATHS.CLASSES}/${targetClassId}`] = classData;
+
+        // 2. Cập nhật liên kết trong hồ sơ học viên
+        Object.keys(selectedTempStudents).forEach(studentId => {
+            updates[`/${basePath}/${DB_PATHS.STUDENTS}/${studentId}/classes/${targetClassId}`] = { enrolledAt: firebase.database.ServerValue.TIMESTAMP };
+        });
+
+        // Nếu đang sửa, cần xóa liên kết khỏi những học viên đã bị loại bỏ khỏi lớp tạm
+        if (tempClassId) {
+            const oldClassData = allClassesData[tempClassId];
+            const oldStudentIds = oldClassData?.students ? Object.keys(oldClassData.students) : [];
+            oldStudentIds.forEach(oldId => {
+                if (!selectedTempStudents[oldId]) {
+                    // Học viên cũ không còn trong danh sách mới -> Xóa liên kết
+                    updates[`/${basePath}/${DB_PATHS.STUDENTS}/${oldId}/classes/${targetClassId}`] = null;
+                }
+            });
+        }
+
+        // Thực hiện cập nhật
+        await database.ref().update(updates);
+
+        await logActivity(`Đã lưu lớp tạm thời: ${name} tại cơ sở ${selectedBranchId}`);
         
         closeModal('temp-class-form-modal');
         Swal.fire({ icon: 'success', title: 'Đã lưu lớp học thành công!', timer: 2000, showConfirmButton: false });
-        // Lịch sẽ tự động cập nhật do có listener
+
     } catch (error) {
-        console.error("Lỗi khi lưu lớp học từ lịch:", error);
+        console.error("Lỗi khi lưu lớp tạm thời:", error);
         Swal.fire("Lỗi", "Không thể lưu lớp học: " + error.message, "error");
     } finally {
         showLoading(false);
