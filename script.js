@@ -2720,6 +2720,14 @@ function showClassView(viewType) {
 
 // HÀM MỚI: Đánh dấu một lớp đã hoàn thành
 async function markClassAsCompleted(classId) {
+
+  // --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !classId) {
+        Swal.fire("Lỗi", "Chưa chọn cơ sở hoặc lớp học.", "error");
+        return;
+    }
+    // --- KẾT THÚC KIỂM TRA ---
+  
     const result = await Swal.fire({
         title: 'Xác nhận hoàn thành lớp?',
         text: "Lớp học sẽ được chuyển sang mục 'Đã hoàn thành'.",
@@ -2731,17 +2739,32 @@ async function markClassAsCompleted(classId) {
     });
 
     if (result.isConfirmed) {
-        await database.ref(`${DB_PATHS.CLASSES}/${classId}`).update({ status: 'completed' });
+      try {
+        await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).update({ status: 'completed' });
+      await logActivity(`Đã đánh dấu hoàn thành lớp: ${allClassesData[classId]?.name} tại cơ sở ${selectedBranchId}`);
         Swal.fire('Thành công!', 'Lớp học đã được chuyển trạng thái.', 'success');
-        renderClassList(); // Tải lại danh sách
+       // renderClassList(); // Tải lại danh sách
+        } catch (error) {
+            console.error("Lỗi khi hoàn thành lớp:", error);
+            Swal.fire("Lỗi", "Không thể cập nhật trạng thái lớp: " + error.message, "error");
     }
+  }
 }
 
 // HÀM MỚI: Khôi phục một lớp từ mục hoàn thành về lại hoạt động
 async function restoreClassFromCompleted(classId) {
-    await database.ref(`${DB_PATHS.CLASSES}/${classId}`).update({ status: 'active' });
+
+// --- THÊM KIỂM TRA ---
+    if (!selectedBranchId || !classId) { return; }
+    // --- KẾT THÚC KIỂM TRA ---
+  try {
+    await getBranchRef(`${DB_PATHS.CLASSES}/${classId}`).update({ status: 'active' });
+  await logActivity(`Đã khôi phục lớp ${allClassesData[classId]?.name} về trạng thái hoạt động tại cơ sở ${selectedBranchId}`);
     Swal.fire('Đã khôi phục!', 'Lớp học đã trở lại danh sách hoạt động.', 'success');
-    renderClassList(); // Tải lại danh sách
+    } catch (error) {
+        console.error("Lỗi khi khôi phục lớp:", error);
+        Swal.fire("Lỗi", "Không thể khôi phục lớp: " + error.message, "error");
+    }
 }
 async function editClass(id) {
     const classData = allClassesData[id];
