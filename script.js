@@ -8083,23 +8083,22 @@ function showChangeScheduleModal() {
 function hideChangeScheduleModal() {
   document.getElementById("change-schedule-modal").style.display = "none";
 }
+// Xác nhận và thực hiện thay đổi lịch học (ĐÃ SỬA LỖI MẤT BUỔI)
 async function confirmScheduleChange() {
-
-    // --- THÊM KIỂM TRA ---
     if (!selectedBranchId) {
         Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
         return;
     }
-    // --- KẾT THÚC KIỂM TRA ---
 
     const classId = document.getElementById("change-schedule-class-id").value;
     const changeDateStr = document.getElementById("change-schedule-date").value;
+
     if (!classId || !changeDateStr) {
         Swal.fire("Lỗi", "Thiếu thông tin lớp học hoặc ngày áp dụng.", "error");
         return;
     }
 
-    // Tạo schedule mới với key là SỐ
+    // Lấy lịch mới từ form
     const newFixedSchedule = {};
     const dayKeyToIndex = { "sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6 };
     const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -8107,15 +8106,27 @@ async function confirmScheduleChange() {
         const checkbox = document.getElementById(`new-schedule-${dayKey}`);
         if (checkbox && checkbox.checked) {
             const dayIndex = dayKeyToIndex[dayKey];
-            const hour = document.getElementById(`new-hour-${dayKey}`).value;
-            const minute = document.getElementById(`new-minute-${dayKey}`).value;
-            newFixedSchedule[dayIndex] = `${hour}:${minute}`;
+            const hour = document.getElementById(`new-hour-${dayKey}`)?.value;
+            const minute = document.getElementById(`new-minute-${dayKey}`)?.value;
+            if (hour && minute) {
+                 newFixedSchedule[dayIndex] = `${hour}:${minute}`;
+            }
         }
     });
 
-    if (Object.keys(newFixedSchedule).length === 0) { return; }
+    if (Object.keys(newFixedSchedule).length === 0) {
+        Swal.fire("Lỗi", "Vui lòng chọn ít nhất một ngày học cho lịch mới.", "error");
+        return;
+    }
 
-    const result = await Swal.fire({ /* ... hỏi xác nhận ... */ });
+    const result = await Swal.fire({
+        title: 'Xác nhận thay đổi lịch?',
+        text: `Lịch học mới sẽ áp dụng từ ngày ${changeDateStr}. Các buổi học cũ sau ngày này (nếu chưa điểm danh) sẽ bị xóa và thay thế bằng lịch mới.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Xác nhận',
+        cancelButtonText: 'Hủy'
+    });
 
     if (result.isConfirmed) {
         showLoading(true);
@@ -8125,87 +8136,86 @@ async function confirmScheduleChange() {
             const classData = classSnap.val();
             if (!classData) throw new Error("Không tìm thấy lớp học.");
 
-            // ... giữ nguyên logic xóa và đếm buổi học cũ ...
             const allSessions = classData.sessions || {};
             const attendanceSnap = await getBranchRef(`${DB_PATHS.ATTENDANCE}/${classId}`).once('value');
             const allAttendance = attendanceSnap.val() || {};
             const updates = {};
             const basePath = `branches/${selectedBranchId}/${DB_PATHS.CLASSES}/${classId}`;
             let pastSessionsCount = 0;
-           for (const dateKey in allSessions) {
-                // Chỉ xóa các buổi SAU hoặc BẰNG ngày thay đổi
+
+            // 1. Xác định các buổi cần xóa (hoặc giữ lại)
+            for (const dateKey in allSessions) {
                 if (dateKey >= changeDateStr) {
                     let isAttendedByAny = false;
-                    // Kiểm tra xem có ai đã điểm danh buổi này chưa
                     for (const studentId in allAttendance) {
                         if (allAttendance[studentId]?.[dateKey]?.attended === true) {
                             isAttendedByAny = true;
                             break;
                         }
                     }
-                    // Nếu CHƯA có ai điểm danh -> Xóa buổi này
                     if (!isAttendedByAny) {
-                         // --- THAY ĐỔI: Đường dẫn xóa ---
+                        // Xóa các buổi chưa điểm danh trong tương lai
                         updates[`/${basePath}/sessions/${dateKey}`] = null;
-                         // --- KẾT THÚC THAY ĐỔI ---
                     } else {
-                        // Nếu đã có người điểm danh -> Không xóa, coi như buổi đã qua
+                        // Giữ lại buổi đã điểm danh -> Tính là đã học
                         pastSessionsCount++;
-                         console.log(`Buổi ${dateKey} đã có người điểm danh, sẽ được giữ lại.`);
                     }
                 } else {
-                    // Các buổi trước ngày thay đổi -> Tăng số buổi đã qua
+                    // Buổi trong quá khứ -> Tính là đã học
                     pastSessionsCount++;
                 }
             }
-             console.log(`Số buổi học tính đến trước khi áp dụng lịch mới: ${pastSessionsCount}`);
-            
-            // Tính số buổi cần tạo mới (logic giữ nguyên)
+
+            // 2. Tính số buổi cần tạo mới
             let totalSessionsForCourse = 0;
             if (classData.classType === 'Lớp chứng chỉ') {
                 totalSessionsForCourse = certificateCourses[classData.certificateType]?.find(c => c.name === classData.courseName)?.sessions || 0;
             } else if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường') {
-                // Lớp thường: Tính tổng số buổi đã có + 16 (hoặc một số lượng đủ lớn)
-                // Hoặc dựa vào tổng số buổi của gói học viên? Logic này cần xem lại
-                totalSessionsForCourse = (Object.keys(allSessions).length - Object.keys(updates).length) + 24; // Tạm tính = số buổi còn lại + 24 buổi mới
-                 console.log(`Tính toán cho lớp thường: ${Object.keys(allSessions).length} (tổng cũ) - ${Object.keys(updates).filter(k=>k.includes('/sessions/')).length} (xóa) + 24 (mới) = ${totalSessionsForCourse}`);
+                // Logic ước lượng cho lớp thường: giữ nguyên số lượng hiện tại + 24 buổi đệm
+                const currentSessionCount = Object.keys(allSessions).length;
+                const deletedCount = Object.keys(updates).filter(k => k.includes('/sessions/') && updates[k] === null).length;
+                totalSessionsForCourse = (currentSessionCount - deletedCount) + 24;
             }
 
             let sessionsToGenerate = totalSessionsForCourse > 0 ? totalSessionsForCourse - pastSessionsCount : 0;
-            sessionsToGenerate = Math.max(0, sessionsToGenerate); // Đảm bảo không âm
-             console.log(`Số buổi cần tạo mới: ${sessionsToGenerate}`);
-            
+            sessionsToGenerate = Math.max(0, sessionsToGenerate);
+
+            // 3. Tạo và thêm các buổi mới
             if (sessionsToGenerate > 0) {
-                // Tạo các buổi mới từ changeDateStr với newFixedSchedule
                 const newSessions = generateRollingSessions(changeDateStr, sessionsToGenerate, newFixedSchedule);
+                
                 for(const dateKey in newSessions) {
-                    // Chỉ thêm nếu ngày đó không nằm trong danh sách xóa (mặc dù đã lọc ở trên)
-                    // và đảm bảo không ghi đè buổi đã điểm danh (nếu có)
-                     if (!updates[`/${basePath}/sessions/${dateKey}`] && !(allSessions[dateKey] && dateKey >= changeDateStr)) { // Kiểm tra kỹ hơn
-                         // --- THAY ĐỔI: Đường dẫn thêm ---
-                         updates[`/${basePath}/sessions/${dateKey}`] = newSessions[dateKey];
-                         // --- KẾT THÚC THAY ĐỔI ---
-                     }
+                    const sessionPath = `/${basePath}/sessions/${dateKey}`;
+                    
+                    // === SỬA LỖI LOGIC Ở ĐÂY ===
+                    // Kiểm tra xem buổi này có phải là buổi "Đã có và Được giữ lại" không?
+                    // Nó được giữ lại nếu: Tồn tại trong allSessions VÀ KHÔNG nằm trong danh sách xóa (updates[path] !== null)
+                    const isExistingAndKept = (allSessions[dateKey] && dateKey >= changeDateStr) && (updates[sessionPath] === undefined);
+                    
+                    // Chỉ thêm mới nếu nó KHÔNG PHẢI là buổi được giữ lại
+                    // (Tức là: Nếu là ngày mới tinh -> Thêm. Nếu là ngày cũ bị xóa -> Ghi đè).
+                    if (!isExistingAndKept) {
+                         updates[sessionPath] = newSessions[dateKey];
+                    }
+                    // ===========================
                 }
             }
 
+            // Cập nhật lịch cố định
             updates[`/${basePath}/fixedSchedule`] = newFixedSchedule;
-            updates[`/${basePath}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP; // Thêm updatedAt
-            
-            // Thực hiện cập nhật hàng loạt
+            updates[`/${basePath}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+
             if (Object.keys(updates).length > 0) {
                  await database.ref().update(updates);
                  await logActivity(`Đã thay đổi lịch học cho lớp ${classData.name} tại cơ sở ${selectedBranchId} áp dụng từ ${changeDateStr}`);
                  hideChangeScheduleModal();
                  Swal.fire('Thành công!', 'Lịch học đã được cập nhật.', 'success');
-                 // Quan trọng: Cần tải lại dữ liệu lớp học để listener cập nhật allClassesData
-                 // hoặc cập nhật thủ công allClassesData[classId]
-                 allClassesData[classId] = (await classRef.once('value')).val(); // Đọc lại dữ liệu mới nhất
-                 // Có thể cần render lại bảng điểm danh nếu đang mở
+                 
+                 // Cập nhật dữ liệu cục bộ
+                 allClassesData[classId] = (await classRef.once('value')).val();
                  if(document.getElementById("class-attendance-modal-overlay").style.display === "flex") {
                      renderClassAttendanceTable(classId);
                  }
-
             } else {
                  Swal.fire('Không thay đổi', 'Không có cập nhật nào được thực hiện.', 'info');
                  hideChangeScheduleModal();
