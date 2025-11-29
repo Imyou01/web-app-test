@@ -2775,30 +2775,16 @@ async function editClass(id) {
         return;
     }
 
-    // --- LOGIC NHẬN DIỆN MỚI ---
-   let isConsideredTemp = false;
-
-    // 1. Ưu tiên kiểm tra cờ 'isTemporary' có được đặt tường minh hay không
-    if (classData.isTemporary === true) {
-        isConsideredTemp = true;
-    // 2. Sau đó, kiểm tra loại lớp 'classType' đã được lưu
-    } else if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp chứng chỉ' || classData.classType === 'Lớp các môn trên trường') {
-    isConsideredTemp = false; // Đây chắc chắn là lớp chính thức, không phải lớp tạm thời
-    // 3. Cuối cùng, mới dùng tên lớp để "đoán" cho các trường hợp khác hoặc dữ liệu cũ (fallback)
-    } else {
-        const subject = getSubjectClass(classData.name);
-        if (subject === 'subject-default') {
-            isConsideredTemp = true;
-        }
-    }
-    // --- KẾT THÚC LOGIC MỚI ---
+    // --- LOGIC NHẬN DIỆN MỚI DỰA TRÊN TÊN LỚP ---
+    const className = (classData.name || "").toLowerCase(); // Chuyển về chữ thường để so sánh
+    const isConsideredTemp = className.includes("tạm thời"); // Kiểm tra xem có chứa từ khoá không
 
     if (isConsideredTemp) {
-        // Mở form cho lớp tạm thời / lớp có màu xám
+        // Nếu tên có chứa "Tạm thời" -> Mở form lớp tạm
         editTempClass(id, classData);
     } else {
-        // Mở form cho lớp chính thức
-        editOfficialClass(id); // Chỉ cần truyền ID, hàm này sẽ tự lấy data
+        // Tất cả các trường hợp còn lại -> Mở form lớp chính thức
+        editOfficialClass(id);
     }
 }
 // Chỉnh sửa lớp (đổ dữ liệu vào form)
@@ -4779,6 +4765,12 @@ function getSubjectClass(className) {
     if (!className) return 'subject-default';
     const lowerCaseName = className.toLowerCase();
     
+    // --- Ưu tiên kiểm tra "Tạm thời" trước ---
+    if (lowerCaseName.includes('tạm thời')) {
+        return 'subject-default'; // Màu xám (hoặc style mặc định cho lớp tạm)
+    }
+    
+    // Các logic cũ giữ nguyên
     if (lowerCaseName.includes('ielts')) {
         return 'subject-ielts';
     }
