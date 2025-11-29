@@ -1867,9 +1867,24 @@ function renderStudentList(dataset) {
             </div>
         `;
 
+        // === MỚI: Logic lấy tên các lớp học viên đang tham gia ===
+        let classNames = [];
+        if (st.classes) {
+            Object.keys(st.classes).forEach(classId => {
+                const cls = allClassesData[classId];
+                // Chỉ hiển thị lớp nếu lớp đó tồn tại và chưa bị xóa
+                if (cls && cls.status !== 'deleted') {
+                    classNames.push(cls.name);
+                }
+            });
+        }
+        const classNamesString = classNames.length > 0 ? classNames.join(", ") : "";
+        // =========================================================
+
         const row = `
             <tr class="${isHighlight ? 'highlight-row' : ''}">
                 <td data-label="Họ và tên" class="${warningClass}">${iconHtml}${highlight(st.name || "")}</td>
+                <td data-label="Lớp" style="font-weight: 500; color: #0066cc;">${classNamesString}</td>
                 <td data-label="Năm sinh">${st.dob || ""}</td>
 
                 <!-- === DỮ LIỆU CỦA 2 CỘT MỚI === -->
