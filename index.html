@@ -1194,6 +1194,35 @@
         </div>
     </div>
     
+    <div class="modal" id="student-attendance-history-modal" style="display: none;">
+        <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
+        <div class="modal__content modal__content--large">
+            <div class="modal__header">
+                <h3 class="modal__title">Chi tiết quá trình học: <span id="history-student-name"></span></h3>
+                <button class="modal__close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button>
+            </div>
+            <div class="data-table-wrapper" style="max-height: 500px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead class="data-table__head">
+                        <tr class="data-table__row">
+                            <th class="data-table__header" style="width: 50px;">STT</th>
+                            <th class="data-table__header">Ngày học</th>
+                            <th class="data-table__header">Giờ học</th>
+                            <th class="data-table__header">Tên lớp</th>
+                            <th class="data-table__header">Giáo viên</th>
+                            <th class="data-table__header">Loại buổi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-attendance-history-list" class="data-table__body"></tbody>
+                </table>
+            </div>
+            <div class="modal__footer">
+                <div style="margin-right: auto; font-weight: bold;">Tổng số buổi đã học: <span id="history-total-count">0</span></div>
+                <button type="button" class="modal__button modal__button--cancel" onclick="this.closest('.modal').style.display='none'">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="progress-modal" style="display: none;">
         <div class="modal__overlay" onclick="this.parentElement.style.display='none'"></div>
         <div class="modal__content modal__content--extra-large">
