@@ -1580,3 +1580,16 @@ a:hover {
     width: 16px; /* Kích thước icon nhỏ hơn một chút */
     height: 16px;
 }
+/* Style cho ô số buổi đã học để người dùng biết có thể click */
+.clickable-cell {
+    cursor: pointer;
+    color: var(--color-primary);
+    font-weight: bold;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.clickable-cell:hover {
+    color: var(--color-primary-dark);
+    background-color: #e9ecef;
+}
