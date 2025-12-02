@@ -1897,7 +1897,7 @@ function renderStudentList(dataset) {
                 <td data-label="Ngày tạo">${formatTimestamp(st.createdAt)}</td>
                 <td data-label="Ngày sửa đổi">${formatTimestamp(st.updatedAt)}</td>
                 ${tuitionCellHTML}
-                <td data-label="Số buổi đã học" class="td-sessions-attended">${st.sessionsAttended || 0}</td>
+               <td data-label="Số buổi đã học" class="td-sessions-attended clickable-cell" onclick="showStudentAttendanceHistory('${id}')" title="Xem chi tiết">${st.sessionsAttended || 0}</td>
                 <td data-label="Buổi còn lại" class="td-sessions-remaining">${remainingSessions}</td>
                 <td data-label="Thông báo">${notificationCellHTML}</td>
                 <td data-label="Hành động">${actionButtonsHTML}</td>
@@ -10809,5 +10809,124 @@ function initListeners() {
          window.globalListenersInitialized = true; // Đánh dấu đã chạy
     } else {
          console.log("Listeners chung đã được khởi tạo trước đó.");
+    }
+}
+/**
+ * HÀM MỚI: Hiển thị chi tiết lịch sử các buổi đã học của học viên
+ */
+async function showStudentAttendanceHistory(studentId) {
+    if (!selectedBranchId) return;
+
+    showLoading(true);
+    try {
+        const student = allStudentsData[studentId];
+        if (!student) {
+            Swal.fire("Lỗi", "Không tìm thấy thông tin học viên.", "error");
+            return;
+        }
+
+        document.getElementById("history-student-name").textContent = student.name;
+        const tbody = document.getElementById("student-attendance-history-list");
+        tbody.innerHTML = "";
+
+        // Mảng chứa tất cả các buổi đã học từ tất cả các lớp
+        let allAttendedSessions = [];
+
+        // Duyệt qua tất cả các lớp trong hệ thống để tìm điểm danh của học viên này
+        // (Cách này đảm bảo lấy được cả dữ liệu từ các lớp cũ/đã hoàn thành nếu còn lưu attendance)
+        for (const classId in allClassesData) {
+            const classData = allClassesData[classId];
+            
+            // Kiểm tra xem có dữ liệu điểm danh của lớp này không
+            if (allAttendanceData[classId] && allAttendanceData[classId][studentId]) {
+                const studentAttendance = allAttendanceData[classId][studentId];
+
+                for (const dateKey in studentAttendance) {
+                    // Chỉ lấy những buổi CÓ ĐI MÃ (attended === true)
+                    if (studentAttendance[dateKey]?.attended === true) {
+                        
+                        // Lấy thông tin chi tiết buổi học từ classData
+                        let sessionInfo = classData.sessions?.[dateKey];
+                        let examInfo = classData.exams?.[dateKey];
+                        
+                        // Xác định loại buổi và giờ học
+                        let type = "Buổi học";
+                        let time = "---";
+
+                        if (examInfo) {
+                            type = examInfo.name || "Bài kiểm tra";
+                            // Bài kiểm tra thường không lưu giờ cụ thể trong cấu trúc cũ, 
+                            // nếu có lưu thì lấy, không thì lấy giờ mặc định từ lịch cố định
+                            const dayOfWeek = new Date(dateKey).getDay();
+                            time = classData.fixedSchedule?.[dayOfWeek] || "---"; 
+                        } else if (sessionInfo) {
+                            time = sessionInfo.time || "---";
+                            if (sessionInfo.type === 'makeup') type = "Học bù";
+                            else if (sessionInfo.type === 'extra') type = "Học thêm";
+                        } else {
+                            // Trường hợp buổi học bị xóa khỏi classes nhưng vẫn còn trong attendance
+                            // hoặc dữ liệu cũ
+                            type = "Không xác định (Dữ liệu cũ)";
+                        }
+
+                        // Nếu là lớp chứng chỉ và là buổi thi -> KHÔNG TÍNH vào số buổi đã học
+                        // (Theo logic bạn đã yêu cầu trước đó)
+                        const isCertificateClass = classData.classType === 'Lớp chứng chỉ';
+                        let shouldCount = true;
+                        if (isCertificateClass && examInfo) {
+                            shouldCount = false;
+                        }
+
+                        if (shouldCount) {
+                            allAttendedSessions.push({
+                                date: dateKey,
+                                time: time,
+                                className: classData.name,
+                                teacher: classData.teacher || "---",
+                                type: type,
+                                timestamp: new Date(dateKey + 'T00:00:00').getTime()
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sắp xếp theo thời gian tăng dần (Cũ -> Mới)
+        allAttendedSessions.sort((a, b) => a.timestamp - b.timestamp);
+
+        // Render ra bảng
+        if (allAttendedSessions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Học viên chưa tham gia buổi học nào.</td></tr>';
+        } else {
+            allAttendedSessions.forEach((session, index) => {
+                // Định dạng ngày
+                const dateParts = session.date.split('-');
+                const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+                const row = `
+                    <tr>
+                        <td style="text-align: center; font-weight: bold;">${index + 1}</td>
+                        <td>${formattedDate}</td>
+                        <td>${session.time}</td>
+                        <td>${session.className}</td>
+                        <td>${session.teacher}</td>
+                        <td>${session.type}</td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        document.getElementById("history-total-count").textContent = allAttendedSessions.length;
+        
+        // Hiển thị Modal
+        document.getElementById("student-attendance-history-modal").style.display = "flex";
+
+    } catch (error) {
+        console.error("Lỗi khi xem lịch sử chi tiết:", error);
+        Swal.fire("Lỗi", "Không thể tải lịch sử chi tiết: " + error.message, "error");
+    } finally {
+        showLoading(false);
     }
 }
