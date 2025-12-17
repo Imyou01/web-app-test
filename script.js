@@ -8090,7 +8090,7 @@ function showChangeScheduleModal() {
 function hideChangeScheduleModal() {
   document.getElementById("change-schedule-modal").style.display = "none";
 }
-// Xác nhận và thực hiện thay đổi lịch học (ĐÃ SỬA LỖI MẤT BUỔI)
+// Xác nhận và thực hiện thay đổi lịch học (ĐÃ SỬA LỖI KHÔNG SINH RA BUỔI MỚI CHO LỚP TẠM/KHÁC)
 async function confirmScheduleChange() {
     if (!selectedBranchId) {
         Swal.fire("Lỗi", "Chưa chọn cơ sở làm việc.", "error");
@@ -8175,17 +8175,26 @@ async function confirmScheduleChange() {
 
             // 2. Tính số buổi cần tạo mới
             let totalSessionsForCourse = 0;
+
+            // --- SỬA ĐỔI LOGIC TÍNH TOÁN ---
             if (classData.classType === 'Lớp chứng chỉ') {
+                // Nếu là lớp chứng chỉ: Lấy đúng số buổi quy định
                 totalSessionsForCourse = certificateCourses[classData.certificateType]?.find(c => c.name === classData.courseName)?.sessions || 0;
-            } else if (classData.classType === 'Lớp tiếng Anh phổ thông' || classData.classType === 'Lớp các môn trên trường') {
-                // Logic ước lượng cho lớp thường: giữ nguyên số lượng hiện tại + 24 buổi đệm
+            } else {
+                // Nếu là Lớp Phổ thông, Lớp Môn Trường, Lớp Tạm Thời, hoặc KHÔNG CÓ LOẠI
+                // -> Mặc định lấy số buổi hiện tại (trừ đi số bị xóa) + 24 buổi mới
                 const currentSessionCount = Object.keys(allSessions).length;
                 const deletedCount = Object.keys(updates).filter(k => k.includes('/sessions/') && updates[k] === null).length;
+                
+                // Đảm bảo luôn tạo thêm ít nhất 24 buổi đệm
                 totalSessionsForCourse = (currentSessionCount - deletedCount) + 24;
             }
+            // -------------------------------
 
             let sessionsToGenerate = totalSessionsForCourse > 0 ? totalSessionsForCourse - pastSessionsCount : 0;
             sessionsToGenerate = Math.max(0, sessionsToGenerate);
+
+            console.log(`Đang tạo thêm ${sessionsToGenerate} buổi mới từ ngày ${changeDateStr}`);
 
             // 3. Tạo và thêm các buổi mới
             if (sessionsToGenerate > 0) {
@@ -8194,17 +8203,12 @@ async function confirmScheduleChange() {
                 for(const dateKey in newSessions) {
                     const sessionPath = `/${basePath}/sessions/${dateKey}`;
                     
-                    // === SỬA LỖI LOGIC Ở ĐÂY ===
-                    // Kiểm tra xem buổi này có phải là buổi "Đã có và Được giữ lại" không?
-                    // Nó được giữ lại nếu: Tồn tại trong allSessions VÀ KHÔNG nằm trong danh sách xóa (updates[path] !== null)
+                    // Kiểm tra: Chỉ thêm nếu buổi này không phải là buổi cũ được giữ lại
                     const isExistingAndKept = (allSessions[dateKey] && dateKey >= changeDateStr) && (updates[sessionPath] === undefined);
                     
-                    // Chỉ thêm mới nếu nó KHÔNG PHẢI là buổi được giữ lại
-                    // (Tức là: Nếu là ngày mới tinh -> Thêm. Nếu là ngày cũ bị xóa -> Ghi đè).
                     if (!isExistingAndKept) {
                          updates[sessionPath] = newSessions[dateKey];
                     }
-                    // ===========================
                 }
             }
 
@@ -8216,7 +8220,7 @@ async function confirmScheduleChange() {
                  await database.ref().update(updates);
                  await logActivity(`Đã thay đổi lịch học cho lớp ${classData.name} tại cơ sở ${selectedBranchId} áp dụng từ ${changeDateStr}`);
                  hideChangeScheduleModal();
-                 Swal.fire('Thành công!', 'Lịch học đã được cập nhật.', 'success');
+                 Swal.fire('Thành công!', `Đã cập nhật lịch và tạo thêm ${sessionsToGenerate} buổi học.`, 'success');
                  
                  // Cập nhật dữ liệu cục bộ
                  allClassesData[classId] = (await classRef.once('value')).val();
