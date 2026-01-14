@@ -887,37 +887,71 @@ function backToDashboard() {
   window.location.hash = "dashboard";
 }
 async function loadInitialData() {
-    console.log(`Bắt đầu tải dữ liệu ban đầu cho cơ sở: ${selectedBranchId}...`); // Thêm log để biết đang tải cơ sở nào
-    showLoading(true); // Hiển thị loading ở đây
+    console.log(`Bắt đầu tải dữ liệu ban đầu cho cơ sở: ${selectedBranchId}...`);
+    showLoading(true);
+    
     try {
-        // --- THAY ĐỔI CÁCH GỌI Ở ĐÂY ---
-        const [usersSnap, classesSnap, studentsSnap, attendanceSnap, personnelAttendanceSnap, homeworkScoresSnap /*, Thêm các Snap khác nếu cần */] = await Promise.all([
-            database.ref(DB_PATHS.USERS).once('value'),               // Giữ nguyên vì users là chung
-            getBranchRef(DB_PATHS.CLASSES).once('value'),             // Sử dụng getBranchRef
-            getBranchRef(DB_PATHS.STUDENTS).once('value'),            // Sử dụng getBranchRef
-            getBranchRef(DB_PATHS.ATTENDANCE).once('value'),          // Sử dụng getBranchRef
-            getBranchRef(DB_PATHS.PERSONNEL_ATTENDANCE).once('value'), // Sử dụng getBranchRef
-            getBranchRef(DB_PATHS.HOMEWORK_SCORES).once('value')      // Sử dụng getBranchRef
-            // Thêm getBranchRef(...).once('value') cho các path khác trong DB_PATHS nếu bạn dùng chúng ở đây
-        ]);
-        // --- KẾT THÚC THAY ĐỔI ---
+        // --- 1. XỬ LÝ THÔNG TIN CƠ SỞ (TỰ ĐỘNG TẠO) ---
+        const branchRef = database.ref(`branches/${selectedBranchId}`);
+        const branchSnapshot = await branchRef.once('value');
+        let branchData = branchSnapshot.val();
 
-        // Gán dữ liệu vào các biến toàn cục (giữ nguyên)
-        allUsersData = usersSnap.val() || {}; // users vẫn lấy từ gốc
+        if (!branchData) {
+            console.log(`Cơ sở ${selectedBranchId} chưa tồn tại. Đang khởi tạo...`);
+            
+            // Dữ liệu mẫu ban đầu
+            branchData = {
+                name: selectedBranchId === 'branch3' ? "Cơ sở 3" : 
+                      selectedBranchId === 'branch4' ? "Cơ sở 4" : 
+                      "Cơ sở Mới",
+                address: "Chưa cập nhật địa chỉ",
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            // Ghi ngay lập tức vào Firebase
+            await branchRef.set(branchData);
+            console.log("Đã khởi tạo thành công!");
+        }
+
+        // Cập nhật tên cơ sở trên giao diện
+        const branchNameEl = document.getElementById('current-branch-name');
+        if (branchNameEl) {
+             branchNameEl.textContent = branchData.name || selectedBranchId;
+        }
+
+        // --- 2. TẢI DỮ LIỆU CHI TIẾT CỦA CƠ SỞ ---
+        const [usersSnap, classesSnap, studentsSnap, attendanceSnap, personnelAttendanceSnap, homeworkScoresSnap] = await Promise.all([
+            database.ref(DB_PATHS.USERS).once('value'),            // Users dùng chung (gốc)
+            getBranchRef(DB_PATHS.CLASSES).once('value'),          // Classes theo nhánh
+            getBranchRef(DB_PATHS.STUDENTS).once('value'),         // Students theo nhánh
+            getBranchRef(DB_PATHS.ATTENDANCE).once('value'),       // Attendance theo nhánh
+            getBranchRef(DB_PATHS.PERSONNEL_ATTENDANCE).once('value'), // Personnel Attendance theo nhánh
+            getBranchRef(DB_PATHS.HOMEWORK_SCORES).once('value')   // Homework Scores theo nhánh
+        ]);
+
+        // Gán dữ liệu vào các biến toàn cục
+        allUsersData = usersSnap.val() || {};
         allClassesData = classesSnap.val() || {};
         allStudentsData = studentsSnap.val() || {};
-        allAttendanceData = attendanceSnap.val() || {}; // Đảm bảo bạn có biến này
-        allPersonnelAttendanceData = personnelAttendanceSnap.val() || {}; // Cần biến này nếu dùng
-        allHomeworkScoresData = homeworkScoresSnap.val() || {}; // Cần biến này nếu dùng
+        allAttendanceData = attendanceSnap.val() || {};
+        allPersonnelAttendanceData = personnelAttendanceSnap.val() || {};
+        allHomeworkScoresData = homeworkScoresSnap.val() || {};
 
         console.log("Tải dữ liệu ban đầu thành công!");
 
     } catch (error) {
         console.error("Lỗi nghiêm trọng khi tải dữ liệu ban đầu:", error);
-        Swal.fire("Lỗi kết nối", `Không thể tải dữ liệu từ cơ sở ${selectedBranchId}. Vui lòng kiểm tra kết nối mạng và thử lại.`, "error");
-        throw error; // Ném lỗi ra ngoài để hàm gọi nó biết và dừng lại
+        
+        // Hiển thị thông báo lỗi đẹp
+        Swal.fire({
+            title: "Lỗi kết nối", 
+            text: `Không thể tải dữ liệu từ cơ sở ${selectedBranchId}. Vui lòng kiểm tra kết nối mạng và thử lại.`, 
+            icon: "error"
+        });
+        
+        throw error; // Ném lỗi để các hàm gọi (nếu có) biết
     } finally {
-        showLoading(false); // Ẩn loading khi hoàn thành hoặc lỗi
+        showLoading(false); // Luôn tắt loading dù thành công hay thất bại
     }
 }
 // Chuyển trang theo hash
