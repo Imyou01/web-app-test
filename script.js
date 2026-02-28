@@ -10117,8 +10117,7 @@ function applySwalFilters() {
     }
 }
 /**
- * LOGIC CHÍNH ĐỂ TẠO BÁO CÁO CHU KỲ (PHIÊN BẢN HOÀN CHỈNH)
- * Tự động bù thêm các buổi học dự đoán để đảm bảo đủ 24 buổi/chu kì.
+ * LOGIC CHÍNH ĐỂ TẠO BÁO CÁO CHU KỲ (CÓ POPUP CHỌN LỚP DỰ ĐOÁN & GIỮ NGUYÊN LOGIC CỦA BẠN)
  */
 async function generateCycleReport(studentIds) {
     showLoading(true);
@@ -10142,34 +10141,92 @@ async function generateCycleReport(studentIds) {
                 continue;
             }
 
-            const allScheduledDatesSet = new Set();
-            const currentClassId = findActiveStudentClassId(studentId, studentData);
-            const pastClassIds = (studentData.classes ? Object.keys(studentData.classes) : []).filter(id => id !== currentClassId);
+            // 1. TÌM TẤT CẢ CÁC LỚP HỌC VIÊN ĐANG THAM GIA
+            const studentClassIds = studentData.classes ? Object.keys(studentData.classes) : [];
+            let activeClasses = [];
 
-            if (currentClassId) {
-                const classData = allClassesData[currentClassId];
-                if (classData && classData.sessions) {
-                    Object.keys(classData.sessions).forEach(date => allScheduledDatesSet.add(date));
+            studentClassIds.forEach(classId => {
+                const classData = allClassesData[classId];
+                if (classData && classData.status !== 'deleted' && classData.status !== 'completed') {
+                    activeClasses.push({ id: classId, name: classData.name, data: classData });
                 }
+            });
+
+            let selectedClassId = null;
+            let selectedClassData = null;
+
+            // 2. NẾU HỌC 2 LỚP TRỞ LÊN -> HIỂN THỊ POPUP CHỌN LỚP ĐỂ DỰ ĐOÁN
+            if (activeClasses.length > 1) {
+                // Tạm tắt loading để hiện popup
+                showLoading(false);
+                
+                const inputOptions = {};
+                activeClasses.forEach(cls => {
+                    inputOptions[cls.id] = cls.name;
+                });
+
+                const { value: chosenClassId } = await Swal.fire({
+                    title: `Chọn lớp cho ${studentData.name}`,
+                    text: `Học viên này đang học ${activeClasses.length} lớp song song. Bạn muốn xuất báo cáo và dự đoán chu kỳ theo lịch của lớp nào?`,
+                    input: 'select',
+                    inputOptions: inputOptions,
+                    inputPlaceholder: '--- Chọn lớp ---',
+                    showCancelButton: true,
+                    confirmButtonText: 'Chọn và Tiếp tục',
+                    cancelButtonText: 'Bỏ qua học viên này',
+                    allowOutsideClick: false
+                });
+
+                if (!chosenClassId) {
+                    fullReport.push(" >> Bỏ qua: Người dùng đã hủy chọn lớp dự đoán.\n-----------------------------------------------------\n");
+                    showLoading(true); // Bật lại loading cho người tiếp theo
+                    continue; 
+                }
+                
+                selectedClassId = chosenClassId;
+                selectedClassData = activeClasses.find(c => c.id === chosenClassId).data;
+                
+                showLoading(true); 
+            } else if (activeClasses.length === 1) {
+                selectedClassId = activeClasses[0].id;
+                selectedClassData = activeClasses[0].data;
             } else {
-                 fullReport.push(" >> LỖI: Không tìm thấy lớp học hiện tại để dự đoán tương lai.\n-----------------------------------------------------\n");
+                 selectedClassId = findActiveStudentClassId(studentId, studentData);
+                 if (selectedClassId) {
+                     selectedClassData = allClassesData[selectedClassId];
+                 }
+            }
+
+            if (!selectedClassId || !selectedClassData) {
+                 fullReport.push(" >> LỖI: Không tìm thấy lớp học để dự đoán tương lai.\n-----------------------------------------------------\n");
                  continue;
             }
 
-            for (const classId of pastClassIds) {
-                const classData = allClassesData[classId];
-                if (classData && classData.sessions) {
-                    const attendanceRecords = allAttendanceData[classId]?.[studentId];
-                    if (attendanceRecords) {
-                        const lastAttendedDateInClass = Object.keys(attendanceRecords).sort().pop();
-                        Object.keys(classData.sessions).forEach(date => {
-                            if (date <= lastAttendedDateInClass) {
-                                allScheduledDatesSet.add(date);
-                            }
-                        });
+            // 3. TẠO TẬP HỢP CÁC NGÀY (TIMELINE)
+            const allScheduledDatesSet = new Set();
+            
+            // 3.1. Lấy lịch của LỚP ĐƯỢC CHỌN
+            if (selectedClassData.sessions) {
+                Object.keys(selectedClassData.sessions).forEach(date => allScheduledDatesSet.add(date));
+            }
+
+            // 3.2. Lấy lịch trong quá khứ của CÁC LỚP KHÁC 
+            studentClassIds.forEach(classId => {
+                if (classId !== selectedClassId) {
+                    const classData = allClassesData[classId];
+                    if (classData && classData.sessions) {
+                        const attendanceRecords = allAttendanceData[classId]?.[studentId];
+                        if (attendanceRecords) {
+                            const lastAttendedDateInClass = Object.keys(attendanceRecords).sort().pop();
+                            Object.keys(classData.sessions).forEach(date => {
+                                if (date <= lastAttendedDateInClass) {
+                                    allScheduledDatesSet.add(date);
+                                }
+                            });
+                        }
                     }
                 }
-            }
+            });
 
             const studentTimelineUnfiltered = Array.from(allScheduledDatesSet).sort().filter(date => date >= cycleStartDate);
             
@@ -10178,17 +10235,14 @@ async function generateCycleReport(studentIds) {
                 return !HOLIDAYS.includes(monthDay);
             });
 
-            // *** BƯỚC BÙ THÊM BUỔI HỌC DỰ ĐOÁN ***
+            // *** 4. BƯỚC BÙ THÊM BUỔI HỌC DỰ ĐOÁN ***
             if (studentTimeline.length > 0) {
                 const lastKnownDate = studentTimeline[studentTimeline.length - 1];
-                const currentClassData = allClassesData[currentClassId];
 
-                if (currentClassData && currentClassData.fixedSchedule) {
-                    // Tạo thêm 50 buổi học nữa (đã lọc ngày lễ) tính từ sau ngày cuối cùng đã biết
-                    const futureSessionsObject = generateRollingSessions(lastKnownDate, 50, currentClassData.fixedSchedule);
+                if (selectedClassData.fixedSchedule) {
+                    const futureSessionsObject = generateRollingSessions(lastKnownDate, 50, selectedClassData.fixedSchedule);
                     const futureSessions = Object.keys(futureSessionsObject);
 
-                    // Gộp lại để có một dòng thời gian đủ dài
                     const finalTimelineSet = new Set([...studentTimeline, ...futureSessions]);
                     studentTimeline = Array.from(finalTimelineSet).sort();
                 }
@@ -10222,8 +10276,8 @@ async function generateCycleReport(studentIds) {
             const nextCycleSessions = studentTimeline.slice((cycleIndex + 1) * 24, (cycleIndex + 2) * 24);
             
             fullReport.push(`Ngày bắt đầu tính chu kì: ${cycleStartDate}`);
+            fullReport.push(`* Lớp được chọn để dự đoán lịch học: ${selectedClassData.name}`);
             
-            // === PHẦN MỚI: Khởi tạo biến đếm ===
             let currentCycleAbsences = 0;
             let totalAbsences = 0;
 
@@ -10232,6 +10286,10 @@ async function generateCycleReport(studentIds) {
                 currentCycleSessions.forEach(date => {
                     if (date < todayStr) {
                         const isAttended = attendedDatesSet.has(date);
+                        
+                        // Đã sửa lỗi quên đếm số buổi nghỉ của code cũ
+                        if (!isAttended) currentCycleAbsences++; 
+                        
                         fullReport.push(`- ${date} ${isAttended ? '' : '(nghỉ)'}`.trim());
                     } else {
                         fullReport.push(`- ${date} (dự đoán)`);
@@ -10250,7 +10308,7 @@ async function generateCycleReport(studentIds) {
                 fullReport.push("Không có dữ liệu cho chu kỳ tiếp theo.");
             }
 
-            // === PHẦN MỚI: Tính tổng số buổi nghỉ từ trước đến nay ===
+            // Tính tổng số buổi nghỉ từ trước đến nay
             const pastSessions = studentTimeline.filter(date => date < todayStr);
             pastSessions.forEach(date => {
                 if (!attendedDatesSet.has(date)) {
@@ -10258,7 +10316,7 @@ async function generateCycleReport(studentIds) {
                 }
             });
 
-            // === PHẦN MỚI: Thêm phần tổng kết vào báo cáo ===
+            // Thêm phần tổng kết vào báo cáo
             fullReport.push(`\n## TỔNG KẾT ##`);
             fullReport.push(`- Số buổi nghỉ trong chu kỳ hiện tại: ${currentCycleAbsences}`);
             fullReport.push(`- Tổng số buổi nghỉ từ trước đến nay: ${totalAbsences}`);
@@ -10266,9 +10324,14 @@ async function generateCycleReport(studentIds) {
             fullReport.push(`\n-----------------------------------------------------\n`);
         }
         
-        const reportContent = fullReport.join('\n');
-        const todayFile = new Date().toISOString().split('T')[0];
-        downloadToFile(reportContent, `BaoCaoChuKyHoc_${todayFile}.txt`, 'text/plain');
+        // Xuất file
+        if (fullReport.length > 0) {
+            const reportContent = fullReport.join('\n');
+            const todayFile = new Date().toISOString().split('T')[0];
+            downloadToFile(reportContent, `BaoCaoChuKyHoc_${todayFile}.txt`, 'text/plain');
+        } else {
+            Swal.fire("Thông báo", "Không có báo cáo nào được xuất.", "info");
+        }
 
     } catch (error) {
         console.error("Lỗi khi tạo báo cáo chu kỳ:", error);
@@ -10852,49 +10915,144 @@ function initListeners() {
 /**
  * HÀM MỚI: Hiển thị chi tiết lịch sử các buổi đã học của học viên
  */
+/**
+ * 1. HÀM HIỂN THỊ POPUP CHỌN LỚP (Đã fix lỗi tải dữ liệu mới nhất)
+ */
+/**
+ * 1. HÀM HIỂN THỊ POPUP CHỌN LỚP (Đã nâng cấp: Lọc bỏ lớp rác/lớp ảo do lỗi cũ)
+ */
 async function showStudentAttendanceHistory(studentId) {
     if (!selectedBranchId) return;
-
+    
     showLoading(true);
     try {
         const student = allStudentsData[studentId];
         if (!student) {
             Swal.fire("Lỗi", "Không tìm thấy thông tin học viên.", "error");
+            showLoading(false);
             return;
         }
 
+        // Lấy dữ liệu điểm danh mới nhất trực tiếp từ Firebase
+        const attendanceSnap = await getBranchRef(DB_PATHS.ATTENDANCE).once('value');
+        const freshAttendanceData = attendanceSnap.val() || {};
+
+        const participatedClasses = [];
+        
+        for (const classId in allClassesData) {
+            const classData = allClassesData[classId];
+            if (!classData) continue;
+
+            // ĐIỀU KIỆN 1: Kiểm tra học viên có đang THỰC SỰ nằm trong danh sách hiện tại của lớp không
+            let inActiveList = false;
+            if (classData.students) {
+                if (Array.isArray(classData.students)) {
+                    inActiveList = classData.students.includes(studentId);
+                } else {
+                    inActiveList = !!classData.students[studentId];
+                }
+            }
+
+            // ĐIỀU KIỆN 2: Kiểm tra học viên có THỰC SỰ ĐI HỌC (có mặt ít nhất 1 buổi) không
+            let hasActualAttendance = false;
+            if (freshAttendanceData[classId] && freshAttendanceData[classId][studentId]) {
+                const records = freshAttendanceData[classId][studentId];
+                for (const date in records) {
+                    // Phải có ít nhất 1 buổi attended === true thì mới tính là đã từng tham gia
+                    if (records[date] && records[date].attended === true) {
+                        hasActualAttendance = true;
+                        break; 
+                    }
+                }
+            }
+            
+            // NẾU đang ở trong lớp HOẶC đã từng đi học ít nhất 1 buổi thì mới hiển thị lên Popup
+            if (inActiveList || hasActualAttendance) {
+                participatedClasses.push({
+                    id: classId,
+                    name: classData.name || "Lớp không tên"
+                });
+            }
+        }
+
+        showLoading(false); // Tắt loading để hiện popup
+
+        // Nếu tham gia từ 2 lớp hợp lệ trở lên
+        if (participatedClasses.length > 1) {
+            const inputOptions = {};
+            participatedClasses.forEach(cls => {
+                inputOptions[cls.id] = cls.name;
+            });
+            inputOptions['all'] = "Tất cả các lớp (Tổng hợp)";
+
+            const { value: selectedClassId } = await Swal.fire({
+                title: 'Chọn lớp để xem lịch sử',
+                text: `Học viên ${student.name} có dữ liệu ở nhiều lớp. Bạn muốn xem chi tiết của lớp nào?`,
+                input: 'select',
+                inputOptions: inputOptions,
+                inputPlaceholder: '--- Chọn lớp ---',
+                showCancelButton: true,
+                confirmButtonColor: '#0066cc',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Xem chi tiết',
+                cancelButtonText: 'Hủy'
+            });
+
+            if (selectedClassId) {
+                renderStudentAttendanceHistoryModal(studentId, selectedClassId, freshAttendanceData);
+            }
+        } else if (participatedClasses.length === 1) {
+            // Chỉ có 1 lớp chuẩn, mở luôn bảng tổng hợp
+            renderStudentAttendanceHistoryModal(studentId, 'all', freshAttendanceData);
+        } else {
+            // Dành cho trường hợp học sinh mới tinh chưa đi học và chưa xếp lớp
+            Swal.fire("Thông báo", "Học viên này chưa tham gia lớp học nào hợp lệ.", "info");
+        }
+
+    } catch (error) {
+        console.error("Lỗi khi mở popup lịch sử:", error);
+        Swal.fire("Lỗi", "Không thể tải dữ liệu. Vui lòng thử lại.", "error");
+        showLoading(false);
+    }
+}
+
+/**
+ * 2. HÀM RENDER BẢNG (Đã fix lỗi lọc theo classId và dùng Fresh Data)
+ */
+async function renderStudentAttendanceHistoryModal(studentId, filterClassId, freshAttendanceData) {
+    showLoading(true);
+    try {
+        const student = allStudentsData[studentId];
         document.getElementById("history-student-name").textContent = student.name;
         const tbody = document.getElementById("student-attendance-history-list");
         tbody.innerHTML = "";
 
-        // Mảng chứa tất cả các buổi đã học từ tất cả các lớp
         let allAttendedSessions = [];
 
-        // Duyệt qua tất cả các lớp trong hệ thống để tìm điểm danh của học viên này
-        // (Cách này đảm bảo lấy được cả dữ liệu từ các lớp cũ/đã hoàn thành nếu còn lưu attendance)
         for (const classId in allClassesData) {
+            // Lọc theo ID lớp được chọn từ popup
+            if (filterClassId !== 'all' && classId !== filterClassId) {
+                continue; 
+            }
+
             const classData = allClassesData[classId];
-            
-            // Kiểm tra xem có dữ liệu điểm danh của lớp này không
-            if (allAttendanceData[classId] && allAttendanceData[classId][studentId]) {
-                const studentAttendance = allAttendanceData[classId][studentId];
+            if (!classData) continue;
+
+            // DÙNG DỮ LIỆU MỚI THAY VÌ BIẾN TOÀN CỤC CŨ
+            if (freshAttendanceData[classId] && freshAttendanceData[classId][studentId]) {
+                const studentAttendance = freshAttendanceData[classId][studentId];
 
                 for (const dateKey in studentAttendance) {
-                    // Chỉ lấy những buổi CÓ ĐI MÃ (attended === true)
                     if (studentAttendance[dateKey]?.attended === true) {
                         
-                        // Lấy thông tin chi tiết buổi học từ classData
                         let sessionInfo = classData.sessions?.[dateKey];
                         let examInfo = classData.exams?.[dateKey];
                         
-                        // Xác định loại buổi và giờ học
                         let type = "Buổi học";
                         let time = "---";
 
                         if (examInfo) {
                             type = examInfo.name || "Bài kiểm tra";
-                            // Bài kiểm tra thường không lưu giờ cụ thể trong cấu trúc cũ, 
-                            // nếu có lưu thì lấy, không thì lấy giờ mặc định từ lịch cố định
                             const dayOfWeek = new Date(dateKey).getDay();
                             time = classData.fixedSchedule?.[dayOfWeek] || "---"; 
                         } else if (sessionInfo) {
@@ -10902,13 +11060,9 @@ async function showStudentAttendanceHistory(studentId) {
                             if (sessionInfo.type === 'makeup') type = "Học bù";
                             else if (sessionInfo.type === 'extra') type = "Học thêm";
                         } else {
-                            // Trường hợp buổi học bị xóa khỏi classes nhưng vẫn còn trong attendance
-                            // hoặc dữ liệu cũ
-                            type = "Không xác định (Dữ liệu cũ)";
+                            type = "Không xác định (Dữ liệu cũ/Đã xóa)";
                         }
 
-                        // Nếu là lớp chứng chỉ và là buổi thi -> KHÔNG TÍNH vào số buổi đã học
-                        // (Theo logic bạn đã yêu cầu trước đó)
                         const isCertificateClass = classData.classType === 'Lớp chứng chỉ';
                         let shouldCount = true;
                         if (isCertificateClass && examInfo) {
@@ -10919,7 +11073,7 @@ async function showStudentAttendanceHistory(studentId) {
                             allAttendedSessions.push({
                                 date: dateKey,
                                 time: time,
-                                className: classData.name,
+                                className: classData.name || "Không rõ lớp",
                                 teacher: classData.teacher || "---",
                                 type: type,
                                 timestamp: new Date(dateKey + 'T00:00:00').getTime()
@@ -10930,15 +11084,12 @@ async function showStudentAttendanceHistory(studentId) {
             }
         }
 
-        // Sắp xếp theo thời gian tăng dần (Cũ -> Mới)
         allAttendedSessions.sort((a, b) => a.timestamp - b.timestamp);
 
-        // Render ra bảng
         if (allAttendedSessions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Học viên chưa tham gia buổi học nào.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Học viên chưa có dữ liệu điểm danh ở lựa chọn này.</td></tr>';
         } else {
             allAttendedSessions.forEach((session, index) => {
-                // Định dạng ngày
                 const dateParts = session.date.split('-');
                 const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
 
@@ -10957,8 +11108,6 @@ async function showStudentAttendanceHistory(studentId) {
         }
 
         document.getElementById("history-total-count").textContent = allAttendedSessions.length;
-        
-        // Hiển thị Modal
         document.getElementById("student-attendance-history-modal").style.display = "flex";
 
     } catch (error) {
